@@ -1,0 +1,95 @@
+package com.example.foodhubapp.core.datastore
+
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+
+/**
+ * Tên của DataStore Preferences lưu trữ thông tin phiên đăng nhập (token).
+ */
+private const val AUTH_DATA_STORE_NAME = "auth_session"
+
+/**
+ * Thuộc tính mở rộng cho [Context] để khởi tạo và truy cập DataStore Preferences quản lý token.
+ */
+private val Context.authDataStore by preferencesDataStore(name = AUTH_DATA_STORE_NAME)
+
+/**
+ * Quản lý việc lưu trữ, truy xuất và xóa các Token xác thực (Access Token, Refresh Token)
+ * sử dụng Jetpack DataStore Preferences một cách an toàn với Coroutines.
+ *
+ * @property context Context của ứng dụng, dùng để truy cập DataStore.
+ */
+class TokenStore(
+    private val context: Context
+) {
+    // Định nghĩa các khóa (key) để lưu trữ token trong Preferences DataStore
+    private val accessTokenKey = stringPreferencesKey("access_token")
+    private val refreshTokenKey = stringPreferencesKey("refresh_token")
+
+    /**
+     * Luồng dữ liệu (Flow) phát ra Access Token hiện tại, tự động cập nhật khi token thay đổi.
+     */
+    val accessToken: Flow<String?> = context.authDataStore.data.map { preferences ->
+        preferences[accessTokenKey]
+    }
+
+    /**
+     * Luồng dữ liệu (Flow) phát ra Refresh Token hiện tại, tự động cập nhật khi token thay đổi.
+     */
+    val refreshToken: Flow<String?> = context.authDataStore.data.map { preferences ->
+        preferences[refreshTokenKey]
+    }
+
+    /**
+     * Lưu trữ Access Token và Refresh Token vào DataStore.
+     * Nếu refresh token trống hoặc null, khóa tương ứng sẽ bị xóa.
+     *
+     * @param accessToken Token truy cập API.
+     * @param refreshToken Token làm mới phiên đăng nhập (có thể null).
+     */
+    suspend fun saveTokens(
+        accessToken: String,
+        refreshToken: String?
+    ) {
+        context.authDataStore.edit { preferences ->
+            // Lưu Access Token
+            preferences[accessTokenKey] = accessToken
+
+            // Kiểm tra và lưu hoặc xóa Refresh Token tùy theo giá trị đầu vào
+            if (refreshToken.isNullOrBlank()) {
+                preferences.remove(refreshTokenKey)
+            } else {
+                preferences[refreshTokenKey] = refreshToken
+            }
+        }
+    }
+
+    /**
+     * Lấy giá trị Access Token hiện tại (đồng bộ một lần qua Flow).
+     *
+     * @return Chuỗi Access Token hoặc null nếu chưa đăng nhập.
+     */
+    suspend fun getAccessToken(): String? = accessToken.first()
+
+    /**
+     * Lấy giá trị Refresh Token hiện tại (đồng bộ một lần qua Flow).
+     *
+     * @return Chuỗi Refresh Token hoặc null nếu không tồn tại.
+     */
+    suspend fun getRefreshToken(): String? = refreshToken.first()
+
+    /**
+     * Xóa toàn bộ token khỏi DataStore khi người dùng đăng xuất hoặc hết hạn phiên.
+     */
+    suspend fun clearTokens() {
+        context.authDataStore.edit { preferences ->
+            preferences.remove(accessTokenKey)
+            preferences.remove(refreshTokenKey)
+        }
+    }
+}

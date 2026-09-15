@@ -1,7 +1,10 @@
 package com.example.foodhubapp.feature.splash.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.session.SessionManager
 import com.example.foodhubapp.feature.splash.data.LocalSplashLoadingRepository
 import com.example.foodhubapp.feature.splash.data.SplashLoadingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +18,7 @@ data class FoodHubSplashUiState(
     val loadingMessage: String = "Đang khởi động FoodHub...",
     val progressPercent: Int = 0,
     val isLoading: Boolean = true,
+    val isAuthenticated: Boolean? = null,
     val errorMessage: String? = null
 ) {
     val progressFraction: Float
@@ -22,8 +26,12 @@ data class FoodHubSplashUiState(
 }
 
 class FoodHubSplashViewModel(
+    application: Application
+) : AndroidViewModel(application) {
     private val repository: SplashLoadingRepository = LocalSplashLoadingRepository()
-) : ViewModel() {
+    private val sessionManager: SessionManager = SessionManager(
+        tokenStore = TokenStore(application.applicationContext)
+    )
 
     private val _uiState = MutableStateFlow(FoodHubSplashUiState())
     val uiState: StateFlow<FoodHubSplashUiState> = _uiState.asStateFlow()
@@ -45,11 +53,19 @@ class FoodHubSplashViewModel(
                     }
                 }
                 .collect { progress ->
+                    val isComplete = progress.progressPercent >= 100
+                    val isAuthenticated = if (isComplete) {
+                        sessionManager.isLoggedIn()
+                    } else {
+                        null
+                    }
+
                     _uiState.update {
                         FoodHubSplashUiState(
                             loadingMessage = progress.message,
                             progressPercent = progress.progressPercent.coerceIn(0, 100),
-                            isLoading = progress.progressPercent < 100
+                            isLoading = !isComplete,
+                            isAuthenticated = isAuthenticated
                         )
                     }
                 }
