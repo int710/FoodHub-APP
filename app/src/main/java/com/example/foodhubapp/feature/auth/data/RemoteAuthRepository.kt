@@ -31,7 +31,7 @@ class RemoteAuthRepository(
         runCatching {
             // 1. Gửi request POST đến endpoint đăng nhập trên server
             val json = apiClient.post(
-                path = "/auth/login",
+                path = "/user/login",
                 body = request.toJson()
             )
             
