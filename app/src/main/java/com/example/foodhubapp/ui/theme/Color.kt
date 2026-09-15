@@ -1,0 +1,29 @@
+package com.example.foodhubapp.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+val AppBackground = Color(0xFFF8F9FF)
+val CeramicSurface = Color(0xFFFBFBFB)
+val SurfaceContainerLow = Color(0xFFF1F3FC)
+val SurfaceVariant = Color(0xFFF3F4F6)
+val Primary = Color(0xFFF95B1C)
+val PrimaryContainer = Color(0xFFD14300)
+val Secondary = Color(0xFFFFB300)
+val Tertiary = Color(0xFF10B981)
+val Neutral = Color(0xFF191D23)
+val OnSurfaceVariant = Color(0xFF5B4138)
+val OutlineVariant = Color(0xFFE3BFB3)
+val Brand = Color(0xFFA73400)
+val BrandDark = Color(0xFF390C00)
+val BrandSoft = Color(0xFFFFDBD0)
+val CardStroke = Color(0xFFECEEF6)
+val MutedDot = Color(0xFFDFE2EB)
+val WarmAccent = Color(0xFFFFDEAC)
+val SoftGreen = Color(0xFF6FFBBE)
