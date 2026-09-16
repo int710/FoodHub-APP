@@ -118,6 +118,40 @@ class FoodHubApiClient(
             connection.disconnect()
         }
     }
+
+    /**
+     * Thực hiện yêu cầu GET và trả về toàn bộ JSON response để Repository tự parse dữ liệu.
+     *
+     * @param path Endpoint cần gọi.
+     * @param accessToken Token đăng nhập, dùng cho các API yêu cầu xác thực.
+     */
+    fun getJson(path: String, accessToken: String? = null): JSONObject {
+        val connection = URL("$baseUrl$path").openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 15_000
+        connection.setRequestProperty("Accept", "application/json")
+        if (!accessToken.isNullOrBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer $accessToken")
+        }
+
+        return try {
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+            val body = BufferedReader(InputStreamReader(stream)).use { it.readText() }
+            if (responseCode !in 200..299) {
+                throw IllegalStateException(parseApiError(responseCode, body))
+            }
+            JSONObject(body)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
 }
 
 /**

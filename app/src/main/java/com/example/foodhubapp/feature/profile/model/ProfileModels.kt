@@ -10,8 +10,12 @@ import com.example.foodhubapp.ui.theme.WarmAccent
 
 data class ProfileUser(
     val name: String,
+    val email: String,
+    val role: String,
     val phoneMasked: String,
-    val tier: String,
+    val dateOfBirth: String?,
+    val isActive: Boolean,
+    val isVerified: Boolean,
     val memberSince: String,
     @DrawableRes val avatarRes: Int
 )
@@ -54,8 +58,12 @@ data class ProfileUiModel(
 val previewProfile = ProfileUiModel(
     user = ProfileUser(
         name = "Thu Hà",
+        email = "thuha@example.com",
+        role = "CUSTOMER",
         phoneMasked = "0987.xxx.890",
-        tier = "Gold VIP",
+        dateOfBirth = "1998-04-20",
+        isActive = true,
+        isVerified = true,
         memberSince = "Khách hàng thân thiết từ 2022",
         avatarRes = R.drawable.profile_avatar_thu_ha
     ),

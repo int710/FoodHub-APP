@@ -1,0 +1,56 @@
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  password            String
+  name                String
+  dateOfBirth         DateTime? @db.Date @map("date_of_birth")
+  phone               String?
+  avatar              String?
+  role                Role      @default(CUSTOMER)
+  isVerified          Boolean   @default(false) @map("is_verified") 
+  isActive            Boolean   @default(true) @map("is_active")
+  verifyEmailToken    String?   @map("verify_email_token")
+  forgotPasswordToken String?   @map("forgot_password_token")
+  invitedById         String?   @map("invited_by_id")
+  lastLoginAt         DateTime? @map("last_login_at")       
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at") 
+
+  refreshToken RefreshToken[]
+
+  orders Order[] @relation("CustomerOrders")
+  confirmedOrders Order[] @relation("ConfirmedByStaff")
+  reviews Review[]
+  flashSales FlashSale[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([verifyEmailToken])
+  @@index([forgotPasswordToken])
+  @@map("users")
+}
+
+
+model RefreshToken {
+  id String @id @default(uuid())
+  token String
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName String? 
+  deviceIP String? @map("device_ip")
+  userAgent String? @map("user_agent")
+  expiresAt DateTime @map("expires_at")
+  revokeAt DateTime? @map("revoke_at")
+  revokeReason String? @map("revoke_reason")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+
+}

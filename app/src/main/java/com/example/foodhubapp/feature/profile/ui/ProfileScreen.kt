@@ -84,7 +84,6 @@ fun ProfileRoute(
 
     ProfileScreen(
         uiState = uiState,
-        onToggleKitchenNotifications = viewModel::toggleKitchenNotifications,
         onLogoutClick = viewModel::logout,
         modifier = modifier)
 }
@@ -92,7 +91,6 @@ fun ProfileRoute(
 @Composable
 fun ProfileScreen(
     uiState: ProfileUiState,
-    onToggleKitchenNotifications: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -105,13 +103,8 @@ fun ProfileScreen(
             .padding(top = 18.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ProfileHeaderCard(profile = uiState.profile)
-        RewardsCard(profile = uiState.profile)
-        QuickAccessSection(items = uiState.profile.quickAccessItems)
-        TastePreferencesCard(notes = uiState.profile.tasteNotes)
-        SettingsSection(
-            items = uiState.profile.settingItems,
-            kitchenNotificationsEnabled = uiState.kitchenNotificationsEnabled,
-            onToggleKitchenNotifications = onToggleKitchenNotifications)
+        uiState.errorMessage?.let { ErrorMessageCard(message = it) }
+        AccountInfoCard(profile = uiState.profile)
         LogoutButton(onClick = onLogoutClick)
     }
 }
@@ -168,7 +161,7 @@ private fun ProfileHeaderCard(profile: ProfileUiModel) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    GoldBadge(text = profile.user.tier)
+                    GoldBadge(text = profile.user.role.toRoleLabel())
                     Text(
                         text = profile.user.memberSince,
                         color = OnSurfaceVariant,
@@ -180,6 +173,82 @@ private fun ProfileHeaderCard(profile: ProfileUiModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountInfoCard(profile: ProfileUiModel) {
+    val user = profile.user
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, CardStroke),
+        shadowElevation = 1.dp) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionTitle(text = "Thông tin tài khoản")
+            ProfileInfoRow(label = "Email", value = user.email)
+            ProfileInfoRow(label = "Vai trò", value = user.role.toRoleLabel())
+            ProfileInfoRow(label = "Ngày sinh", value = user.dateOfBirth ?: "Chưa cập nhật")
+            ProfileInfoRow(
+                label = "Trạng thái",
+                value = if (user.isActive) "Đang hoạt động" else "Đã khóa")
+            ProfileInfoRow(
+                label = "Xác thực email",
+                value = if (user.isVerified) "Đã xác thực" else "Chưa xác thực")
+        }
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            color = OnSurfaceVariant,
+            fontFamily = BodyFont,
+            fontSize = 13.sp,
+            lineHeight = 18.sp)
+        Text(
+            text = value,
+            color = Neutral,
+            fontFamily = BodyFont,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .padding(start = 16.dp)
+                .weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ErrorMessageCard(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BrandSoft,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color(0xFFFFB4A3))) {
+        Text(
+            text = message,
+            color = BrandDark,
+            fontFamily = BodyFont,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(14.dp))
     }
 }
 
@@ -648,13 +717,21 @@ private fun RewardsText(text: String) {
         lineHeight = 15.sp)
 }
 
+private fun String.toRoleLabel(): String {
+    return when (uppercase()) {
+        "ADMIN" -> "Quản trị viên"
+        "STAFF" -> "Nhân viên"
+        "CUSTOMER" -> "Khách hàng"
+        else -> this
+    }
+}
+
 @Preview(showBackground = true, widthDp = 390, heightDp = 948)
 @Composable
 private fun ProfileScreenPreview() {
     FoodHubAppTheme {
         ProfileScreen(
             uiState = ProfileUiState(profile = previewProfile),
-            onToggleKitchenNotifications = {},
             onLogoutClick = {})
     }
 }
