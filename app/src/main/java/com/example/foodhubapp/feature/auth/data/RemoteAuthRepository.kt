@@ -7,6 +7,12 @@ import com.example.foodhubapp.feature.auth.model.LoginRequest
 import com.example.foodhubapp.feature.auth.model.RegisterRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import org.json.JSONObject
+import org.json.JSONException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.io.IOException
 
 /**
  * Repository chịu trách nhiệm thực hiện các tác vụ xác thực (Authentication) từ xa qua Network.
@@ -17,6 +23,27 @@ class RemoteAuthRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
     private val tokenStore: TokenStore
 ) : AuthRepository {
+    override suspend fun forgotPassword(email: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiClient.post(
+                path = "/user/forgot-password",
+                body = JSONObject().put("email", email.trim())
+            )
+            Result.success(response.optString("message"))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: SocketTimeoutException) {
+            Result.failure(IllegalStateException("Máy chủ phản hồi quá lâu. Vui lòng thử lại.", error))
+        } catch (error: UnknownHostException) {
+            Result.failure(IllegalStateException("Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.", error))
+        } catch (error: JSONException) {
+            Result.failure(IllegalStateException("Phản hồi máy chủ không hợp lệ. Vui lòng thử lại sau.", error))
+        } catch (error: IOException) {
+            Result.failure(IllegalStateException("Kết nối bị gián đoạn. Vui lòng thử lại.", error))
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
 
     /**
      * Thực hiện đăng nhập tài khoản.
@@ -31,7 +58,7 @@ class RemoteAuthRepository(
         runCatching {
             // 1. Gửi request POST đến endpoint đăng nhập trên server
             val json = apiClient.post(
-                path = "/auth/login",
+                path = "/user/login",
                 body = request.toJson()
             )
             
@@ -41,7 +68,8 @@ class RemoteAuthRepository(
             // 3. Lưu lại Access Token và Refresh Token vào Local Storage (TokenStore)
             tokenStore.saveTokens(
                 accessToken = response.accessToken,
-                refreshToken = response.refreshToken
+                refreshToken = response.refreshToken,
+                user = response.user
             )
 
             // 4. Trả về thông tin phản hồi thành công
@@ -72,7 +100,8 @@ class RemoteAuthRepository(
             // 3. Lưu lại Access Token và Refresh Token vào Local Storage (TokenStore)
             tokenStore.saveTokens(
                 accessToken = response.accessToken,
-                refreshToken = response.refreshToken
+                refreshToken = response.refreshToken,
+                user = response.user
             )
 
             // 4. Trả về thông tin phản hồi thành công

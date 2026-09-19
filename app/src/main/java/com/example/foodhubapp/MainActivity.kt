@@ -19,10 +19,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             FoodHubAppTheme {
-                // Khởi tạo NavController để quản lý điều hướng giữa các màn hình
                 val navController = rememberNavController()
-
-                // Gọi NavGraph trung tâm của ứng dụng
                 AppNavGraph(navController = navController)
             }
         }

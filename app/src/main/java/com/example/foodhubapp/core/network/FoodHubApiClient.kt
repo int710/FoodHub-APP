@@ -2,11 +2,11 @@ package com.example.foodhubapp.core.network
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 /**
  * Địa chỉ cơ sở (Base URL) mặc định cho các yêu cầu API của ứng dụng FoodHub.
@@ -25,13 +25,17 @@ data class FoodHubApiResponse(
 )
 
 /**
- * Client HTTP gọn nhẹ sử dụng [HttpURLConnection] để thực hiện các yêu cầu GET và POST
+ * Client HTTP gọn nhẹ sử dụng OkHttp để thực hiện các yêu cầu API
  * đến máy chủ FoodHub API.
  *
  * @property baseUrl Đường dẫn cơ sở của API, mặc định là [FOOD_HUB_BASE_URL].
  */
 class FoodHubApiClient(
-    private val baseUrl: String = FOOD_HUB_BASE_URL
+    private val baseUrl: String = FOOD_HUB_BASE_URL,
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
 ) {
     /**
      * Thực hiện yêu cầu HTTP GET đến một đường dẫn API cụ thể.
@@ -41,39 +45,15 @@ class FoodHubApiClient(
      * @throws IllegalStateException nếu phản hồi trả về mã lỗi HTTP.
      */
     fun get(path: String): FoodHubApiResponse {
-        // Thiết lập kết nối HTTP URL Connection
-        val connection = URL("$baseUrl$path").openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 15_000 // Thời gian chờ kết nối (15 giây)
-        connection.readTimeout = 15_000    // Thời gian chờ đọc dữ liệu (15 giây)
-        connection.setRequestProperty("Accept", "application/json")
-
-        return try {
-            val responseCode = connection.responseCode
-            // Chọn luồng đọc dữ liệu dựa trên mã phản hồi (Thành công hay Lỗi)
-            val stream = if (responseCode in 200..299) {
-                connection.inputStream
-            } else {
-                connection.errorStream
-            }
-            val body = BufferedReader(InputStreamReader(stream)).use { it.readText() }
-
-            // Nếu mã trạng thái không nằm trong khoảng thành công, ném ngoại lệ với nội dung lỗi
-            if (responseCode !in 200..299) {
-                throw IllegalStateException(parseApiError(responseCode, body))
-            }
-
-            // Phân tích cú pháp JSON phản hồi
-            val json = JSONObject(body)
-            FoodHubApiResponse(
-                message = json.optString("message", "Request completed"),
-                dataCount = json.opt("data").countItems()
-            )
-        } finally {
-            // Đảm bảo ngắt kết nối HTTP
-            connection.disconnect()
-        }
+        val json = getJson(path)
+        return FoodHubApiResponse(
+            message = json.optString("message", "Request completed"),
+            dataCount = json.opt("data").countItems()
+        )
     }
+
+    fun getJson(path: String, headers: Map<String, String> = emptyMap()): JSONObject =
+        request("GET", path, null, headers)
 
     /**
      * Thực hiện yêu cầu HTTP POST gửi dữ liệu JSON lên máy chủ.
@@ -83,42 +63,44 @@ class FoodHubApiClient(
      * @return Đối tượng [JSONObject] chứa phản hồi từ máy chủ.
      * @throws IllegalStateException nếu phản hồi trả về mã lỗi HTTP.
      */
-    fun post(path: String, body: JSONObject): JSONObject {
-        // Thiết lập kết nối HTTP URL Connection cho phương thức POST
-        val connection = URL("$baseUrl$path").openConnection() as HttpURLConnection
-        connection.requestMethod = "POST"
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 15_000
-        connection.doOutput = true
-        connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("Content-Type", "application/json")
+    fun post(path: String, body: JSONObject, headers: Map<String, String> = emptyMap()): JSONObject =
+        request("POST", path, body, headers)
 
-        return try {
-            // Ghi dữ liệu JSON vào luồng đầu ra của kết nối
-            connection.outputStream.use { output ->
-                output.write(body.toString().toByteArray(StandardCharsets.UTF_8))
-            }
+    /** Dùng cho cập nhật từng phần, ví dụ sửa quantity/options/note của cart item. */
+    fun patch(path: String, body: JSONObject, headers: Map<String, String> = emptyMap()): JSONObject =
+        request("PATCH", path, body, headers)
 
-            val responseCode = connection.responseCode
-            // Chọn luồng đọc tương ứng
-            val stream = if (responseCode in 200..299) {
-                connection.inputStream
-            } else {
-                connection.errorStream
-            }
-            val responseBody = BufferedReader(InputStreamReader(stream)).use { it.readText() }
+    /** DELETE không gửi body; endpoint cart dùng hàm này cho xóa dòng và clear. */
+    fun delete(path: String, headers: Map<String, String> = emptyMap()): JSONObject =
+        request("DELETE", path, null, headers)
 
-            // Kiểm tra lỗi phản hồi từ API
+    /** Điểm chung xử lý header, JSON, HTTP status và lỗi cho mọi method. */
+    private fun request(method: String, path: String, body: JSONObject?, headers: Map<String, String>): JSONObject {
+        val requestBody = body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder()
+            .url("$baseUrl$path")
+            .header("Accept", "application/json")
+            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .method(method, requestBody)
+            .build()
+
+        return httpClient.newCall(request).execute().use { response ->
+            val responseCode = response.code
+            val responseBody = response.body?.string().orEmpty()
             if (responseCode !in 200..299) {
-                throw IllegalStateException(parseApiError(responseCode, responseBody))
+                throw FoodHubApiException(responseCode, parseApiError(responseCode, responseBody))
             }
-
+            // DELETE thành công thường trả 204 No Content; coi đó là JSON rỗng hợp lệ.
+            if (responseBody.isBlank()) return JSONObject()
+            if (!responseBody.trimStart().startsWith("{")) {
+                throw IllegalStateException("Máy chủ chưa trả dữ liệu JSON. Vui lòng thử lại sau.")
+            }
             JSONObject(responseBody)
-        } finally {
-            connection.disconnect()
         }
     }
 }
+
+class FoodHubApiException(val statusCode: Int, message: String) : IllegalStateException(message)
 
 /**
  * Phân tích thông điệp lỗi trả về từ phản hồi API khi gặp sự cố (mã lỗi HTTP khác 2xx).
@@ -128,6 +110,9 @@ class FoodHubApiClient(
  * @return Thông điệp lỗi đã được định dạng rõ ràng cho người dùng.
  */
 private fun parseApiError(responseCode: Int, body: String): String {
+    if (body.trimStart().startsWith("<")) {
+        return "Máy chủ đang chặn yêu cầu hoặc chưa sẵn sàng (HTTP $responseCode). Vui lòng thử lại sau."
+    }
     return runCatching {
         val json = JSONObject(body)
         val errors = json.optJSONObject("errors")

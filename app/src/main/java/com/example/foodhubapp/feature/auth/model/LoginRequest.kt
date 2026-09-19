@@ -8,8 +8,7 @@ data class LoginRequest(
 ) {
     fun toJson(): JSONObject {
         return JSONObject()
-            .put("account", account)
-            .put("emailOrPhone", account)
+            .put("email", account.trim())
             .put("password", password)
     }
 }
