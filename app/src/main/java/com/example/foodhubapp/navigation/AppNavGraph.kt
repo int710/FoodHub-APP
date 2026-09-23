@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.foodhubapp.feature.auth.ui.LoginRoute
 import com.example.foodhubapp.feature.auth.ui.RegisterRoute
+import com.example.foodhubapp.feature.home.ui.HomeRoute
 import com.example.foodhubapp.feature.onboarding.ui.OnboardingScreen
 import com.example.foodhubapp.feature.splash.ui.FoodHubSplashRoute
 import com.example.foodhubapp.ui.theme.AppBackground
@@ -72,7 +73,7 @@ fun AppNavGraph(
 
         // 3. Màn hình Home: Trang chủ sau khi đăng nhập thành công
         composable(AppRoutes.Home) {
-            PlaceholderScreen(title = "Home")
+            HomeRoute()
         }
 
         // 4. Màn hình Đăng nhập (Login)
