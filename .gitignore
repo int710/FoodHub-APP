@@ -5,3 +5,7 @@ app/build/
 local.properties
 *.iml
 
+.gradle
+FIGMA_TO_COMPOSE_README.md
+FoodHub-main
+README.md

@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,21 +19,31 @@ import androidx.compose.ui.tooling.preview.Preview
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { FoodHubApp() }
+        setContent { FoodHubApp(onExit = ::finish) }
     }
 }
 
 @Composable
-fun FoodHubApp() {
-    var page by remember { mutableStateOf(0) }
+fun FoodHubApp(onExit: () -> Unit = {}) {
+    var isAdmin by remember { mutableStateOf(true) }
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
-            if (page == 0) {
-                ScanScreen(onContinue = { page = 1 })
+            if (isAdmin) {
+                AdminApp(onLogout = { isAdmin = false })
             } else {
-                ChatScreen(onBack = { page = 0 })
+                CustomerFoodHubFlow(onExit)
             }
         }
+    }
+}
+
+@Composable
+private fun CustomerFoodHubFlow(onExit: () -> Unit) {
+    var page by remember { mutableIntStateOf(0) }
+    if (page == 0) {
+        ScanScreen(onContinue = { page = 1 }, onBack = onExit)
+    } else {
+        ChatScreen(onBack = { page = 0 })
     }
 }
 
