@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +57,7 @@ fun LoginRoute(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = viewModel()
 ) {
@@ -77,6 +79,7 @@ fun LoginRoute(
         onLoginClick = viewModel::login,
         onRegisterClick = onRegisterClick,
         onGuestQrClick = onGuestQrClick,
+        onForgotPasswordClick = onForgotPasswordClick,
         modifier = modifier
     )
 }
@@ -92,6 +95,7 @@ fun LoginScreen(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -117,8 +121,8 @@ fun LoginScreen(
                 .blur(48.dp)
         )
 
-        Column(modifier = Modifier.fillMaxSize()) {
-
+        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            AuthHeaderBar(onBackClick = onBackClick)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -155,7 +159,8 @@ fun LoginScreen(
                     onPasswordChange = onPasswordChange,
                     onTogglePassword = onTogglePassword,
                     onToggleRemember = onToggleRemember,
-                    onLoginClick = onLoginClick
+                    onLoginClick = onLoginClick,
+                    onForgotPasswordClick = onForgotPasswordClick
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 DividerLabel(text = "Hoặc đăng nhập nhanh bằng")
@@ -197,7 +202,8 @@ private fun LoginFormCard(
     onPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
     onToggleRemember: () -> Unit,
-    onLoginClick: () -> Unit
+    onLoginClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -235,7 +241,8 @@ private fun LoginFormCard(
                 text = "Ghi nhớ đăng nhập",
                 checked = uiState.rememberMe,
                 onClick = onToggleRemember,
-                trailingText = "Quên mật khẩu?"
+                trailingText = "Quên mật khẩu?",
+                onTrailingClick = onForgotPasswordClick
             )
             if (uiState.errorMessage != null) {
                 Text(

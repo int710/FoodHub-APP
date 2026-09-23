@@ -36,6 +36,8 @@ android {
 }
 
 dependencies {
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.navigation.compose)
@@ -62,10 +64,11 @@ dependencies {
     implementation("io.socket:socket.io-client:2.1.2") {
         exclude(group = "org.json", module = "json")
     }
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

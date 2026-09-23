@@ -85,6 +85,7 @@ internal fun AuthHeaderBar(
             IconCircleButton(
                 iconRes = R.drawable.ic_auth_back,
                 contentDescription = "Quay lại",
+                color = PrimaryContainer,
                 onClick = onBackClick
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -627,6 +628,7 @@ internal fun SmallFoodHubLogo() {
 internal fun IconCircleButton(
     @DrawableRes iconRes: Int,
     contentDescription: String,
+    color :  Color,
     onClick: () -> Unit
 ) {
     Box(
@@ -639,7 +641,9 @@ internal fun IconCircleButton(
         Image(
             painter = painterResource(id = iconRes),
             contentDescription = contentDescription,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
+            colorFilter = ColorFilter.tint(color)
+
         )
     }
 }

@@ -7,6 +7,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import com.example.foodhubapp.feature.auth.model.UserDto
+import org.json.JSONObject
 
 /**
  * Tên của DataStore Preferences lưu trữ thông tin phiên đăng nhập (token).
@@ -30,6 +32,12 @@ class TokenStore(
     // Định nghĩa các khóa (key) để lưu trữ token trong Preferences DataStore
     private val accessTokenKey = stringPreferencesKey("access_token")
     private val refreshTokenKey = stringPreferencesKey("refresh_token")
+    private val userKey = stringPreferencesKey("user")
+    val user: Flow<UserDto?> = context.authDataStore.data.map { preferences ->
+        preferences[userKey]?.let { value ->
+            runCatching { UserDto.fromJson(JSONObject(value)) }.getOrNull()
+        }
+    }
 
     /**
      * Luồng dữ liệu (Flow) phát ra Access Token hiện tại, tự động cập nhật khi token thay đổi.
@@ -54,11 +62,22 @@ class TokenStore(
      */
     suspend fun saveTokens(
         accessToken: String,
-        refreshToken: String?
+        refreshToken: String?,
+        user: UserDto? = null
     ) {
         context.authDataStore.edit { preferences ->
             // Lưu Access Token
             preferences[accessTokenKey] = accessToken
+            if (user == null) {
+                preferences.remove(userKey)
+            } else {
+                preferences[userKey] = JSONObject()
+                    .put("id", user.id)
+                    .put("fullName", user.fullName)
+                    .put("phoneNumber", user.phoneNumber ?: "")
+                    .put("email", user.email ?: "")
+                    .toString()
+            }
 
             // Kiểm tra và lưu hoặc xóa Refresh Token tùy theo giá trị đầu vào
             if (refreshToken.isNullOrBlank()) {
@@ -90,6 +109,7 @@ class TokenStore(
         context.authDataStore.edit { preferences ->
             preferences.remove(accessTokenKey)
             preferences.remove(refreshTokenKey)
+            preferences.remove(userKey)
         }
     }
 }

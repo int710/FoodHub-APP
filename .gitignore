@@ -15,3 +15,8 @@
 local.properties
 /.idea
 FIGMA_TO_COMPOSE_README.md
+API_ENDPOINTS_TEMP.md
+.env
+*.env
+FoodHub-main
+node_modules/

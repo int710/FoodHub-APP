@@ -5,71 +5,48 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.session.SessionManager
-import com.example.foodhubapp.feature.profile.data.ProfileRepository
-import com.example.foodhubapp.feature.profile.data.RemoteProfileRepository
+import com.example.foodhubapp.feature.auth.model.UserDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ProfileViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-    private val tokenStore = TokenStore(application.applicationContext)
-    private val sessionManager = SessionManager(
-        tokenStore = tokenStore
-    )
-    private val profileRepository: ProfileRepository = RemoteProfileRepository(
-        tokenStore = tokenStore
-    )
+data class ProfileUiState(
+    val user: UserDto? = null,
+    val isLoggingOut: Boolean = false,
+    val isLoggedOut: Boolean = false,
+    val errorMessage: String? = null
+)
 
-    private val _uiState = MutableStateFlow(ProfileUiState())
-    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+class ProfileViewModel(application: Application) : AndroidViewModel(application) {
+    private val tokenStore = TokenStore(application.applicationContext)
+    private val sessionManager = SessionManager(tokenStore)
+    private val state = MutableStateFlow(ProfileUiState())
+    val uiState = state.asStateFlow()
 
     init {
-        loadProfile()
-    }
-
-    fun loadProfile() {
-        if (_uiState.value.isLoading) return
-
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(isLoading = true, errorMessage = null)
+            if (!sessionManager.isLoggedIn()) {
+                state.update { it.copy(isLoggedOut = true) }
+            } else {
+                tokenStore.user.collect { user -> state.update { it.copy(user = user) } }
             }
-
-            profileRepository.getProfileData()
-                .onSuccess { profile ->
-                    _uiState.update {
-                        it.copy(
-                            profile = profile,
-                            isLoading = false,
-                            errorMessage = null
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Không tải được hồ sơ"
-                        )
-                    }
-                }
-        }
-    }
-
-    fun toggleKitchenNotifications() {
-        _uiState.update {
-            it.copy(kitchenNotificationsEnabled = !it.kitchenNotificationsEnabled)
         }
     }
 
     fun logout() {
+        if (state.value.isLoggingOut || state.value.isLoggedOut) return
+        state.update { it.copy(isLoggingOut = true, errorMessage = null) }
         viewModelScope.launch {
-            sessionManager.logout()
-            _uiState.update { it.copy(isLoggedOut = true) }
+            try {
+                sessionManager.logout()
+                state.update { ProfileUiState(isLoggedOut = true) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                state.update { it.copy(isLoggingOut = false, errorMessage = "Không thể đăng xuất. Vui lòng thử lại.") }
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ import com.example.foodhubapp.feature.auth.model.RegisterRequest
  * (đăng nhập, đăng ký tài khoản).
  */
 interface AuthRepository {
+    suspend fun forgotPassword(email: String): Result<String>
     /**
      * Thực hiện đăng nhập tài khoản vào hệ thống.
      *
