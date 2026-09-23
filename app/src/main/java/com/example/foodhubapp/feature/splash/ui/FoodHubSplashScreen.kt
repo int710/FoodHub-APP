@@ -62,16 +62,18 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun FoodHubSplashRoute(
-    onSplashFinished: () -> Unit,
+    onSplashFinished: (isAuthenticated: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FoodHubSplashViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(uiState.isLoading) {
-        if (!uiState.isLoading) {
+    LaunchedEffect(uiState.isLoading, uiState.isAuthenticated) {
+        val isAuthenticated = uiState.isAuthenticated
+
+        if (!uiState.isLoading && isAuthenticated != null) {
             delay(450)
-            onSplashFinished()
+            onSplashFinished(isAuthenticated)
         }
     }
 
