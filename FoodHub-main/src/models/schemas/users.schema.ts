@@ -13,6 +13,7 @@ export const registerBodySchema = z
       .regex(REGEX_PASSWORD, { error: ' Mật khẩu phải bao gồm chữ cái, số và kí tự đặc biệt' }),
     confirmPassword: z.string({ error: 'Vui lòng xác nhận mật khẩu' }).trim(),
     name: z.string().trim().max(100, { error: 'Tên không được dài quá 100 kí tự' }),
+    phone: z.string().trim().min(8, 'Số điện thoại không hợp lệ').max(20).optional(),
     dateOfBirth: z.coerce.date({ error: 'Ngày sinh không đúng định dạng (YYYY-MM-DD)' }).optional()
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -77,3 +78,13 @@ const resetPasswordSchema = z
 
 export const resetPasswordReq = z.object({ body: resetPasswordSchema })
 export type ResetPasswordReq = z.infer<typeof resetPasswordSchema>
+
+export const updateProfileReq = z.object({
+  body: z.object({
+    name: z.string().trim().min(1).max(100).optional(),
+    phone: z.string().trim().max(20).nullable().optional(),
+    dateOfBirth: z.coerce.date().nullable().optional(),
+    avatar: z.url().nullable().optional()
+  }).refine((value) => Object.keys(value).length > 0, 'Cần ít nhất một thông tin cần cập nhật')
+})
+export type UpdateProfileReq = z.infer<typeof updateProfileReq>['body']

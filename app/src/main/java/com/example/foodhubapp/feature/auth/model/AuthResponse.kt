@@ -1,3 +1,5 @@
+@file:Suppress("SameParameterValue")
+
 package com.example.foodhubapp.feature.auth.model
 
 import org.json.JSONObject

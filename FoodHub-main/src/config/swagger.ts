@@ -358,7 +358,7 @@ export const openApiDocument: OpenAPIV3.Document = {
       }
     },
     '/payment/vnpay/return': {
-      get: operation('Handle VNPay browser return', ['Payments'], { '200': successResponse('JSON response when FE_URL is not configured'), '302': { description: 'Redirect to frontend payment result page' } })
+      get: operation('Handle VNPay browser return', ['Payments'], { '302': { description: 'Redirect to the configured app deep link with payment result' } })
     },
     '/payment/vnpay/ipn': {
       get: operation('Handle VNPay server callback', ['Payments'], { '200': { description: 'VNPay acknowledgement' } })

@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.auth.viewmodel
 
 import android.app.Application
+import android.util.Patterns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
@@ -71,13 +72,6 @@ class RegisterViewModel(
     }
 
     /**
-     * Cập nhật mã giới thiệu (nếu có) khi người dùng nhập.
-     */
-    fun onReferralCodeChange(value: String) {
-        _uiState.update { it.copy(referralCode = value, errorMessage = null) }
-    }
-
-    /**
      * Thay đổi trạng thái hiển thị hoặc ẩn mật khẩu.
      */
     fun togglePasswordVisibility() {
@@ -105,6 +99,7 @@ class RegisterViewModel(
         val validationMessage = when {
             state.fullName.isBlank() -> "Vui lòng nhập họ và tên"
             state.phoneNumber.isBlank() -> "Vui lòng nhập số điện thoại"
+            !Patterns.EMAIL_ADDRESS.matcher(state.email.trim()).matches() -> "Vui lòng nhập email hợp lệ"
             state.passwordStrength != PasswordStrength.STRONG -> {
                 "Mật khẩu cần ít nhất 8 ký tự, gồm chữ cái, số và ký tự đặc biệt"
             }
@@ -128,10 +123,9 @@ class RegisterViewModel(
                 RegisterRequest(
                     fullName = state.fullName.trim(),
                     phoneNumber = state.phoneNumber.trim(),
-                    email = state.email.trim().ifBlank { null },
+                    email = state.email.trim(),
                     password = state.password,
-                    confirmPassword = state.password,
-                    referralCode = state.referralCode.trim().ifBlank { null }
+                    confirmPassword = state.password
                 )
             ).onSuccess {
                 // Đăng ký thành công, cập nhật trạng thái hoàn tất

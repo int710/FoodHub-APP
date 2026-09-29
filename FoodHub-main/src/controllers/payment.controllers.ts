@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { Prisma } from '~/generated/prisma/client'
-import { OrderStatus, OrderType, PaymentStatus } from '~/generated/prisma/enums'
+import { OrderStatus, OrderType, PaymentStatus, Role } from '~/generated/prisma/enums'
 import { prisma } from '~/config/prisma'
 import { vnpay } from '~/config/vnpay'
 import cartsServices, { CartType } from '~/services/carts.services'
@@ -18,6 +18,10 @@ import type { ReturnQueryFromVNPay } from 'vnpay/types'
 import { ApiResponse } from '~/models/ApiResponse'
 import paymentServices from '~/services/payments.services'
 import notificationsServices from '~/services/notifications.services'
+import { emitNewOrder } from '~/socket/orders/order.emitter'
+import HTTP_STATUS from '~/constants/httpStatus'
+import { ErrorWithStatus } from '~/models/Errors'
+import { clientLink } from '~/utils/client-link'
 
 const mapOrderTypeToCartType = (type: OrderType): CartType => {
   if (type === OrderType.DINE_IN) return CartType.DINE_IN
@@ -37,6 +41,26 @@ const getClientIp = (req: Request): string => {
   return ip
 }
 
+function assertCanAccessOrder<T extends { customerId: string | null }>(
+  req: Request,
+  order: T | null
+): asserts order is T {
+  if (!order) {
+    throw new ErrorWithStatus({
+      httpStatusCode: HTTP_STATUS.NOT_FOUND,
+      message: 'Không tìm thấy đơn'
+    })
+  }
+  const actor = req.decoded_authorization
+  const isHost = actor?.role === Role.ADMIN || actor?.role === Role.STAFF
+  if (!isHost && order.customerId !== actor?.user_id) {
+    throw new ErrorWithStatus({
+      httpStatusCode: HTTP_STATUS.FORBIDDEN,
+      message: 'Bạn không có quyền truy cập thanh toán của đơn này'
+    })
+  }
+}
+
 const paymentController = {
   async createPaymentUrl(req: Request, res: Response) {
     const { orderCode } = req.body as { orderCode?: string }
@@ -49,10 +73,7 @@ const paymentController = {
       where: { orderCode },
       include: { payments: true }
     })
-
-    if (!order) {
-      return res.status(404).json({ message: 'Không tìm thấy đơn' })
-    }
+    assertCanAccessOrder(req, order)
 
     if (order.status !== OrderStatus.PENDING_PAYMENT) {
       return res.status(400).json({
@@ -82,23 +103,18 @@ const paymentController = {
   async paymentReturn(req: Request, res: Response) {
     const verify = vnpay.verifyReturnUrl(req.query as ReturnQueryFromVNPay)
 
-    // Nếu chưa có FE thì trả JSON luôn cho dễ test
-    if (!process.env.FE_URL) {
-      return res.json({
-        isVerified: verify.isVerified,
-        isSuccess: verify.isSuccess,
-        orderCode: verify.vnp_TxnRef,
-        message: verify.message
-      })
-    }
-
     if (!verify.isVerified) {
-      return res.redirect(`${process.env.FE_URL}/payment/failed?reason=invalid_checksum`)
+      return res.redirect(clientLink('payment/failed', { reason: 'invalid_checksum' }))
     }
     if (!verify.isSuccess) {
-      return res.redirect(`${process.env.FE_URL}/payment/failed?orderCode=${verify.vnp_TxnRef}&code=${verify.vnp_ResponseCode}`)
+      return res.redirect(clientLink('payment/failed', {
+        orderCode: String(verify.vnp_TxnRef || ''),
+        code: String(verify.vnp_ResponseCode || '')
+      }))
     }
-    return res.redirect(`${process.env.FE_URL}/payment/success?orderCode=${verify.vnp_TxnRef}`)
+    return res.redirect(clientLink('payment/success', {
+      orderCode: String(verify.vnp_TxnRef || '')
+    }))
   },
 
   async paymentIpn(req: Request, res: Response) {
@@ -141,15 +157,16 @@ const paymentController = {
       }
 
       if (verify.isSuccess && verify.vnp_ResponseCode === '00') {
-        await prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: { id: order.id },
+        const paymentApplied = await prisma.$transaction(async (tx) => {
+          const updated = await tx.order.updateMany({
+            where: { id: order.id, status: OrderStatus.PENDING_PAYMENT },
             data: {
               status: OrderStatus.PENDING_CONFIRMATION,
               paidAt: new Date(),
               expireAt: null
             }
           })
+          if (updated.count === 0) return false
 
           await tx.payment.update({
             where: { id: payment.id },
@@ -160,7 +177,12 @@ const paymentController = {
               paidAt: new Date()
             }
           })
+          return true
         })
+
+        if (!paymentApplied) {
+          return res.status(200).json(InpOrderAlreadyConfirmed)
+        }
 
         await notificationsServices.createOrderStatusNotification({
           orderId: order.id,
@@ -172,6 +194,7 @@ const paymentController = {
         await notificationsServices.createOrderCreated(order.id).catch((error) => {
           console.error('[Notification] Failed to create paid order notification:', error)
         })
+        emitNewOrder({ orderId: order.id, orderCode: order.orderCode })
 
         try {
           const cartType = mapOrderTypeToCartType(order.type)
@@ -215,6 +238,11 @@ const paymentController = {
 
   async detailPayment(req: Request<{ orderId: string }>, res: Response) {
     const { orderId } = req.params
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { customerId: true }
+    })
+    assertCanAccessOrder(req, order)
     const result = await paymentServices.detailPayment(orderId)
     return res.json(ApiResponse('Chi tiết thanh toán hóa đơn', result))
   },

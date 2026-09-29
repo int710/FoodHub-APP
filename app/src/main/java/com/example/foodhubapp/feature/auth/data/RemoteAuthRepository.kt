@@ -5,6 +5,7 @@ import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.auth.model.AuthResponse
 import com.example.foodhubapp.feature.auth.model.LoginRequest
 import com.example.foodhubapp.feature.auth.model.RegisterRequest
+import com.example.foodhubapp.feature.auth.model.UserDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
@@ -23,6 +24,25 @@ class RemoteAuthRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
     private val tokenStore: TokenStore
 ) : AuthRepository {
+    override suspend fun resetPassword(token: String, password: String, confirmation: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                apiClient.post(
+                    "/user/reset-password",
+                    JSONObject()
+                        .put("forgot_password_token", token.trim())
+                        .put("new_password", password)
+                        .put("confirmNewPassword", confirmation),
+                ).optString("message")
+            }
+        }
+
+    override suspend fun verifyEmail(token: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            apiClient.post("/user/verify-email", JSONObject().put("verify_email_token", token.trim()))
+                .optString("message")
+        }
+    }
     override suspend fun forgotPassword(email: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val response = apiClient.post(
@@ -65,15 +85,17 @@ class RemoteAuthRepository(
             // 2. Chuyển đổi chuỗi JSON nhận được thành đối tượng AuthResponse
             val response = AuthResponse.fromJson(json)
 
+            val user = response.user ?: loadCurrentUser(response.accessToken)
+
             // 3. Lưu lại Access Token và Refresh Token vào Local Storage (TokenStore)
             tokenStore.saveTokens(
                 accessToken = response.accessToken,
                 refreshToken = response.refreshToken,
-                user = response.user
+                user = user
             )
 
             // 4. Trả về thông tin phản hồi thành công
-            response
+            response.copy(user = user)
         }
     }
 
@@ -97,15 +119,22 @@ class RemoteAuthRepository(
             // 2. Chuyển đổi chuỗi JSON nhận được thành đối tượng AuthResponse
             val response = AuthResponse.fromJson(json)
 
+            val user = response.user ?: loadCurrentUser(response.accessToken)
+
             // 3. Lưu lại Access Token và Refresh Token vào Local Storage (TokenStore)
             tokenStore.saveTokens(
                 accessToken = response.accessToken,
                 refreshToken = response.refreshToken,
-                user = response.user
+                user = user
             )
 
             // 4. Trả về thông tin phản hồi thành công
-            response
+            response.copy(user = user)
         }
     }
+
+    private fun loadCurrentUser(accessToken: String) = UserDto.fromJson(
+        apiClient.getJson("/user/me", accessToken).optJSONObject("data")
+            ?: throw IllegalStateException("API không trả về thông tin người dùng")
+    )
 }

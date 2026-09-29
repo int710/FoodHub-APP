@@ -414,6 +414,40 @@ class OrdersServices {
     return updatedOrder
   }
 
+  async completeOrder(orderId: string) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payments: { select: { status: true } } }
+    })
+    if (!order) {
+      throw new ErrorWithStatus({ httpStatusCode: HTTP_STATUS.NOT_FOUND, message: 'Không tìm thấy đơn hàng' })
+    }
+    if (order.status !== OrderStatus.SERVED) {
+      throw new ErrorWithStatus({ httpStatusCode: HTTP_STATUS.BAD_REQUEST, message: 'Chỉ có thể hoàn tất đơn đã phục vụ' })
+    }
+    if (!order.payments.some((payment) => payment.status === PaymentStatus.PAID)) {
+      throw new ErrorWithStatus({ httpStatusCode: HTTP_STATUS.CONFLICT, message: 'Đơn chưa được thanh toán' })
+    }
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.COMPLETED },
+      include: orderDetailInclude
+    })
+    emitOrderStatusUpdate({
+      orderId: updated.id,
+      orderType: updated.type,
+      previousStatus: OrderStatus.SERVED,
+      status: updated.status,
+      updatedAt: updated.updatedAt.toISOString()
+    })
+    await notificationsServices.createOrderStatusNotification({
+      orderId: updated.id,
+      previousStatus: OrderStatus.SERVED,
+      status: updated.status
+    }).catch((error) => console.error('[Notification] Failed to create completion notification:', error))
+    return updated
+  }
+
   async cancelOrder(orderId: string, actorId: string, actorRole: Role, reason: string) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },

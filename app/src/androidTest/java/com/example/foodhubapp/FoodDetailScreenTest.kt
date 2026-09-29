@@ -4,7 +4,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.foodhubapp.feature.menu.ui.*
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

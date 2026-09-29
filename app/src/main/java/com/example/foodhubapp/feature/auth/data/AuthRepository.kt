@@ -10,6 +10,10 @@ import com.example.foodhubapp.feature.auth.model.RegisterRequest
  */
 interface AuthRepository {
     suspend fun forgotPassword(email: String): Result<String>
+    suspend fun resetPassword(token: String, password: String, confirmation: String): Result<String> =
+        Result.failure(UnsupportedOperationException())
+    suspend fun verifyEmail(token: String): Result<String> =
+        Result.failure(UnsupportedOperationException())
     /**
      * Thực hiện đăng nhập tài khoản vào hệ thống.
      *

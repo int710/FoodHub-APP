@@ -26,9 +26,9 @@ class PaymentServices {
       })
     }
 
-    const orderPayment = order.payments[0] // lấy phần tử đầu
+    const orderPayment = order.payments.find((payment) => payment.method === PaymentMethod.CASH)
 
-    if (orderPayment.method !== PaymentMethod.CASH) {
+    if (!orderPayment) {
       throw new ErrorWithStatus({
         httpStatusCode: HTTP_STATUS.BAD_REQUEST,
         message: 'Đơn này không phải tiền mặt'

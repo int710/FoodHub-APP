@@ -9,8 +9,25 @@ import { ErrorWithStatus } from '~/models/Errors'
 import { TableReqBody } from '~/models/schemas/table.schema'
 import { signToken } from '~/utils/jwt'
 import { generateQR } from '~/utils/QRCode'
+import { ConversationServices } from '~/services/conversation.services'
 
 class TableServices {
+  async getAllTables() {
+    return prisma.table.findMany({
+      select: {
+        id: true,
+        name: true,
+        capacity: true,
+        floor: true,
+        note: true,
+        qrToken: true,
+        isActive: true,
+        createdAt: true
+      },
+      orderBy: [{ floor: 'asc' }, { name: 'asc' }]
+    })
+  }
+
   async createNewTable(body: TableReqBody) {
     const { name, capacity, floor, note } = body
     const tableExists = await prisma.table.findUnique({ where: { name } })
@@ -102,9 +119,7 @@ class TableServices {
                 'CONFIRMED',
                 'PREPARING',
                 'READY',
-                'SERVED',
-                'CANCELLED',
-                'PAYMENT_FAILED'
+                'SERVED'
               ]
             }
           },
@@ -141,9 +156,7 @@ class TableServices {
                   'PREPARING',
                   'CONFIRMED',
                   'SERVED',
-                  'READY',
-                  'CANCELLED',
-                  'PAYMENT_FAILED'
+                  'READY'
                 ]
               }
             }
@@ -202,6 +215,30 @@ class TableServices {
   async transferHost(tableId: string, newSessionId: string) {
     await redis.set(RedisKey.tableHost(tableId), newSessionId, TTL_8H)
     return { ok: true }
+  }
+
+  async endSession(tableId: string, sessionId: string) {
+    const sessionsKey = RedisKey.tableSessions(tableId)
+    await Promise.all([
+      redis.del(RedisKey.tableSession(sessionId)),
+      redis.srem(sessionsKey, sessionId)
+    ])
+
+    const currentHost = await redis.get<string>(RedisKey.tableHost(tableId))
+    if (currentHost === sessionId) {
+      const remaining = await redis.smembers(sessionsKey)
+      if (remaining.length > 0) await redis.set(RedisKey.tableHost(tableId), remaining[0], TTL_8H)
+      else await redis.del(RedisKey.tableHost(tableId))
+    }
+
+    const remainingCount = await redis.scard(sessionsKey)
+    if (remainingCount === 0) {
+      await Promise.all([
+        redis.del(sessionsKey, RedisKey.cartTable(tableId)),
+        ConversationServices.closeForCustomer(tableId)
+      ])
+    }
+    return { ended: true, tableId, sessionId, remainingSessions: remainingCount }
   }
 }
 

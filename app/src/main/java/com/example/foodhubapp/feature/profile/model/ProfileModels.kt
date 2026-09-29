@@ -3,15 +3,15 @@ package com.example.foodhubapp.feature.profile.model
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
 import com.example.foodhubapp.R
-import com.example.foodhubapp.ui.theme.BrandSoft
-import com.example.foodhubapp.ui.theme.InputBackground
-import com.example.foodhubapp.ui.theme.SoftGreen
-import com.example.foodhubapp.ui.theme.WarmAccent
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.InputBackground
+import com.example.foodhubapp.theme.WarmAccent
 
 data class ProfileUser(
     val name: String,
     val email: String,
     val role: String,
+    val phone: String?,
     val phoneMasked: String,
     val dateOfBirth: String?,
     val isActive: Boolean,
@@ -60,6 +60,7 @@ val previewProfile = ProfileUiModel(
         name = "Thu Hà",
         email = "thuha@example.com",
         role = "CUSTOMER",
+        phone = "0987123890",
         phoneMasked = "0987.xxx.890",
         dateOfBirth = "1998-04-20",
         isActive = true,

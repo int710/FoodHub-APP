@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -36,8 +37,23 @@ import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.home.viewmodel.HomeUiState
 import com.example.foodhubapp.feature.home.viewmodel.HomeViewModel
 import com.example.foodhubapp.feature.menu.data.MenuFood
-import com.example.foodhubapp.ui.theme.*
-import kotlinx.coroutines.launch
+import com.example.foodhubapp.feature.notification.viewmodel.NotificationViewModel
+import com.example.foodhubapp.feature.cart.data.CartType
+import com.example.foodhubapp.feature.order.data.OrderingContextStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.InputBackground
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.PrimaryContainer
+import com.example.foodhubapp.theme.SoftGreen
+import com.example.foodhubapp.theme.SuccessDark
+import com.example.foodhubapp.theme.SuccessSoft
+import com.example.foodhubapp.theme.WarmAccent
+import com.example.foodhubapp.theme.Warning
+import com.example.foodhubapp.theme.WarningDark
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -48,22 +64,30 @@ fun HomeRoute(
     onCartClick: () -> Unit,
     onOrdersClick: () -> Unit,
     onProfileClick: () -> Unit,
-    viewModel: HomeViewModel = viewModel()
+    onQrClick: () -> Unit,
+    onChatClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    viewModel: HomeViewModel = viewModel(),
+    notificationViewModel: NotificationViewModel = viewModel(),
 ) {
+    val context = LocalContext.current
+    val tableSessionStore = remember(context) { TableSessionStore(context.applicationContext) }
+    val orderingContextStore = remember(context) { OrderingContextStore(context.applicationContext) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val unavailable = { label: String ->
-        scope.launch { snackbar.showSnackbar("$label chưa khả dụng với API hiện tại.") }
-        Unit
-    }
+    val notificationState by notificationViewModel.uiState.collectAsStateWithLifecycle()
+    var hasTableSession by remember { mutableStateOf(tableSessionStore.current() != null) }
 
     // Cập nhật lại badge cart và menu khi người dùng quay về từ màn chi tiết/giỏ.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.load()
+        hasTableSession = tableSessionStore.current() != null
+        notificationViewModel.refresh()
+    }
 
     HomeScreen(
         state = state,
         onQueryChange = viewModel::onQueryChange,
+        onMaxPriceChange = viewModel::selectMaxPrice,
         onCategoryClick = viewModel::selectCategory,
         onRetry = viewModel::load,
         onFoodClick = onFoodClick,
@@ -71,8 +95,15 @@ fun HomeRoute(
         onCartClick = onCartClick,
         onOrdersClick = onOrdersClick,
         onProfileClick = onProfileClick,
-        onUnavailable = unavailable,
-        snackbarHost = { SnackbarHost(snackbar) }
+        onQrClick = onQrClick,
+        onDeliveryClick = {
+            orderingContextStore.select(CartType.DELIVERY)
+            onMenuClick()
+        },
+        hasTableSession = hasTableSession,
+        onChatClick = onChatClick,
+        onNotificationsClick = onNotificationsClick,
+        notificationUnreadCount = notificationState.unreadCount,
     )
 }
 
@@ -80,6 +111,7 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onQueryChange: (String) -> Unit,
+    onMaxPriceChange: (Long?) -> Unit = {},
     onCategoryClick: (String?) -> Unit,
     onRetry: () -> Unit,
     onFoodClick: (String) -> Unit,
@@ -87,14 +119,26 @@ fun HomeScreen(
     onCartClick: () -> Unit,
     onOrdersClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onUnavailable: (String) -> Unit,
-    snackbarHost: @Composable () -> Unit = {}
+    onQrClick: () -> Unit,
+    onDeliveryClick: () -> Unit = {},
+    hasTableSession: Boolean = false,
+    onChatClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
+    notificationUnreadCount: Int = 0,
 ) {
     Scaffold(
         containerColor = AppBackground,
-        snackbarHost = snackbarHost,
-        topBar = { HomeHeader(state.cartItemCount, onCartClick, onProfileClick, onUnavailable) },
-        bottomBar = { HomeBottomBar(onOrdersClick, onProfileClick, onUnavailable) }
+        topBar = { HomeHeader(state.cartItemCount, onCartClick, onProfileClick, onQrClick) },
+        bottomBar = {
+            HomeBottomBar(
+                onOrdersClick = onOrdersClick,
+                onProfileClick = onProfileClick,
+                hasTableSession = hasTableSession,
+                onChatClick = onChatClick,
+                onNotificationsClick = onNotificationsClick,
+                notificationUnreadCount = notificationUnreadCount,
+            )
+        }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading && state.categories.isEmpty()) {
@@ -109,9 +153,9 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item { OrderingContext() }
-                    item { SearchRow(state.query, onQueryChange, onUnavailable) }
+                    item { SearchRow(state.query, onQueryChange, state.maxPrice, onMaxPriceChange) }
                     item { DiscoveryBanner(onMenuClick) }
-                    item { QuickActions(onMenuClick, onUnavailable) }
+                    item { QuickActions(onMenuClick, onQrClick, onDeliveryClick) }
                     item {
                         SectionTitle("Danh Mục Món Ăn", "Tất cả (${state.categories.sumOf { it.items.size }})", onMenuClick)
                         Spacer(Modifier.height(10.dp))
@@ -135,7 +179,9 @@ fun HomeScreen(
                             RecommendationCard(food, fallbackFor(food, visible), onFoodClick)
                         }
                     }
-                    item { ServiceBar { onUnavailable("Gọi phục vụ") } }
+                    item {
+                        ServiceBar(hasTableSession, onChatClick)
+                    }
                 }
             }
         }
@@ -147,7 +193,7 @@ private fun HomeHeader(
     cartCount: Int,
     onCartClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onUnavailable: (String) -> Unit
+    onQrClick: () -> Unit
 ) {
     Surface(color = AppBackground.copy(alpha = .96f), shadowElevation = 2.dp) {
         Row(
@@ -158,7 +204,7 @@ private fun HomeHeader(
                 Text("FoodHub", color = Brand, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Trang Chủ", color = OnSurfaceVariant, fontSize = 10.sp)
             }
-            HeaderButton("Quét mã QR", { onUnavailable("Quét QR") }) {
+            HeaderButton("Quét mã QR", onQrClick) {
                 Icon(Icons.Default.QrCodeScanner, null, Modifier.size(20.dp))
             }
             Spacer(Modifier.width(6.dp))
@@ -216,7 +262,13 @@ private fun OrderingContext() {
 }
 
 @Composable
-private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onUnavailable: (String) -> Unit) {
+private fun SearchRow(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    maxPrice: Long?,
+    onMaxPriceChange: (Long?) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = query,
@@ -245,12 +297,32 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onUnavaila
                 unfocusedBorderColor = Color.Transparent
             )
         )
-        FilledIconButton(
-            onClick = { onUnavailable("Bộ lọc nâng cao") },
-            modifier = Modifier.size(52.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = PrimaryContainer)
-        ) { Icon(Icons.Default.Tune, "Lọc món ăn", tint = Color.White) }
+        Box {
+            FilledIconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.size(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = if (maxPrice == null) PrimaryContainer else Brand
+                )
+            ) { Icon(Icons.Default.Tune, "Lọc theo giá", tint = Color.White) }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                listOf(
+                    "Tất cả mức giá" to null,
+                    "Tối đa 50.000đ" to 50_000L,
+                    "Tối đa 100.000đ" to 100_000L,
+                    "Tối đa 200.000đ" to 200_000L,
+                ).forEach { (label, value) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = { onMaxPriceChange(value); menuExpanded = false },
+                        leadingIcon = {
+                            if (maxPrice == value) Icon(Icons.Default.Check, null)
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -284,19 +356,20 @@ private fun DiscoveryBanner(onMenuClick: () -> Unit) {
 }
 
 @Composable
-private fun QuickActions(onMenuClick: () -> Unit, onUnavailable: (String) -> Unit) {
+private fun QuickActions(
+    onMenuClick: () -> Unit,
+    onQrClick: () -> Unit,
+    onDeliveryClick: () -> Unit,
+) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        QuickAction("Quét QR\nBàn", BrandSoft, { onUnavailable("Quét QR bàn") }, Modifier.weight(1f)) {
+        QuickAction("Quét QR\nBàn", BrandSoft, onQrClick, Modifier.weight(1f)) {
             Icon(Icons.Default.QrCodeScanner, null, tint = Brand)
         }
         QuickAction("Đặt Mang\nVề", WarmAccent, onMenuClick, Modifier.weight(1f)) {
             Icon(Icons.Default.TakeoutDining, null, tint = WarningDark)
         }
-        QuickAction("Giao Tận\nNơi", SoftGreen, { onUnavailable("Giao tận nơi") }, Modifier.weight(1f)) {
+        QuickAction("Giao Tận\nNơi", SoftGreen, onDeliveryClick, Modifier.weight(1f)) {
             Icon(Icons.Default.DeliveryDining, null, tint = SuccessDark)
-        }
-        QuickAction("Mã Giảm\nGiá", Color(0xFFFFB59D), { onUnavailable("Mã giảm giá") }, Modifier.weight(1f)) {
-            Icon(Icons.Default.ConfirmationNumber, null, tint = Brand)
         }
     }
 }
@@ -429,7 +502,7 @@ private fun HomeFoodImage(url: String?, @DrawableRes fallback: Int, modifier: Mo
 }
 
 @Composable
-private fun ServiceBar(onClick: () -> Unit) {
+private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
     Surface(shape = RoundedCornerShape(12.dp), color = InputBackground) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(WarmAccent, CircleShape), contentAlignment = Alignment.Center) {
@@ -438,9 +511,17 @@ private fun ServiceBar(onClick: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text("Cần trợ giúp tại bàn?", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text("Tính năng sẽ mở khi có phiên QR bàn", color = OnSurfaceVariant, fontSize = 10.sp)
+                Text(
+                    if (hasTableSession) "Nhắn tin trực tiếp với nhân viên" else "Tính năng sẽ mở khi có phiên QR bàn",
+                    color = OnSurfaceVariant,
+                    fontSize = 10.sp,
+                )
             }
-            Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Warning, contentColor = WarningDark)) {
+            Button(
+                onClick = onClick,
+                enabled = hasTableSession,
+                colors = ButtonDefaults.buttonColors(containerColor = Warning, contentColor = WarningDark),
+            ) {
                 Text("Gọi phục vụ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -448,25 +529,53 @@ private fun ServiceBar(onClick: () -> Unit) {
 }
 
 @Composable
-private fun HomeBottomBar(onOrdersClick: () -> Unit, onProfileClick: () -> Unit, onUnavailable: (String) -> Unit) {
+private fun HomeBottomBar(
+    onOrdersClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    hasTableSession: Boolean,
+    onChatClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    notificationUnreadCount: Int,
+) {
     Surface(color = AppBackground.copy(alpha = .97f), shadowElevation = 8.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
             BottomDestination(Icons.Default.Home, "Trang chủ", true, {})
             BottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", false, onOrdersClick)
-            BottomDestination(Icons.Default.NotificationsNone, "Thông báo", false) { onUnavailable("Thông báo") }
+            if (hasTableSession) {
+                BottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
+            }
+            BottomDestination(
+                Icons.Default.NotificationsNone,
+                "Thông báo",
+                false,
+                onNotificationsClick,
+                notificationUnreadCount,
+            )
             BottomDestination(Icons.Default.Person, "Cá nhân", false, onProfileClick)
         }
     }
 }
 
 @Composable
-private fun RowScope.BottomDestination(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun RowScope.BottomDestination(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    badgeCount: Int = 0,
+) {
     Column(
         Modifier.weight(1f).fillMaxHeight().clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
+        if (badgeCount > 0) {
+            BadgedBox(badge = { Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString()) } }) {
+                Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
+            }
+        } else {
+            Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
+        }
         Spacer(Modifier.height(2.dp))
         Text(label, color = if (selected) Brand else OnSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }

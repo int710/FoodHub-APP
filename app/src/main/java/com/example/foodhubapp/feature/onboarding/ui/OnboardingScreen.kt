@@ -13,8 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.foodhubapp.feature.onboarding.model.onboardingHeroPages
-import com.example.foodhubapp.ui.theme.AppBackground
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import kotlinx.coroutines.launch
 
 @Composable
