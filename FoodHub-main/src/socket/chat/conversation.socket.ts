@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io'
 
 import { getConversationRoom, HOST_ROOM } from '../socket.room'
-import { ConversationModel } from '~/models/mongodb/conversation.model'
+import { ConversationModel, ConversationStatus } from '~/models/mongodb/conversation.model'
+import { isSocketSessionActive } from '../socket.middleware'
 import { SenderRole } from '~/models/mongodb/message.model'
 import { ConversationServices } from '~/services/conversation.services'
 
@@ -21,7 +22,7 @@ export const registerConversationSocket = (io: Server, socket: Socket): void => 
     ) => {
       try {
         const user = socket.data.user
-        if (!user) {
+        if (!user || !(await isSocketSessionActive(socket))) {
           return callback?.({ success: false, message: 'Unauthenticated' })
         }
 
@@ -35,11 +36,14 @@ export const registerConversationSocket = (io: Server, socket: Socket): void => 
           return callback?.({ success: false, message: 'Conversation not found' })
         }
 
+        if (conversation.status === ConversationStatus.CLOSED || !(await ConversationServices.isActive(conversation))) {
+          return callback?.({ success: false, message: 'Conversation invalid or closed' })
+        }
         const userRoleLower = user.role?.toLowerCase()
         const isCustomer = userRoleLower === SenderRole.CUSTOMER
         const isHost = userRoleLower === SenderRole.STAFF || userRoleLower === SenderRole.ADMIN
         const customerOwnerId = user.authType === 'TABLE_GUEST'
-          ? user.tableId
+          ? user.sessionId
           : String(user.user_id)
 
         // Validate quyền truy cập của Customer

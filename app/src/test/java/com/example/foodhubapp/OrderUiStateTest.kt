@@ -1,14 +1,32 @@
 package com.example.foodhubapp
 
-import com.example.foodhubapp.feature.order.data.CustomerOrder
-import com.example.foodhubapp.feature.order.data.OrderStatus
-import com.example.foodhubapp.feature.order.data.OrderType
-import com.example.foodhubapp.feature.order.viewmodel.OrderGroup
-import com.example.foodhubapp.feature.order.viewmodel.OrderListUiState
+import com.example.foodhubapp.feature.customer.order.data.CustomerOrder
+import com.example.foodhubapp.feature.customer.order.data.OrderStatus
+import com.example.foodhubapp.feature.customer.order.data.OrderType
+import com.example.foodhubapp.feature.customer.order.viewmodel.OrderGroup
+import com.example.foodhubapp.feature.customer.order.viewmodel.OrderListUiState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class OrderUiStateTest {
+    @Test fun onlyUnpaidPendingConfirmationOrdersCanBeCancelled() {
+        for (payment in listOf("PENDING", "UNPAID", "FAILED")) {
+            assertTrue(order("unpaid", OrderStatus.PENDING_CONFIRMATION).copy(paymentStatus = payment).canCancel)
+        }
+    }
+
+    @Test fun paidUnknownAndCookingOrdersCannotBeCancelled() {
+        for (payment in listOf("PAID", "REFUNDED", null)) {
+            assertFalse(order("paid", OrderStatus.PENDING_CONFIRMATION).copy(paymentStatus = payment).canCancel)
+        }
+        for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_FAILED,
+            OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.SERVED,
+            OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.UNKNOWN)) {
+            assertFalse(order("closed", status).copy(paymentStatus = "UNPAID").canCancel)
+        }
+    }
     private fun order(id: String, status: OrderStatus) = CustomerOrder(
         id, id, null, OrderType.TAKEAWAY, status, "", 0,
         null, null, null, null, null, null, emptyList()

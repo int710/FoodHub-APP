@@ -7,3 +7,4 @@ export const ORDER_ROOMS = {
   HOST_ORDERS: 'host:orders',
   ORDER_DETAIL: (orderId: string) => `order:${orderId}`,
 } as const;
+export const getTableSessionRoom = (sessionId: string): string => `table-session:${sessionId}`

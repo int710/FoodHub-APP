@@ -2,8 +2,8 @@ package com.example.foodhubapp
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.core.network.FoodHubApiException
-import com.example.foodhubapp.feature.menu.data.*
-import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
+import com.example.foodhubapp.feature.customer.menu.data.*
+import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -118,7 +118,7 @@ class FoodRepositoryTest {
     }
 
     @Test fun loginBodyMatchesEmailApiContract() {
-        val body = com.example.foodhubapp.feature.auth.model.LoginRequest(" user@gmail.com ", "password").toJson()
+        val body = com.example.foodhubapp.feature.shared.auth.model.LoginRequest(" user@gmail.com ", "password").toJson()
         assertEquals("user@gmail.com", body.getString("email"))
         assertEquals("password", body.getString("password"))
         assertFalse(body.has("account"))

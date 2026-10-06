@@ -9,7 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.session.SessionManager
-import com.example.foodhubapp.feature.auth.model.UserDto
+import com.example.foodhubapp.feature.shared.auth.model.UserDto
 import com.example.foodhubapp.navigation.AppNavGraph
 import com.example.foodhubapp.navigation.AppRoutes
 import com.example.foodhubapp.theme.FoodHubAppTheme

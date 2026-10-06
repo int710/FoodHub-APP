@@ -14,6 +14,10 @@ const conversationSchema = new Schema(
       index: true
     },
 
+    tableId: { type: String, default: null, index: true },
+    sessionId: { type: String, default: null, index: true },
+    expiresAt: { type: Date, default: null },
+
     status: {
       type: String,
       enum: Object.values(ConversationStatus),

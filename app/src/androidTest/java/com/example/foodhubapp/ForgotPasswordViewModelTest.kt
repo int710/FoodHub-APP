@@ -4,11 +4,11 @@ import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.example.foodhubapp.feature.auth.data.AuthRepository
-import com.example.foodhubapp.feature.auth.model.AuthResponse
-import com.example.foodhubapp.feature.auth.model.LoginRequest
-import com.example.foodhubapp.feature.auth.model.RegisterRequest
-import com.example.foodhubapp.feature.auth.viewmodel.ForgotPasswordViewModel
+import com.example.foodhubapp.feature.shared.auth.data.AuthRepository
+import com.example.foodhubapp.feature.shared.auth.model.AuthResponse
+import com.example.foodhubapp.feature.shared.auth.model.LoginRequest
+import com.example.foodhubapp.feature.shared.auth.model.RegisterRequest
+import com.example.foodhubapp.feature.shared.auth.viewmodel.ForgotPasswordViewModel
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
 import org.junit.Test

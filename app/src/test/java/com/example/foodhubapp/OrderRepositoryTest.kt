@@ -1,9 +1,9 @@
 package com.example.foodhubapp
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
-import com.example.foodhubapp.feature.order.data.OrderStatus
-import com.example.foodhubapp.feature.order.data.OrderType
-import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
+import com.example.foodhubapp.feature.customer.order.data.OrderStatus
+import com.example.foodhubapp.feature.customer.order.data.OrderType
+import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

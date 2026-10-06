@@ -141,6 +141,9 @@ export const openApiDocument: OpenAPIV3.Document = {
         requestBody: jsonBody({ $ref: '#/components/schemas/ResetPasswordRequest' })
       }
     },
+    '/table/all': {
+      get: operation('List all tables', ['Tables'], { '200': successResponse(), '401': errorResponse('Authentication required'), '403': errorResponse('Admin role required') }, bearer)
+    },
     '/table/{id}': {
       get: {
         ...operation('Get table detail', ['Tables'], { '200': successResponse(), '404': errorResponse('Table not found') }),

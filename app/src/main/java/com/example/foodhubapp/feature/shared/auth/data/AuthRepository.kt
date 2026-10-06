@@ -1,0 +1,32 @@
+package com.example.foodhubapp.feature.shared.auth.data
+
+import com.example.foodhubapp.feature.shared.auth.model.AuthResponse
+import com.example.foodhubapp.feature.shared.auth.model.LoginRequest
+import com.example.foodhubapp.feature.shared.auth.model.RegisterRequest
+
+/**
+ * Repository định nghĩa các thao tác liên quan đến xác thực người dùng
+ * (đăng nhập, đăng ký tài khoản).
+ */
+interface AuthRepository {
+    suspend fun forgotPassword(email: String): Result<String>
+    suspend fun resetPassword(token: String, password: String, confirmation: String): Result<String> =
+        Result.failure(UnsupportedOperationException())
+    suspend fun verifyEmail(token: String): Result<String> =
+        Result.failure(UnsupportedOperationException())
+    /**
+     * Thực hiện đăng nhập tài khoản vào hệ thống.
+     *
+     * @param request Thông tin yêu cầu đăng nhập chứa tài khoản và mật khẩu ([LoginRequest]).
+     * @return [Result] chứa [AuthResponse] nếu thành công, hoặc ngoại lệ nếu thất bại.
+     */
+    suspend fun login(request: LoginRequest): Result<AuthResponse>
+
+    /**
+     * Thực hiện đăng ký tài khoản mới trên hệ thống.
+     *
+     * @param request Thông tin yêu cầu đăng ký chi tiết ([RegisterRequest]).
+     * @return [Result] chứa [AuthResponse] nếu thành công, hoặc ngoại lệ nếu thất bại.
+     */
+    suspend fun register(request: RegisterRequest): Result<AuthResponse>
+}

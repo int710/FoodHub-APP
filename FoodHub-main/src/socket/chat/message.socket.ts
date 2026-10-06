@@ -4,6 +4,7 @@ import { MessageModel, MessageType, SenderRole } from "~/models/mongodb/message.
 
 import { getConversationRoom, HOST_ROOM } from "../socket.room";
 import { ConversationServices } from "~/services/conversation.services";
+import { isSocketSessionActive } from '../socket.middleware'
 
 interface SendMessagePayload {
   conversationId?: string, // cho optional để customer tạo mới
@@ -21,7 +22,7 @@ export const registerMessageSocket = (io: Server, socket: Socket): void => {
   socket.on('message:send', async (payload: SendMessagePayload, callback?: (response: SocketAckResponse) => void) => {
     try {
       const user = socket.data.user
-      if (!user) {
+      if (!user || !(await isSocketSessionActive(socket))) {
         return callback?.({ success: false, message: 'Unauthenticated' })
       }
 
@@ -34,7 +35,7 @@ export const registerMessageSocket = (io: Server, socket: Socket): void => {
       const isCustomer = userRoleLower === SenderRole.CUSTOMER
       const isHost = userRoleLower === SenderRole.STAFF || userRoleLower === SenderRole.ADMIN
       const customerOwnerId = user.authType === 'TABLE_GUEST'
-        ? user.tableId
+        ? user.sessionId
         : String(user.user_id)
 
       if (!isCustomer && !isHost) {
@@ -47,7 +48,7 @@ export const registerMessageSocket = (io: Server, socket: Socket): void => {
       // 1. XỬ LÝ CONVERSATION
       if (conversationId) {
         conversation = await ConversationModel.findById(conversationId)
-        if (!conversation || conversation.status === ConversationStatus.CLOSED) {
+        if (!conversation || conversation.status === ConversationStatus.CLOSED || !(await ConversationServices.isActive(conversation))) {
           return callback?.({ success: false, message: 'Conversation invalid or closed' })
         }
         if (isCustomer && String(conversation.customerId) !== String(customerOwnerId)) {
@@ -58,7 +59,10 @@ export const registerMessageSocket = (io: Server, socket: Socket): void => {
         if (!isCustomer) {
           return callback?.({ success: false, message: 'Host must provide conversationId' })
         }
-        const result = await ConversationServices.getOrCreateForCustomer(String(customerOwnerId))
+        const result = await ConversationServices.getOrCreateForCustomer(String(customerOwnerId),
+          user.authType === 'TABLE_GUEST' ? {
+            tableId: user.tableId!, sessionId: user.sessionId!, expiresAt: new Date(user.exp! * 1000)
+          } : undefined)
         conversation = result.conversation
         isNewConversation = result.isNew
       }

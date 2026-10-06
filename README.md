@@ -1,5 +1,7 @@
 # FoodHub Android
 
+> Cấu trúc Android hiện được chia theo `feature/customer`, `feature/admin` và `feature/shared`. Xem [hướng dẫn cấu trúc source](app/src/main/java/com/example/foodhubapp/feature/README.md). Phần mô tả chức năng và cây thư mục cũ bên dưới chưa phản ánh đầy đủ code hiện tại; xem thêm [báo cáo rà soát](PROJECT_AUDIT_2026-10-06.md).
+
 Ứng dụng Android viết bằng Kotlin và Jetpack Compose, gồm giao diện quản trị nhà hàng và luồng khách hàng quét QR tại bàn để nhắn tin hỗ trợ.
 
 ## Chức năng hiện có
