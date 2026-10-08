@@ -23,7 +23,8 @@ fun FoodDetailRoute(
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
     viewModel: FoodDetailViewModel = viewModel(),
-    onCartClick: () -> Unit = {}
+    onCartClick: () -> Unit = {},
+    onScanQrClick: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -52,9 +53,18 @@ fun FoodDetailRoute(
     if (state.requiresLogin) AlertDialog(
         onDismissRequest = viewModel::dismissLogin,
         title = { Text("Đăng nhập") },
-        text = { Text("Bạn cần đăng nhập để thêm món vào giỏ mang đi.") },
+        text = { Text("Bạn cần đăng nhập để thêm món vào giỏ TAKEAWAY hoặc DELIVERY.") },
         confirmButton = { TextButton(onClick = { viewModel.dismissLogin(); onLoginClick() }) { Text("Đăng nhập") } },
         dismissButton = { TextButton(onClick = viewModel::dismissLogin) { Text("Để sau") } }
+    )
+    if (state.requiresTableScan) AlertDialog(
+        onDismissRequest = viewModel::dismissTableScan,
+        title = { Text("Phiên bàn đã hết hạn") },
+        text = { Text("Vui lòng quét lại mã QR trên bàn để tiếp tục gọi món.") },
+        confirmButton = {
+            TextButton(onClick = { viewModel.dismissTableScan(); onScanQrClick() }) { Text("Quét lại QR") }
+        },
+        dismissButton = { TextButton(onClick = viewModel::dismissTableScan) { Text("Để sau") } }
     )
 }
 

@@ -11,6 +11,8 @@ import com.example.foodhubapp.feature.home.ui.HomeScreen
 import com.example.foodhubapp.feature.home.viewmodel.HomeUiState
 import com.example.foodhubapp.feature.menu.data.MenuCategory
 import com.example.foodhubapp.feature.menu.data.MenuFood
+import com.example.foodhubapp.feature.table.data.RestaurantTable
+import com.example.foodhubapp.feature.table.data.RestaurantTableStatus
 import com.example.foodhubapp.ui.theme.FoodHubAppTheme
 import org.junit.Rule
 import org.junit.Test
@@ -35,6 +37,10 @@ class HomeScreenTest {
                             MenuCategory("burger", "Burger & Sandwich", foods.take(1)),
                             MenuCategory("pizza", "Pizza Lò Củi", foods.drop(1))
                         ),
+                        tables = listOf(
+                            RestaurantTable("t1", "Bàn 01", 2, "Tầng 1", null, RestaurantTableStatus.AVAILABLE),
+                            RestaurantTable("t2", "Bàn 02", 4, "Tầng 1", null, RestaurantTableStatus.OCCUPIED)
+                        ),
                         cartItemCount = 3,
                         userName = "FoodHub User"
                     ),
@@ -53,6 +59,8 @@ class HomeScreenTest {
 
         compose.onNodeWithText("FoodHub").assertExists()
         compose.onNodeWithText("Danh Mục Món Ăn").assertExists()
+        compose.onNodeWithText("Sơ Đồ Bàn").assertExists()
+        compose.onNodeWithContentDescription("Bàn 01, Bàn trống, 2 chỗ").assertExists()
         compose.onNodeWithText("Món Bán Chạy Hôm Nay").assertExists()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.getExternalFilesDir(null), "home-figma.png")

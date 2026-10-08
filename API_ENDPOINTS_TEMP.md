@@ -135,9 +135,9 @@ Khong dung cac API admin tao ban, tao/regenerate QR, toggle ban cho CUSTOMER. Ch
 - MenuRoute -> GET /menu/all -> chon ID mon -> food_detail/{foodId}.
 - FoodDetailViewModel -> RemoteFoodRepository -> GET /menu/item/{id} -> StateFlow -> FoodDetailScreen.
 - Anh that tai bang Coil; PreviewBurger chi dung Preview/test, khong dung trong route chay that.
-- Them gio dung POST /cart/TAKEAWAY/items/add voi Bearer token tu TokenStore.
+- Co phien QR: them vao `/cart/DINE_IN/items/add` voi `X-Table-Token`; khong co phien QR: dung TAKEAWAY va Bearer token.
 - Khach chua dang nhap hoac token het han: mo dialog dang nhap; dang nhap tu chi tiet mon se quay lai mon, nguoi dung bam them lai.
-- DINE_IN chua noi vi app chua co phien QR/table token that; khong gia lap table token. DELIVERY chua co UI chon ngu canh.
+- DINE_IN da noi tu route `scan_table` -> `POST /table/scan` -> luu table token -> menu/cart/order. DELIVERY chua co UI chon ngu canh.
 - Login duoc chinh theo contract /user/login voi email/password; chua khang dinh backend ho tro dang nhap so dien thoai.
 - Gia flash sale hien thi chi khi isActive va nam trong startsAt/endsAt. Cach lam tron gia sale can doi chieu backend; backend van quyet dinh gia gio/don.
 - Ngay tich hop 2026-09-18: server tra trang Cloudflare cho GET cong khai, chua the kiem thu live. Contract, request body/header va xu ly loi duoc kiem thu bang MockWebServer.
@@ -172,7 +172,7 @@ Quy tac sua dong gio:
 - `note` toi da 255 ky tu.
 - Khi sua option, app tai lai chi tiet mon de hien cac nhom SINGLE/MULTIPLE va kiem tra nhom bat buoc.
 - Sau PATCH/DELETE thanh cong, ViewModel GET lai cart; tong tien hien thi theo response backend, khong hardcode VAT/discount.
-- Cac request cart dung `Authorization: Bearer <access_token>` lay tu `TokenStore`.
+- Cart DINE_IN dung `X-Table-Token`; cart TAKEAWAY dung `Authorization: Bearer <access_token>`.
 
 Kiem thu da co:
 
@@ -184,8 +184,8 @@ Gioi han con lai:
 
 - Chua kiem thu cart live voi access token CUSTOMER that; hien contract duoc kiem thu bang MockWebServer.
 - Parser cart ho tro `data` la array hoac object co `items`/`cartItems`, menu item long hoac field phang, va option dang object hoac ID. Khi co response live, doi chieu va thu gon parser theo payload chinh thuc.
-- Hien app chi co UI cho `TAKEAWAY`. `DINE_IN` can table token/phien QR that; `DELIVERY` can luong nhap thong tin giao hang.
-- QR/ban, tao don, lich su don va thanh toan la cac feature rieng, chua nam trong pham vi trien khai cart nay.
+- App tu chon DINE_IN khi con phien QR hop le, neu khong se dung TAKEAWAY. DELIVERY van can luong nhap thong tin giao hang.
+- Table token het han duoc xoa va UI yeu cau quet lai QR, khong doi no thanh Bearer token.
 
 ### Tich hop Home tu Figma (cap nhat 2026-09-19)
 
@@ -193,12 +193,12 @@ Gioi han con lai:
 - UI Compose nam tai `feature/home/ui/HomeScreen.kt`; state va goi API nam tai `feature/home/viewmodel/HomeViewModel.kt`.
 - Home dung `GET /menu/all` de hien danh muc, tim kiem local, mon noi bat/ban chay va goi y mon.
 - `MenuFood` da bo sung `description`, `avgRating`, `isFeatured`, `totalOrder`, `isAvailable` tu response menu.
-- Khi co access token, Home dung `GET /cart/TAKEAWAY/items` de hien badge tong so luong tren nut gio hang. Khach chua dang nhap van xem duoc menu.
+- Home dung giỏ DINE_IN khi co table token, neu khong dung TAKEAWAY khi co access token; khach chua xac thuc van xem duoc menu.
 - Bam mon tren Home mo `food_detail/{foodId}`; bam gio mo route `cart`; bam avatar/bottom nav Ca nhan mo `profile`.
 - Splash da dang nhap, dang nhap thanh cong va dang ky thanh cong deu vao route `home` thay vi `profile`.
 - Anh Figma da duoc luu cuc bo trong `res/drawable-nodpi/home_figma_*.jpg` lam banner/avatar/fallback khi API khong co anh.
 - Banner khuyen mai VNPAY tren Figma duoc thay bang banner kham pha menu, vi API hien tai khong co contract voucher/promo cho Home.
-- QR ban, DELIVERY, voucher, don hang, tin nhan va goi phuc vu hien chi bao chua kha dung; khong gia lap du lieu hoac goi endpoint chua duoc noi.
+- Hai nut QR tren Home va nut khach vang lai o Login deu mo camera scanner that; DELIVERY, voucher va goi phuc vu van chua noi.
 - Test: `HomeUiStateTest.kt` kiem tra loc/tim kiem/featured; `HomeScreenTest.kt` kiem tra cac section chinh va render tren emulator.
 
 ### Gioi han chung cua tai lieu

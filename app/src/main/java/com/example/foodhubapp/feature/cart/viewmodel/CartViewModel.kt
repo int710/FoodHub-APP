@@ -6,19 +6,27 @@ import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.cart.data.Cart
+import com.example.foodhubapp.feature.cart.data.CartContextStore
 import com.example.foodhubapp.feature.cart.data.CartItem
 import com.example.foodhubapp.feature.cart.data.CartItemUpdate
 import com.example.foodhubapp.feature.cart.data.CartRepository
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.cart.data.RemoteCartRepository
 import com.example.foodhubapp.feature.menu.data.FoodRepository
 import com.example.foodhubapp.feature.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.order.data.OrderRepository
+import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
+import com.example.foodhubapp.feature.order.data.OrderType
+import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
+import com.foodhub.app.TableSessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.IOException
 import java.net.SocketTimeoutException
 
@@ -34,9 +42,14 @@ data class CartUiState(
     val isClearing: Boolean = false,
     val message: String? = null,
     val requiresLogin: Boolean = false,
+    val requiresTableScan: Boolean = false,
     val editingItem: CartItem? = null,
     val editingFood: FoodDetail? = null,
-    val isLoadingEditor: Boolean = false
+    val isLoadingEditor: Boolean = false,
+    val isCheckingOut: Boolean = false,
+    val paymentUrl: String? = null,
+    val paymentMethod: CheckoutPaymentMethod = CheckoutPaymentMethod.CASH,
+    val cartType: CartType = CartType.TAKEAWAY
 )
 
 /**
@@ -46,22 +59,32 @@ data class CartUiState(
 class CartViewModel @JvmOverloads constructor(
     application: Application,
     private val cartRepository: CartRepository = RemoteCartRepository(
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
         accessToken = TokenStore(application.applicationContext)::getAccessToken
     ),
-    private val foodRepository: FoodRepository = RemoteFoodRepository()
+    private val foodRepository: FoodRepository = RemoteFoodRepository(),
+    private val orderRepository: OrderRepository = RemoteOrderRepository(
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
+        accessToken = TokenStore(application.applicationContext)::getAccessToken
+    )
 ) : AndroidViewModel(application) {
     private val state = MutableStateFlow(CartUiState())
+    private val tableSessionStore = TableSessionStore(application.applicationContext)
+    private val cartContextStore = CartContextStore(application.applicationContext)
     val uiState = state.asStateFlow()
+
+    private fun cartType() = cartContextStore.currentType()
 
     init { load() }
 
-    /** Bước đầu của màn cart: GET giỏ TAKEAWAY rồi phát kết quả qua uiState. */
+    /** Tải giỏ DINE_IN khi còn phiên QR, nếu không tải giỏ TAKEAWAY. */
     fun load() {
         if (state.value.isLoading || state.value.busyItemId != null || state.value.isClearing) return
-        state.update { it.copy(isLoading = true, error = null, requiresLogin = false) }
+        val type = cartType()
+        state.update { it.copy(isLoading = true, error = null, requiresLogin = false, requiresTableScan = false, cartType = type) }
         viewModelScope.launch {
             try {
-                state.update { it.copy(cart = cartRepository.getCart()) }
+                state.update { it.copy(cart = cartRepository.getCart(type)) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -126,7 +149,7 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     fun delete(item: CartItem) {
-        runItemAction(item.id, "Đã xóa món khỏi giỏ.") { cartRepository.deleteItem(item.id) }
+        runItemAction(item.id, "Đã xóa món khỏi giỏ.") { cartRepository.deleteItem(item.id, cartType()) }
     }
 
     fun clear() {
@@ -135,7 +158,7 @@ class CartViewModel @JvmOverloads constructor(
         state.update { it.copy(isClearing = true, message = null) }
         viewModelScope.launch {
             try {
-                cartRepository.clear()
+                cartRepository.clear(cartType())
                 state.update { it.copy(cart = Cart(emptyList(), 0), message = "Đã xóa toàn bộ giỏ hàng.") }
             } catch (error: CancellationException) {
                 throw error
@@ -147,8 +170,103 @@ class CartViewModel @JvmOverloads constructor(
         }
     }
 
+    fun selectPaymentMethod(paymentMethod: CheckoutPaymentMethod) {
+        if (!state.value.isCheckingOut) state.update { it.copy(paymentMethod = paymentMethod) }
+    }
+
+    fun checkout() {
+        val current = state.value
+        if (
+            current.cart.items.isEmpty() || current.isLoading || current.isClearing ||
+            current.busyItemId != null || current.isCheckingOut
+        ) return
+
+        state.update { it.copy(isCheckingOut = true, message = null) }
+        viewModelScope.launch {
+            try {
+                val orderType = when (cartType()) {
+                    CartType.DINE_IN -> OrderType.DINE_IN
+                    CartType.TAKEAWAY -> OrderType.TAKEAWAY
+                    CartType.DELIVERY -> OrderType.DELIVERY
+                }
+                val paymentMethod = state.value.paymentMethod
+                val order = orderRepository.createOrder(orderType, paymentMethod)
+                if (paymentMethod == CheckoutPaymentMethod.VNPAY) {
+                    state.update { it.copy(paymentUrl = order.paymentUrl) }
+                } else {
+                    state.update {
+                        it.copy(
+                            cart = Cart(emptyList(), 0),
+                            message = "Đã gửi đơn đến quán. Bạn sẽ thanh toán tiền mặt khi nhận món."
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(isCheckingOut = false) }
+            }
+        }
+    }
+
+    /**
+     * Return URL chỉ là tín hiệu quay lại app; IPN/backend mới là nguồn sự thật.
+     * Poll ngắn để tránh hiển thị thành công khi VNPay đã redirect nhưng IPN đến trễ.
+     */
+    fun handleVnPayReturn(orderCode: String, gatewayResult: String?) {
+        if (orderCode.isBlank() || state.value.isCheckingOut) return
+        state.update {
+            it.copy(
+                isCheckingOut = true,
+                message = if (gatewayResult == "failed") {
+                    "VNPay chưa hoàn tất. Đang kiểm tra trạng thái giao dịch…"
+                } else {
+                    "Đang xác nhận thanh toán với máy chủ…"
+                }
+            )
+        }
+        viewModelScope.launch {
+            try {
+                repeat(PAYMENT_POLL_ATTEMPTS) { attempt ->
+                    val payment = orderRepository.getVnPayStatus(orderCode)
+                    when (payment.paymentStatus) {
+                        "PAID" -> {
+                            state.update {
+                                it.copy(
+                                    cart = Cart(emptyList(), 0),
+                                    message = "Thanh toán thành công. Đơn đang chờ quán xác nhận."
+                                )
+                            }
+                            return@launch
+                        }
+                        "FAILED" -> {
+                            state.update {
+                                it.copy(message = "Thanh toán chưa thành công. Món vẫn được giữ trong giỏ để bạn thử lại hoặc chọn tiền mặt.")
+                            }
+                            return@launch
+                        }
+                    }
+                    if (!payment.shouldPoll) {
+                        state.update { it.copy(message = "Trạng thái giao dịch: ${payment.orderStatus.name}.") }
+                        return@launch
+                    }
+                    if (attempt < PAYMENT_POLL_ATTEMPTS - 1) delay(PAYMENT_POLL_INTERVAL_MS)
+                }
+                state.update { it.copy(message = "VNPay vẫn đang xử lý. Bạn có thể bấm thanh toán lại để mở lại giao dịch đang chờ.") }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(isCheckingOut = false) }
+            }
+        }
+    }
+
     private fun update(itemId: String, update: CartItemUpdate, successMessage: String) {
-        runItemAction(itemId, successMessage) { cartRepository.updateItem(itemId, update) }
+        runItemAction(itemId, successMessage) { cartRepository.updateItem(itemId, update, cartType()) }
     }
 
     private fun runItemAction(itemId: String, successMessage: String, action: suspend () -> Unit) {
@@ -160,7 +278,7 @@ class CartViewModel @JvmOverloads constructor(
                 action()
                 // Luôn GET lại sau PATCH/DELETE. Giá và tổng tiền phải lấy từ backend,
                 // không tự tính rồi coi đó là kết quả chính thức.
-                val cart = cartRepository.getCart()
+                val cart = cartRepository.getCart(cartType())
                 state.update { it.copy(cart = cart, message = successMessage) }
             } catch (error: CancellationException) {
                 throw error
@@ -173,8 +291,10 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     private fun handleError(error: Exception, loadError: Boolean = false) {
-        // 401 và thiếu token cùng đi vào một luồng đăng nhập thống nhất.
-        if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
+        if (error is FoodHubApiException && error.statusCode == 401 && tableSessionStore.current() != null) {
+            tableSessionStore.clear()
+            state.update { it.copy(requiresTableScan = true, error = if (loadError) null else it.error) }
+        } else if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
             state.update { it.copy(requiresLogin = true, error = if (loadError) null else it.error) }
         } else if (loadError) {
             state.update { it.copy(error = cartError(error)) }
@@ -184,7 +304,9 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
+    fun dismissTableScan() { state.update { it.copy(requiresTableScan = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
+    fun consumePaymentUrl() { state.update { it.copy(paymentUrl = null) } }
 }
 
 internal fun cartError(error: Exception): String = when (error) {
@@ -197,3 +319,6 @@ internal fun cartError(error: Exception): String = when (error) {
     }
     else -> error.message ?: "Không thể cập nhật giỏ hàng."
 }
+
+private const val PAYMENT_POLL_ATTEMPTS = 15
+private const val PAYMENT_POLL_INTERVAL_MS = 1_500L

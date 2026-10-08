@@ -201,6 +201,7 @@ fun ScanScreen(
                     { camera = it },
                     onQrDetected,
                     { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    { errorMessage = it },
                 )
                 if (isSubmitting) {
                     Box(
@@ -373,6 +374,7 @@ private fun ScannerFrame(
     onCameraReady: (Camera) -> Unit,
     onQrDetected: (String) -> Unit,
     onRequestPermission: () -> Unit,
+    onCameraError: (String) -> Unit,
 ) {
     Box(
         Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(Color(0xFF242529)),
@@ -385,6 +387,7 @@ private fun ScannerFrame(
                 scanRevision,
                 onCameraReady,
                 onQrDetected,
+                onCameraError,
             )
             else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Label("Cần quyền camera để quét mã QR", 13.sp, Color.White, align = TextAlign.Center)
@@ -413,11 +416,13 @@ private fun QrCameraPreview(
     scanRevision: Int,
     onCameraReady: (Camera) -> Unit,
     onQrDetected: (String) -> Unit,
+    onCameraError: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentScanEnabled by rememberUpdatedState(scanEnabled)
     val currentOnQrDetected by rememberUpdatedState(onQrDetected)
+    val currentOnCameraError by rememberUpdatedState(onCameraError)
     val previewView = remember {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -442,45 +447,50 @@ private fun QrCameraPreview(
 
         cameraProviderFuture.addListener({
             if (disposed) return@addListener
-            provider = cameraProviderFuture.get()
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
-            }
-            val analysis = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-            analysis.setAnalyzer(analyzerExecutor) { imageProxy ->
-                if (!currentScanEnabled || delivered.get() || !processing.compareAndSet(false, true)) {
-                    imageProxy.close()
-                    return@setAnalyzer
+            runCatching {
+                provider = cameraProviderFuture.get()
+                val preview = Preview.Builder().build().also {
+                    it.surfaceProvider = previewView.surfaceProvider
                 }
-                val mediaImage = imageProxy.image
-                if (mediaImage == null) {
-                    processing.set(false)
-                    imageProxy.close()
-                    return@setAnalyzer
-                }
-                val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                scanner.process(inputImage)
-                    .addOnSuccessListener { barcodes ->
-                        val value = barcodes.firstNotNullOfOrNull { it.rawValue?.takeIf(String::isNotBlank) }
-                        if (value != null && delivered.compareAndSet(false, true)) {
-                            currentOnQrDetected(value)
-                        }
+                val analysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                analysis.setAnalyzer(analyzerExecutor) { imageProxy ->
+                    if (!currentScanEnabled || delivered.get() || !processing.compareAndSet(false, true)) {
+                        imageProxy.close()
+                        return@setAnalyzer
                     }
-                    .addOnCompleteListener {
+                    val mediaImage = imageProxy.image
+                    if (mediaImage == null) {
                         processing.set(false)
                         imageProxy.close()
+                        return@setAnalyzer
                     }
-            }
+                    val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                    scanner.process(inputImage)
+                        .addOnSuccessListener { barcodes ->
+                            val value = barcodes.firstNotNullOfOrNull { it.rawValue?.takeIf(String::isNotBlank) }
+                            if (value != null && delivered.compareAndSet(false, true)) {
+                                currentOnQrDetected(value)
+                            }
+                        }
+                        .addOnCompleteListener {
+                            processing.set(false)
+                            imageProxy.close()
+                        }
+                }
 
-            provider?.unbindAll()
-            provider?.bindToLifecycle(
-                lifecycleOwner,
-                CameraSelector.DEFAULT_BACK_CAMERA,
-                preview,
-                analysis,
-            )?.let(onCameraReady)
+                provider?.unbindAll()
+                provider?.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    analysis,
+                )?.let(onCameraReady)
+            }.onFailure {
+                provider?.unbindAll()
+                currentOnCameraError("Không thể mở camera. Hãy kiểm tra quyền camera hoặc chọn ảnh QR từ thư viện.")
+            }
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {

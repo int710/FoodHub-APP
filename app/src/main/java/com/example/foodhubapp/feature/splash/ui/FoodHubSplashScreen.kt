@@ -245,25 +245,19 @@ private fun StatusPill(
 
 @Composable
 private fun FoodHubLogo() {
-    Box(
+    Image(
+        painter = painterResource(id = R.drawable.foodhub_logo),
+        contentDescription = "Logo FoodHub",
         modifier = Modifier
             .size(112.dp)
             .shadow(
                 elevation = 28.dp,
-                shape = RoundedCornerShape(34.dp),
+                shape = RoundedCornerShape(28.dp),
                 ambientColor = Primary.copy(alpha = 0.32f),
                 spotColor = Primary.copy(alpha = 0.35f)
             )
-            .clip(RoundedCornerShape(34.dp))
-            .background(Brush.verticalGradient(colors = listOf(Primary, PrimaryContainer))),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.ic_logo),
-            contentDescription = "Logo",
-            modifier = Modifier.size(70.dp)
-        )
-    }
+            .clip(RoundedCornerShape(28.dp))
+    )
 }
 
 @Composable

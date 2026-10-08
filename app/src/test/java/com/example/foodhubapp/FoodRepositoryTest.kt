@@ -2,6 +2,7 @@ package com.example.foodhubapp
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.core.network.FoodHubApiException
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.menu.data.*
 import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
 import kotlinx.coroutines.runBlocking
@@ -68,6 +69,53 @@ class FoodRepositoryTest {
         assertEquals("egg", body.getJSONArray("variantOptionIds").getString(0))
         assertEquals("No onion", body.getString("note"))
         assertFalse(body.has("price"))
+    }
+
+    @Test fun scannedTableUsesDineInCartAndTableToken() = runBlocking {
+        val dineInRepository = RemoteFoodRepository(
+            FoodHubApiClient(server.url("/api/v1").toString()),
+            tableToken = { "table-session-token" }
+        )
+        server.enqueue(MockResponse().setBody("{\"message\":\"Added\",\"data\":{}}"))
+
+        dineInRepository.addToCart(FoodCartSelection("burger-id", 1, emptyList(), ""))
+        val request = server.takeRequest()
+
+        assertEquals("/api/v1/cart/DINE_IN/items/add", request.path)
+        assertEquals("table-session-token", request.getHeader("X-Table-Token"))
+        assertNull(request.getHeader("Authorization"))
+    }
+
+    @Test fun loggedInTableSessionSendsBothTokensToDineInCart() = runBlocking {
+        val dineInRepository = RemoteFoodRepository(
+            FoodHubApiClient(server.url("/api/v1").toString()),
+            tableToken = { "table-session-token" },
+            accessToken = { "customer-access-token" }
+        )
+        server.enqueue(MockResponse().setBody("{\"message\":\"Added\",\"data\":{}}"))
+
+        dineInRepository.addToCart(FoodCartSelection("burger-id", 1, emptyList(), ""))
+        val request = server.takeRequest()
+
+        assertEquals("/api/v1/cart/DINE_IN/items/add", request.path)
+        assertEquals("table-session-token", request.getHeader("X-Table-Token"))
+        assertEquals("Bearer customer-access-token", request.getHeader("Authorization"))
+    }
+
+    @Test fun deliveryContextUsesAccountTokenAndDeliveryCart() = runBlocking {
+        val deliveryRepository = RemoteFoodRepository(
+            FoodHubApiClient(server.url("/api/v1").toString()),
+            accountCartType = { CartType.DELIVERY },
+            accessToken = { "customer-access-token" }
+        )
+        server.enqueue(MockResponse().setBody("{\"message\":\"Added\",\"data\":{}}"))
+
+        deliveryRepository.addToCart(FoodCartSelection("burger-id", 1, emptyList(), ""))
+        val request = server.takeRequest()
+
+        assertEquals("/api/v1/cart/DELIVERY/items/add", request.path)
+        assertEquals("Bearer customer-access-token", request.getHeader("Authorization"))
+        assertNull(request.getHeader("X-Table-Token"))
     }
 
     @Test fun missingTokenDoesNotSendCartRequest() = runBlocking {

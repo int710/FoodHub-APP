@@ -29,9 +29,11 @@ fun MenuRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(containerColor = AppBackground) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         Column(Modifier
-            .fillMaxSize()
-            .padding(padding)) {
+            .fillMaxHeight()
+            .widthIn(max = 840.dp)
+            .fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackClick) {
                     Icon(
@@ -96,6 +98,7 @@ fun MenuRoute(
                     }
                 }
             }
+        }
         }
     }
 }

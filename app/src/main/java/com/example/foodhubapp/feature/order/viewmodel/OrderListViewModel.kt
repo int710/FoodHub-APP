@@ -12,9 +12,12 @@ import com.example.foodhubapp.feature.order.data.OrderStatus
 import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.foodhub.app.TableSessionStore
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -33,6 +36,7 @@ data class OrderListUiState(
     val message: String? = null,
     val requiresLogin: Boolean = false,
     val paymentUrl: String? = null,
+    val checkingPaymentOrderCode: String? = null,
     val page: Int = 0,
     val hasMore: Boolean = false
 ) {
@@ -60,11 +64,13 @@ internal val cancelledStatuses = setOf(OrderStatus.CANCELLED, OrderStatus.PAYMEN
 class OrderListViewModel @JvmOverloads constructor(
     application: Application,
     private val repository: OrderRepository = RemoteOrderRepository(
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
         accessToken = TokenStore(application.applicationContext)::getAccessToken
     )
 ) : AndroidViewModel(application) {
     private val state = MutableStateFlow(OrderListUiState())
     val uiState = state.asStateFlow()
+    private var paymentPollingJob: Job? = null
 
     init { load() }
 
@@ -169,6 +175,63 @@ class OrderListViewModel @JvmOverloads constructor(
         }
     }
 
+    fun handleVnPayReturn(orderCode: String, gatewayResult: String?) {
+        if (orderCode.isBlank()) return
+        paymentPollingJob?.cancel()
+        paymentPollingJob = viewModelScope.launch {
+            state.update {
+                it.copy(
+                    checkingPaymentOrderCode = orderCode,
+                    message = if (gatewayResult == "failed") {
+                        "VNPay chưa xác nhận giao dịch. Đang kiểm tra trạng thái cuối cùng…"
+                    } else {
+                        "Đang xác nhận thanh toán với máy chủ…"
+                    }
+                )
+            }
+
+            try {
+                repeat(PAYMENT_POLL_ATTEMPTS) { attempt ->
+                    val payment = repository.getVnPayStatus(orderCode)
+                    state.update { current ->
+                        current.copy(
+                            orders = current.orders.map { order ->
+                                if (order.orderCode == orderCode) {
+                                    order.copy(
+                                        status = payment.orderStatus,
+                                        paymentStatus = payment.paymentStatus
+                                    )
+                                } else order
+                            }
+                        )
+                    }
+
+                    if (!payment.shouldPoll) {
+                        val message = when (payment.paymentStatus) {
+                            "PAID" -> "Thanh toán VNPay thành công. Đơn hàng đang chờ quán xác nhận."
+                            "FAILED" -> "Thanh toán VNPay không thành công."
+                            else -> "Trạng thái thanh toán: ${payment.paymentStatus ?: payment.orderStatus.name}."
+                        }
+                        state.update { it.copy(message = message) }
+                        return@launch
+                    }
+
+                    if (attempt < PAYMENT_POLL_ATTEMPTS - 1) delay(PAYMENT_POLL_INTERVAL_MS)
+                }
+
+                state.update {
+                    it.copy(message = "VNPay đang xử lý giao dịch. Bạn có thể kéo xuống để cập nhật lại.")
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(checkingPaymentOrderCode = null) }
+            }
+        }
+    }
+
     private fun handleError(error: Exception, loadError: Boolean = false) {
         if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
             state.update { it.copy(requiresLogin = true, error = null) }
@@ -182,6 +245,9 @@ class OrderListViewModel @JvmOverloads constructor(
     fun consumeMessage() { state.update { it.copy(message = null) } }
     fun consumePaymentUrl() { state.update { it.copy(paymentUrl = null) } }
 }
+
+private const val PAYMENT_POLL_ATTEMPTS = 15
+private const val PAYMENT_POLL_INTERVAL_MS = 1_500L
 
 internal fun orderError(error: Exception): String = when (error) {
     is SocketTimeoutException -> "Máy chủ phản hồi quá lâu. Vui lòng thử lại."

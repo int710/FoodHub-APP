@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.menu.data
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodOption
@@ -43,7 +44,7 @@ data class MenuCategory(
  * Ngoại lệ ném ra khi người dùng chưa đăng nhập nhưng cố gắng thêm món vào giỏ hàng.
  */
 class LoginRequiredException :
-    IllegalStateException("Vui lòng đăng nhập để thêm món vào giỏ mang đi.")
+    IllegalStateException("Vui lòng đăng nhập để sử dụng giỏ hàng này.")
 
 /**
  * Giao diện (Interface) định nghĩa các phương thức làm việc với dữ liệu thực đơn và món ăn.
@@ -55,7 +56,7 @@ interface FoodRepository {
     /** Lấy thông tin chi tiết của một món ăn theo ID. */
     suspend fun getFood(id: String): FoodDetail
 
-    /** Thêm món ăn được chọn vào giỏ hàng trên server. */
+    /** Thêm món vào giỏ DINE_IN khi có phiên QR, nếu không dùng giỏ TAKEAWAY của tài khoản. */
     suspend fun addToCart(selection: FoodCartSelection)
 }
 
@@ -64,6 +65,8 @@ interface FoodRepository {
  */
 class RemoteFoodRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val tableToken: suspend () -> String? = { null },
+    private val accountCartType: suspend () -> CartType = { CartType.TAKEAWAY },
     private val accessToken: suspend () -> String? = { null }
 ) : FoodRepository {
 
@@ -113,10 +116,21 @@ class RemoteFoodRepository(
             "Số lượng hoặc ghi chú không hợp lệ"
         }
 
-        // Lấy token xác thực, nếu chưa đăng nhập thì ném ngoại lệ
-        val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
+        val tableSessionToken = tableToken()?.takeIf { it.isNotBlank() }
+        val userToken = accessToken()?.takeIf { it.isNotBlank() }
+        val cartType = if (tableSessionToken != null) CartType.DINE_IN else accountCartType()
+        val headers = if (cartType == CartType.DINE_IN) {
+            val token = tableSessionToken ?: throw LoginRequiredException()
+            buildMap {
+                put("X-Table-Token", token)
+                userToken?.let { put("Authorization", "Bearer $it") }
+            }
+        } else {
+            val token = userToken ?: throw LoginRequiredException()
+            mapOf("Authorization" to "Bearer $token")
+        }
 
-        // Tạo JSON body gửi lên API /cart/TAKEAWAY/items/add
+        // Body dùng chung cho `/cart/DINE_IN/items/add` và `/cart/TAKEAWAY/items/add`.
         val bodyJson = JSONObject()
             .put("menuItemId", selection.menuItemId)
             .put("quantity", selection.quantity)
@@ -124,9 +138,9 @@ class RemoteFoodRepository(
             .put("note", selection.note)
 
         apiClient.post(
-            path = "/cart/TAKEAWAY/items/add",
+            path = "/cart/${cartType.name}/items/add",
             body = bodyJson,
-            headers = mapOf("Authorization" to "Bearer $token")
+            headers = headers
         )
         Unit
     }

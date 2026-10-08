@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -105,11 +106,13 @@ fun RegisterScreen(
         modifier = modifier
             .fillMaxSize()
             .safeDrawingPadding()
-            .background(AppBackground)
+            .background(AppBackground),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AuthHeaderBar(onBackClick = onBackClick)
         Column(
             modifier = Modifier
+                .widthIn(max = 520.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)

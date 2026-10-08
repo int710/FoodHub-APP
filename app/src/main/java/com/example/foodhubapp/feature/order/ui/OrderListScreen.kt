@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.menu.ui.FoodImage
+import com.example.foodhubapp.core.payment.VnPayReturn
 import com.example.foodhubapp.feature.order.data.CustomerOrder
 import com.example.foodhubapp.feature.order.data.OrderItem
 import com.example.foodhubapp.feature.order.data.OrderStatus
@@ -50,6 +51,8 @@ import java.util.Locale
 
 @Composable
 fun OrderListRoute(
+    paymentReturn: VnPayReturn? = null,
+    onPaymentReturnConsumed: (VnPayReturn) -> Unit = {},
     onHomeClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
@@ -63,6 +66,12 @@ fun OrderListRoute(
     var cancelTarget by remember { mutableStateOf<CustomerOrder?>(null) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load(refresh = true) }
+    LaunchedEffect(paymentReturn) {
+        paymentReturn?.let {
+            viewModel.handleVnPayReturn(it.orderCode, it.result)
+            onPaymentReturnConsumed(it)
+        }
+    }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.consumeMessage() }
     }
@@ -135,7 +144,8 @@ fun OrderListScreen(
         topBar = { OrderHeader(state, onRefresh) },
         bottomBar = { OrderBottomBar(onHomeClick, onNotificationClick, onProfileClick) }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()) {
             OrderGroupTabs(state.selectedGroup, onGroupClick)
             OrderTypeFilters(state.selectedType, onTypeClick)
             Box(Modifier.fillMaxSize()) {
@@ -151,7 +161,8 @@ fun OrderListScreen(
                         items(state.visibleOrders, key = { it.id }) { order ->
                             OrderCard(
                                 order = order,
-                                busy = state.busyOrderId == order.id,
+                                busy = state.busyOrderId == order.id ||
+                                    state.checkingPaymentOrderCode == order.orderCode,
                                 onCancel = { onCancel(order) },
                                 onPay = { onPay(order) }
                             )
@@ -174,6 +185,7 @@ fun OrderListScreen(
                     trackColor = BrandSoft
                 )
             }
+        }
         }
     }
 }

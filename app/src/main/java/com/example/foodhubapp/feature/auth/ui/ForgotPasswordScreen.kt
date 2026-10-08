@@ -151,7 +151,7 @@ fun ForgotPasswordScreen(
                             color = Color.White,
                             shadowElevation = 3.dp) {
                             Image(
-                                painterResource(R.drawable.forgot_foodhub_logo),
+                                painterResource(R.drawable.foodhub_logo),
                                 "FoodHub",
                                 Modifier
                                     .padding(12.dp)

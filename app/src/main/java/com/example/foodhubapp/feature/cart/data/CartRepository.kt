@@ -63,15 +63,16 @@ interface CartRepository {
 }
 
 /**
- * Repository gọi API thật. Mọi request cart hiện dùng Bearer token CUSTOMER;
- * công việc mạng được chuyển sang Dispatchers.IO để không chặn main thread.
+ * Repository gọi API thật. DINE_IN dùng X-Table-Token; các ngữ cảnh tài khoản
+ * dùng Bearer token. Công việc mạng được chuyển khỏi main thread.
  */
 class RemoteCartRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val tableToken: suspend () -> String? = { null },
     private val accessToken: suspend () -> String? = { null }
 ) : CartRepository {
     override suspend fun getCart(type: CartType): Cart = withContext(Dispatchers.IO) {
-        parseCart(apiClient.getJson("/cart/${type.name}/items", authHeaders()))
+        parseCart(apiClient.getJson("/cart/${type.name}/items", authHeaders(type)))
     }
 
     override suspend fun updateItem(itemId: String, update: CartItemUpdate, type: CartType) =
@@ -91,24 +92,30 @@ class RemoteCartRepository(
             apiClient.patch(
                 "/cart/${type.name}/items/${itemId.encoded()}",
                 body,
-                authHeaders()
+                authHeaders(type)
             )
             Unit
         }
 
     override suspend fun deleteItem(itemId: String, type: CartType) = withContext(Dispatchers.IO) {
         require(itemId.isNotBlank())
-        apiClient.delete("/cart/${type.name}/items/${itemId.encoded()}", authHeaders())
+        apiClient.delete("/cart/${type.name}/items/${itemId.encoded()}", authHeaders(type))
         Unit
     }
 
     override suspend fun clear(type: CartType) = withContext(Dispatchers.IO) {
-        apiClient.delete("/cart/${type.name}/clear", authHeaders())
+        apiClient.delete("/cart/${type.name}/clear", authHeaders(type))
         Unit
     }
 
-    private suspend fun authHeaders(): Map<String, String> {
-        // Không gửi request cart nếu local chưa có access token.
+    private suspend fun authHeaders(type: CartType): Map<String, String> {
+        if (type == CartType.DINE_IN) {
+            val token = tableToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
+            return buildMap {
+                put("X-Table-Token", token)
+                accessToken()?.takeIf { it.isNotBlank() }?.let { put("Authorization", "Bearer $it") }
+            }
+        }
         val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
         return mapOf("Authorization" to "Bearer $token")
     }

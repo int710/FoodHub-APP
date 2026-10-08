@@ -3,6 +3,7 @@ package com.example.foodhubapp
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.order.data.OrderStatus
 import com.example.foodhubapp.feature.order.data.OrderType
+import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
 import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
@@ -73,6 +74,93 @@ class OrderRepositoryTest {
         assertEquals("POST", payment.method)
         assertEquals("/api/v1/payment/vnpay/create", payment.path)
         assertEquals("FH-9082", JSONObject(payment.body.readUtf8()).getString("orderCode"))
+    }
+
+    @Test fun createVnPayOrderUsesBackendCheckoutContract() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "order": {"id":"order-2","orderCode":"FH-20261008"},
+                "orderCode":"FH-20261008",
+                "paymentUrl":"https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?token=test"
+            }
+        }"""))
+
+        val created = repository.createVnPayOrder(OrderType.TAKEAWAY, "Ít cay")
+        val request = server.takeRequest()
+        val body = JSONObject(request.body.readUtf8())
+
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/order/TAKEAWAY/new", request.path)
+        assertEquals("Bearer order-token", request.getHeader("Authorization"))
+        assertEquals("VNPAY", body.getString("paymentMethod"))
+        assertEquals("Ít cay", body.getString("note"))
+        assertEquals("order-2", created.orderId)
+        assertEquals("FH-20261008", created.orderCode)
+        assertTrue(created.paymentUrl.startsWith("https://sandbox.vnpayment.vn/"))
+    }
+
+    @Test fun paymentStatusUsesBackendAsSourceOfTruth() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "orderId":"order-2",
+                "orderCode":"FH/20261008",
+                "orderStatus":"PENDING_CONFIRMATION",
+                "paymentStatus":"PAID",
+                "paidAt":"2026-10-08T15:55:00.000Z",
+                "shouldPoll":false
+            }
+        }"""))
+
+        val status = repository.getVnPayStatus("FH/20261008")
+        val request = server.takeRequest()
+
+        assertEquals("GET", request.method)
+        assertEquals("/api/v1/payment/vnpay/status/FH%2F20261008", request.path)
+        assertEquals("Bearer order-token", request.getHeader("Authorization"))
+        assertEquals(OrderStatus.PENDING_CONFIRMATION, status.orderStatus)
+        assertEquals("PAID", status.paymentStatus)
+        assertFalse(status.shouldPoll)
+    }
+
+    @Test fun cashCheckoutUsesSameOrderContractWithoutPaymentUrl() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "order": {"id":"cash-order","orderCode":"FHUB_CASH_01","status":"PENDING_CONFIRMATION"},
+                "items": []
+            }
+        }"""))
+
+        val created = repository.createOrder(
+            type = OrderType.TAKEAWAY,
+            paymentMethod = CheckoutPaymentMethod.CASH
+        )
+        val request = server.takeRequest()
+        val body = JSONObject(request.body.readUtf8())
+
+        assertEquals("/api/v1/order/TAKEAWAY/new", request.path)
+        assertEquals("CASH", body.getString("paymentMethod"))
+        assertEquals("cash-order", created.orderId)
+        assertEquals("FHUB_CASH_01", created.orderCode)
+        assertEquals(null, created.paymentUrl)
+    }
+
+    @Test fun dineInCheckoutUsesTableSessionHeader() = runBlocking {
+        val dineInRepository = RemoteOrderRepository(
+            FoodHubApiClient(server.url("/api/v1").toString()),
+            tableToken = { "table-session-token" }
+        )
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "order":{"id":"dine-order","orderCode":"FHUB_DINE_IN"},
+                "paymentUrl":"https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+            }
+        }"""))
+
+        dineInRepository.createVnPayOrder(OrderType.DINE_IN)
+        val request = server.takeRequest()
+
+        assertEquals("/api/v1/order/DINE_IN/new", request.path)
+        assertEquals("table-session-token", request.getHeader("X-Table-Token"))
     }
 
     @Test fun lastShortPageHasNoMoreItems() = runBlocking {

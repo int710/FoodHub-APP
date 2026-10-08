@@ -2,6 +2,7 @@ package com.example.foodhubapp
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.cart.data.CartItemUpdate
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.cart.data.RemoteCartRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
@@ -82,5 +83,19 @@ class CartRepositoryTest {
 
         assertEquals("DELETE /api/v1/cart/TAKEAWAY/items/line-id", server.takeRequest().let { "${it.method} ${it.path}" })
         assertEquals("DELETE /api/v1/cart/TAKEAWAY/clear", server.takeRequest().let { "${it.method} ${it.path}" })
+    }
+
+    @Test fun dineInCartUsesTableSessionHeader() = runBlocking {
+        val dineInRepository = RemoteCartRepository(
+            FoodHubApiClient(server.url("/api/v1").toString()),
+            tableToken = { "table-session-token" }
+        )
+        server.enqueue(MockResponse().setBody("{\"data\":{\"items\":[],\"totalAmount\":0}}"))
+
+        dineInRepository.getCart(CartType.DINE_IN)
+        val request = server.takeRequest()
+
+        assertEquals("/api/v1/cart/DINE_IN/items", request.path)
+        assertEquals("table-session-token", request.getHeader("X-Table-Token"))
     }
 }
