@@ -26,8 +26,8 @@ import com.example.foodhubapp.feature.onboarding.ui.OnboardingScreen
 import com.example.foodhubapp.feature.order.ui.OrderListRoute
 import com.example.foodhubapp.feature.profile.ui.ProfileRoute
 import com.example.foodhubapp.feature.splash.ui.FoodHubSplashRoute
-import com.foodhub.app.ScanScreen
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.table.ScanScreen
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 
 /**
  * Biểu đồ điều hướng trung tâm (Navigation Graph) của ứng dụng.

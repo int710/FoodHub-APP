@@ -122,6 +122,53 @@ class OrderRepositoryTest {
         assertFalse(status.shouldPoll)
     }
 
+    @Test fun zaloPayCheckoutKeepsUrlAndQrForAnotherDevice() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "order": {"id":"zalo-order","orderCode":"FH-ZALO-01"},
+                "paymentUrl":"https://sbgateway.zalopay.vn/openinapp?order=1",
+                "qrCode":"zalopay://pay?token=qr-token"
+            }
+        }"""))
+
+        val created = repository.createOrder(OrderType.TAKEAWAY, CheckoutPaymentMethod.ZALOPAY)
+        val request = server.takeRequest()
+        val body = JSONObject(request.body.readUtf8())
+
+        assertEquals("/api/v1/order/TAKEAWAY/new", request.path)
+        assertEquals("ZALOPAY", body.getString("paymentMethod"))
+        assertEquals("https://sbgateway.zalopay.vn/openinapp?order=1", created.paymentUrl)
+        assertEquals("zalopay://pay?token=qr-token", created.qrContent)
+    }
+
+    @Test fun zaloPayRetryAndStatusUseProviderEndpoints() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "paymentUrl":"https://sbgateway.zalopay.vn/openinapp?order=2",
+                "qrCode":"zalopay://pay?token=second"
+            }
+        }"""))
+        server.enqueue(MockResponse().setBody("""{
+            "data": {
+                "orderId":"zalo-order",
+                "orderCode":"FH/ZALO/02",
+                "orderStatus":"PENDING_PAYMENT",
+                "paymentStatus":"PENDING",
+                "shouldPoll":true
+            }
+        }"""))
+
+        val launch = repository.createPaymentLaunch("FH/ZALO/02", CheckoutPaymentMethod.ZALOPAY)
+        val createRequest = server.takeRequest()
+        assertEquals("/api/v1/payment/zalopay/create", createRequest.path)
+        assertEquals("zalopay://pay?token=second", launch.qrContent)
+
+        val status = repository.getPaymentStatus("FH/ZALO/02", CheckoutPaymentMethod.ZALOPAY)
+        val statusRequest = server.takeRequest()
+        assertEquals("/api/v1/payment/zalopay/status/FH%2FZALO%2F02", statusRequest.path)
+        assertTrue(status.shouldPoll)
+    }
+
     @Test fun cashCheckoutUsesSameOrderContractWithoutPaymentUrl() = runBlocking {
         server.enqueue(MockResponse().setBody("""{
             "data": {

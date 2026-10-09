@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +62,7 @@ import com.example.foodhubapp.feature.table.viewmodel.AdminConversationViewModel
 import com.example.foodhubapp.feature.notification.ui.NotificationScreen
 import com.example.foodhubapp.feature.notification.viewmodel.NotificationViewModel
 import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.payment.ZaloPayLaunchDialog
 
 internal val AdminPrimary = Color(0xFFA73400)
 internal val AdminPrimarySoft = Color(0xFFFFDBD0)
@@ -110,6 +112,7 @@ fun AdminApp(onLogout: () -> Unit) {
     MaterialTheme(colorScheme = AdminColorScheme) {
         val navController = rememberNavController()
         val context = LocalContext.current
+        val uriHandler = LocalUriHandler.current
         val adminUser by remember(context) { TokenStore(context.applicationContext) }
             .user.collectAsStateWithLifecycle(initialValue = null)
         val orderViewModel: AdminOrderViewModel = viewModel()
@@ -155,6 +158,18 @@ fun AdminApp(onLogout: () -> Unit) {
         }
         LaunchedEffect(orderState.error) {
             orderState.error?.let { snackbarHostState.showSnackbar(it) }
+        }
+
+        orderState.zaloPayment?.let { payment ->
+            ZaloPayLaunchDialog(
+                paymentUrl = payment.paymentUrl,
+                qrContent = payment.qrContent,
+                onOpenOnThisDevice = {
+                    runCatching { uriHandler.openUri(payment.paymentUrl) }
+                    orderViewModel.consumeZaloPayment()
+                },
+                onDismiss = orderViewModel::consumeZaloPayment,
+            )
         }
 
         Scaffold(
@@ -234,6 +249,7 @@ fun AdminApp(onLogout: () -> Unit) {
                             onUpdateItem = orderViewModel::updateItem,
                             onServe = { orderViewModel.serve(it.id) },
                             onComplete = { orderViewModel.complete(it.id) },
+                            onConvertToZaloPay = { orderViewModel.convertCashToZaloPay(it.id) },
                         )
                     }
                 }

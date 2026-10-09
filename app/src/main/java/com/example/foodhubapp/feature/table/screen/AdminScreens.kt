@@ -102,6 +102,7 @@ import com.example.foodhubapp.feature.table.AdminItemStatus
 import com.example.foodhubapp.feature.table.AdminMuted
 import com.example.foodhubapp.feature.table.AdminOrder
 import com.example.foodhubapp.feature.table.AdminOrderStatus
+import com.example.foodhubapp.feature.table.AdminPaymentMethod
 import com.example.foodhubapp.feature.table.AdminPrimary
 import com.example.foodhubapp.feature.table.AdminPrimarySoft
 import com.example.foodhubapp.feature.table.AdminRed
@@ -266,6 +267,7 @@ fun AdminOrderDetailScreen(
     onUpdateItem: (String, AdminItemStatus) -> Unit,
     onServe: (AdminOrder) -> Unit,
     onComplete: (AdminOrder) -> Unit,
+    onConvertToZaloPay: (AdminOrder) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -323,6 +325,15 @@ fun AdminOrderDetailScreen(
                 Text(order.total.vnd(), color = AdminPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
             }
             Text("${order.paymentMethod.label} • ${if (order.paid) "Đã thanh toán" else "Chưa thanh toán"}", color = if (order.paid) AdminGreen else AdminAmber, fontSize = 13.sp)
+        }
+        if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) {
+            item {
+                OutlinedButton(
+                    onClick = { onConvertToZaloPay(order) },
+                    enabled = busyId == null,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Tạo QR ZaloPay cho khách") }
+            }
         }
         item { AdminSectionHeader("Tiến độ đơn hàng") }
         item {

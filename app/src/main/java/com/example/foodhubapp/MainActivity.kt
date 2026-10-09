@@ -12,9 +12,9 @@ import com.example.foodhubapp.core.payment.VnPayReturn
 import com.example.foodhubapp.core.payment.toVnPayReturnOrNull
 import com.example.foodhubapp.navigation.AppNavGraph
 import com.example.foodhubapp.navigation.AppRoutes
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 
 /**
  * Điểm khởi đầu (Entry Point) của ứng dụng Android.

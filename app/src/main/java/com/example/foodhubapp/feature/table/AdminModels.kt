@@ -21,8 +21,16 @@ enum class AdminOrderType(val label: String) {
 enum class AdminPaymentMethod(val label: String) {
     CASH("Tiền mặt"),
     VNPAY("VNPay"),
+    ZALOPAY("ZaloPay"),
     MOMO("MoMo"),
 }
+
+data class AdminZaloPayment(
+    val orderId: String,
+    val orderCode: String,
+    val paymentUrl: String,
+    val qrContent: String?,
+)
 
 enum class AdminItemStatus(val label: String) {
     WAITING("Chờ làm"),

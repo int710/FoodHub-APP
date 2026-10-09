@@ -5,7 +5,8 @@ import android.net.Uri
 data class VnPayReturn(
     val orderCode: String,
     val result: String?,
-    val responseCode: String?
+    val responseCode: String?,
+    val provider: String = "vnpay",
 )
 
 fun Uri.toVnPayReturnOrNull(): VnPayReturn? {
@@ -14,6 +15,8 @@ fun Uri.toVnPayReturnOrNull(): VnPayReturn? {
     return VnPayReturn(
         orderCode = orderCode,
         result = getQueryParameter("result"),
-        responseCode = getQueryParameter("responseCode")
+        responseCode = getQueryParameter("responseCode"),
+        provider = getQueryParameter("provider")?.lowercase()?.takeIf { it in setOf("vnpay", "zalopay") }
+            ?: "vnpay",
     )
 }

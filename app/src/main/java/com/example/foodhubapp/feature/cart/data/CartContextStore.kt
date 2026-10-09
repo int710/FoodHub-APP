@@ -1,7 +1,7 @@
 package com.example.foodhubapp.feature.cart.data
 
 import android.content.Context
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 
 /**
  * Nguồn quyết định duy nhất cho ngữ cảnh giỏ hàng.

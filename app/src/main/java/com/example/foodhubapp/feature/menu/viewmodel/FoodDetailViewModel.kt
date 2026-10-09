@@ -17,13 +17,14 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.SocketTimeoutException
 import org.json.JSONException
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 import com.example.foodhubapp.feature.cart.data.CartContextStore
 import com.example.foodhubapp.feature.cart.data.CartType
 
 data class FoodDetailUiState(
     val isLoading: Boolean = false,
     val food: FoodDetail? = null,
+    val reviews: List<FoodReview> = emptyList(),
     val error: String? = null,
     val isAdding: Boolean = false,
     val message: String? = null,
@@ -55,7 +56,8 @@ class FoodDetailViewModel @JvmOverloads constructor(
             try {
                 check(foodId.isNotBlank()) { "Không tìm thấy ID món ăn." }
                 val food = repository.getFood(foodId)
-                state.update { it.copy(food = food) }
+                val reviews = runCatching { repository.getReviews(foodId) }.getOrDefault(emptyList())
+                state.update { it.copy(food = food, reviews = reviews) }
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) {
                 state.update { it.copy(error = foodError(error)) }

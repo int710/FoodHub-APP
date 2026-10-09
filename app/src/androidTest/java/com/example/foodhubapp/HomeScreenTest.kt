@@ -13,7 +13,7 @@ import com.example.foodhubapp.feature.menu.data.MenuCategory
 import com.example.foodhubapp.feature.menu.data.MenuFood
 import com.example.foodhubapp.feature.table.data.RestaurantTable
 import com.example.foodhubapp.feature.table.data.RestaurantTableStatus
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

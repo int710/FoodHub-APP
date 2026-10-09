@@ -9,6 +9,7 @@ import com.example.foodhubapp.feature.table.AdminOrderLine
 import com.example.foodhubapp.feature.table.AdminOrderStatus
 import com.example.foodhubapp.feature.table.AdminOrderType
 import com.example.foodhubapp.feature.table.AdminPaymentMethod
+import com.example.foodhubapp.feature.table.AdminZaloPayment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -42,6 +43,18 @@ class AdminOrderRepository(
     suspend fun complete(orderId: String) = mutate("/order/$orderId/complete", JSONObject())
 
     suspend fun confirmCash(orderId: String) = mutate("/payment/$orderId/cash-confirm", JSONObject())
+
+    suspend fun convertCashToZaloPay(orderId: String): AdminZaloPayment = withContext(Dispatchers.IO) {
+        val response = apiClient.patch("/payment/$orderId/zalopay/convert", JSONObject(), headers())
+        val data = response.optJSONObject("data") ?: error("Máy chủ chưa trả giao dịch ZaloPay")
+        AdminZaloPayment(
+            orderId = data.optString("orderId", orderId),
+            orderCode = data.optString("orderCode"),
+            paymentUrl = data.optString("paymentUrl", data.optString("orderUrl"))
+                .takeIf(String::isNotBlank) ?: error("Máy chủ chưa trả URL ZaloPay"),
+            qrContent = data.optionalString("qrCode"),
+        )
+    }
 
     private suspend fun mutate(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
         apiClient.patch(path, body, headers())

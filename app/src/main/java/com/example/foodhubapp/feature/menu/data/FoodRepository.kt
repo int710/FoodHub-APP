@@ -40,6 +40,14 @@ data class MenuCategory(
     val items: List<MenuFood>
 )
 
+data class FoodReview(
+    val id: String,
+    val customerName: String,
+    val rating: Int,
+    val comment: String,
+    val createdAt: String,
+)
+
 /**
  * Ngoại lệ ném ra khi người dùng chưa đăng nhập nhưng cố gắng thêm món vào giỏ hàng.
  */
@@ -55,6 +63,8 @@ interface FoodRepository {
 
     /** Lấy thông tin chi tiết của một món ăn theo ID. */
     suspend fun getFood(id: String): FoodDetail
+
+    suspend fun getReviews(id: String): List<FoodReview> = emptyList()
 
     /** Thêm món vào giỏ DINE_IN khi có phiên QR, nếu không dùng giỏ TAKEAWAY của tài khoản. */
     suspend fun addToCart(selection: FoodCartSelection)
@@ -105,6 +115,22 @@ class RemoteFoodRepository(
         val encodedId = URLEncoder.encode(id, "UTF-8")
         val responseJson = apiClient.getJson("/menu/item/$encodedId").getJSONObject("data")
         parseFoodDetail(responseJson)
+    }
+
+    override suspend fun getReviews(id: String): List<FoodReview> = withContext(Dispatchers.IO) {
+        val encodedId = URLEncoder.encode(id, "UTF-8")
+        val payload = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
+            .optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
+        payload.objects().map { review ->
+            FoodReview(
+                id = review.optString("id", review.optString("_id")),
+                customerName = review.optJSONObject("customer")?.optString("name")
+                    ?.takeIf(String::isNotBlank) ?: "Khách hàng",
+                rating = review.optInt("rating", 0),
+                comment = review.optionalString("comment").orEmpty(),
+                createdAt = review.optString("createdAt"),
+            )
+        }
     }
 
     /**

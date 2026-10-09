@@ -20,8 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.foodhub.app.TableSessionStore
-import com.foodhub.app.TableSession
+import com.example.foodhubapp.feature.table.data.TableSessionStore
+import com.example.foodhubapp.feature.table.data.TableSession
 import com.example.foodhubapp.feature.cart.data.CartType
 
 data class HomeUiState(

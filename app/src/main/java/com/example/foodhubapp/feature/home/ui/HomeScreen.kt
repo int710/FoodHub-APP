@@ -46,7 +46,7 @@ import com.example.foodhubapp.feature.home.viewmodel.HomeViewModel
 import com.example.foodhubapp.feature.menu.data.MenuFood
 import com.example.foodhubapp.feature.table.data.RestaurantTable
 import com.example.foodhubapp.feature.table.data.RestaurantTableStatus
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.*
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale

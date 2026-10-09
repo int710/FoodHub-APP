@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.feature.table.AdminItemStatus
 import com.example.foodhubapp.feature.table.AdminOrder
+import com.example.foodhubapp.feature.table.AdminZaloPayment
 import com.example.foodhubapp.feature.table.data.AdminOrderRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ data class AdminOrderUiState(
     val busyId: String? = null,
     val error: String? = null,
     val message: String? = null,
+    val zaloPayment: AdminZaloPayment? = null,
 )
 
 class AdminOrderViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,6 +48,28 @@ class AdminOrderViewModel(application: Application) : AndroidViewModel(applicati
     fun serve(orderId: String) = run(orderId, "Đã phục vụ đơn") { repository.serve(orderId) }
     fun complete(orderId: String) = run(orderId, "Đã hoàn tất đơn") { repository.complete(orderId) }
     fun confirmCash(orderId: String) = run(orderId, "Đã xác nhận thanh toán tiền mặt") { repository.confirmCash(orderId) }
+    fun convertCashToZaloPay(orderId: String) {
+        if (state.value.busyId != null) return
+        state.update { it.copy(busyId = orderId, error = null, message = null) }
+        viewModelScope.launch {
+            try {
+                val payment = repository.convertCashToZaloPay(orderId)
+                val orders = repository.getOrders()
+                state.update {
+                    it.copy(
+                        orders = orders,
+                        busyId = null,
+                        zaloPayment = payment,
+                        message = "Đã chuyển đơn sang ZaloPay. Đưa QR cho khách quét.",
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                state.update { it.copy(busyId = null, error = error.message ?: "Không thể tạo QR ZaloPay") }
+            }
+        }
+    }
     fun updateItem(itemId: String, status: AdminItemStatus) = run(itemId, "Đã cập nhật món") { repository.updateItem(itemId, status) }
 
     private fun run(id: String, message: String, action: suspend () -> Unit) {
@@ -65,4 +89,5 @@ class AdminOrderViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun consumeMessage() { state.update { it.copy(message = null) } }
+    fun consumeZaloPayment() { state.update { it.copy(zaloPayment = null) } }
 }

@@ -7,17 +7,20 @@ import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.order.data.CustomerOrder
+import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
 import com.example.foodhubapp.feature.order.data.OrderRepository
 import com.example.foodhubapp.feature.order.data.OrderStatus
 import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
+import com.example.foodhubapp.feature.order.data.PaymentLaunch
+import com.example.foodhubapp.feature.order.data.displayName
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -35,7 +38,8 @@ data class OrderListUiState(
     val error: String? = null,
     val message: String? = null,
     val requiresLogin: Boolean = false,
-    val paymentUrl: String? = null,
+    val paymentLaunch: PaymentLaunch? = null,
+    val paymentLaunchMethod: CheckoutPaymentMethod? = null,
     val checkingPaymentOrderCode: String? = null,
     val page: Int = 0,
     val hasMore: Boolean = false
@@ -163,8 +167,13 @@ class OrderListViewModel @JvmOverloads constructor(
         state.update { it.copy(busyOrderId = order.id, message = null) }
         viewModelScope.launch {
             try {
-                val url = repository.createVnPayUrl(order.orderCode)
-                state.update { it.copy(paymentUrl = url) }
+                val method = if (order.paymentMethod == CheckoutPaymentMethod.ZALOPAY.name) {
+                    CheckoutPaymentMethod.ZALOPAY
+                } else {
+                    CheckoutPaymentMethod.VNPAY
+                }
+                val launch = repository.createPaymentLaunch(order.orderCode, method)
+                state.update { it.copy(paymentLaunch = launch, paymentLaunchMethod = method) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -175,15 +184,21 @@ class OrderListViewModel @JvmOverloads constructor(
         }
     }
 
-    fun handleVnPayReturn(orderCode: String, gatewayResult: String?) {
+    fun handlePaymentReturn(orderCode: String, gatewayResult: String?, provider: String) {
         if (orderCode.isBlank()) return
+        val method = if (provider.equals("zalopay", ignoreCase = true)) {
+            CheckoutPaymentMethod.ZALOPAY
+        } else {
+            CheckoutPaymentMethod.VNPAY
+        }
+        val providerName = method.displayName()
         paymentPollingJob?.cancel()
         paymentPollingJob = viewModelScope.launch {
             state.update {
                 it.copy(
                     checkingPaymentOrderCode = orderCode,
                     message = if (gatewayResult == "failed") {
-                        "VNPay chưa xác nhận giao dịch. Đang kiểm tra trạng thái cuối cùng…"
+                        "$providerName chưa xác nhận giao dịch. Đang kiểm tra trạng thái cuối cùng…"
                     } else {
                         "Đang xác nhận thanh toán với máy chủ…"
                     }
@@ -192,7 +207,7 @@ class OrderListViewModel @JvmOverloads constructor(
 
             try {
                 repeat(PAYMENT_POLL_ATTEMPTS) { attempt ->
-                    val payment = repository.getVnPayStatus(orderCode)
+                    val payment = repository.getPaymentStatus(orderCode, method)
                     state.update { current ->
                         current.copy(
                             orders = current.orders.map { order ->
@@ -208,8 +223,8 @@ class OrderListViewModel @JvmOverloads constructor(
 
                     if (!payment.shouldPoll) {
                         val message = when (payment.paymentStatus) {
-                            "PAID" -> "Thanh toán VNPay thành công. Đơn hàng đang chờ quán xác nhận."
-                            "FAILED" -> "Thanh toán VNPay không thành công."
+                            "PAID" -> "Thanh toán $providerName thành công. Đơn hàng đang chờ quán xác nhận."
+                            "FAILED" -> "Thanh toán $providerName không thành công."
                             else -> "Trạng thái thanh toán: ${payment.paymentStatus ?: payment.orderStatus.name}."
                         }
                         state.update { it.copy(message = message) }
@@ -220,7 +235,7 @@ class OrderListViewModel @JvmOverloads constructor(
                 }
 
                 state.update {
-                    it.copy(message = "VNPay đang xử lý giao dịch. Bạn có thể kéo xuống để cập nhật lại.")
+                    it.copy(message = "$providerName đang xử lý giao dịch. Bạn có thể kéo xuống để cập nhật lại.")
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -243,7 +258,7 @@ class OrderListViewModel @JvmOverloads constructor(
 
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
-    fun consumePaymentUrl() { state.update { it.copy(paymentUrl = null) } }
+    fun consumePaymentLaunch() { state.update { it.copy(paymentLaunch = null, paymentLaunchMethod = null) } }
 }
 
 private const val PAYMENT_POLL_ATTEMPTS = 15

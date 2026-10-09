@@ -10,7 +10,7 @@ import java.math.BigDecimal
 import java.net.URLEncoder
 
 enum class OrderType { DINE_IN, TAKEAWAY, DELIVERY }
-enum class CheckoutPaymentMethod { CASH, VNPAY }
+enum class CheckoutPaymentMethod { CASH, VNPAY, ZALOPAY }
 
 enum class OrderStatus {
     PENDING_PAYMENT,
@@ -68,8 +68,11 @@ data class CreatedOrder(
     val orderId: String,
     val orderCode: String,
     val paymentMethod: CheckoutPaymentMethod,
-    val paymentUrl: String?
+    val paymentUrl: String?,
+    val qrContent: String? = null,
 )
+
+data class PaymentLaunch(val url: String, val qrContent: String? = null)
 
 data class VnPayPaymentStatus(
     val orderId: String,
@@ -98,6 +101,8 @@ interface OrderRepository {
     }
     suspend fun createVnPayUrl(orderCode: String): String
     suspend fun getVnPayStatus(orderCode: String): VnPayPaymentStatus
+    suspend fun createPaymentLaunch(orderCode: String, method: CheckoutPaymentMethod): PaymentLaunch
+    suspend fun getPaymentStatus(orderCode: String, method: CheckoutPaymentMethod): VnPayPaymentStatus
 }
 
 /** API của màn Đơn hàng. Mọi thao tác CUSTOMER đều dùng Bearer token hiện tại. */
@@ -148,15 +153,16 @@ class RemoteOrderRepository(
                 ?: order?.optionalString("orderCode")
                 ?: error("Máy chủ chưa trả mã đơn hàng.")
             val paymentUrl = data.optionalString("paymentUrl")
-            if (paymentMethod == CheckoutPaymentMethod.VNPAY && paymentUrl == null) {
-                error("Máy chủ chưa trả đường dẫn thanh toán VNPay.")
+            if (paymentMethod != CheckoutPaymentMethod.CASH && paymentUrl == null) {
+                error("Máy chủ chưa trả đường dẫn thanh toán ${paymentMethod.displayName()}.")
             }
 
             CreatedOrder(
                 orderId = order?.optionalString("id").orEmpty(),
                 orderCode = orderCode,
                 paymentMethod = paymentMethod,
-                paymentUrl = paymentUrl
+                paymentUrl = paymentUrl,
+                qrContent = data.optionalString("qrCode")
             )
         }
 
@@ -192,6 +198,48 @@ class RemoteOrderRepository(
         )
     }
 
+    override suspend fun createPaymentLaunch(
+        orderCode: String,
+        method: CheckoutPaymentMethod
+    ): PaymentLaunch = withContext(Dispatchers.IO) {
+        require(orderCode.isNotBlank())
+        require(method != CheckoutPaymentMethod.CASH)
+        val provider = method.name.lowercase()
+        val response = apiClient.post(
+            "/payment/$provider/create",
+            JSONObject().put("orderCode", orderCode),
+            optionalSessionHeaders()
+        )
+        val data = response.optJSONObject("data") ?: response
+        val url = data.optionalString("paymentUrl")
+            ?: data.optionalString("orderUrl")
+            ?: error("Máy chủ chưa trả đường dẫn thanh toán ${method.displayName()}.")
+        PaymentLaunch(url = url, qrContent = data.optionalString("qrCode"))
+    }
+
+    override suspend fun getPaymentStatus(
+        orderCode: String,
+        method: CheckoutPaymentMethod
+    ): VnPayPaymentStatus = withContext(Dispatchers.IO) {
+        require(orderCode.isNotBlank())
+        require(method != CheckoutPaymentMethod.CASH)
+        val provider = method.name.lowercase()
+        val response = apiClient.getJson(
+            "/payment/$provider/status/${orderCode.encoded()}",
+            optionalSessionHeaders()
+        )
+        val data = response.optJSONObject("data")
+            ?: error("Máy chủ chưa trả trạng thái thanh toán.")
+        VnPayPaymentStatus(
+            orderId = data.firstString("orderId", "id"),
+            orderCode = data.firstString("orderCode", "code"),
+            orderStatus = enumValueOrNull<OrderStatus>(data.optString("orderStatus")) ?: OrderStatus.UNKNOWN,
+            paymentStatus = data.optionalString("paymentStatus"),
+            paidAt = data.optionalString("paidAt"),
+            shouldPoll = data.optBoolean("shouldPoll", false)
+        )
+    }
+
     private suspend fun authHeaders(): Map<String, String> {
         val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
         return mapOf("Authorization" to "Bearer $token")
@@ -213,6 +261,12 @@ class RemoteOrderRepository(
         accessToken()?.takeIf { it.isNotBlank() }?.let { return mapOf("Authorization" to "Bearer $it") }
         return emptyMap()
     }
+}
+
+fun CheckoutPaymentMethod.displayName(): String = when (this) {
+    CheckoutPaymentMethod.CASH -> "tiền mặt"
+    CheckoutPaymentMethod.VNPAY -> "VNPay"
+    CheckoutPaymentMethod.ZALOPAY -> "ZaloPay"
 }
 
 /** Swagger chưa khai báo schema data, parser chấp nhận cả data dạng mảng và object phân trang. */

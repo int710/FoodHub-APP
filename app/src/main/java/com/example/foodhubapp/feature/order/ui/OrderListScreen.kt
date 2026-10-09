@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.menu.ui.FoodImage
 import com.example.foodhubapp.core.payment.VnPayReturn
+import com.example.foodhubapp.core.payment.ZaloPayLaunchDialog
+import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
 import com.example.foodhubapp.feature.order.data.CustomerOrder
 import com.example.foodhubapp.feature.order.data.OrderItem
 import com.example.foodhubapp.feature.order.data.OrderStatus
@@ -40,7 +42,7 @@ import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.viewmodel.OrderGroup
 import com.example.foodhubapp.feature.order.viewmodel.OrderListUiState
 import com.example.foodhubapp.feature.order.viewmodel.OrderListViewModel
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.*
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.Instant
@@ -68,18 +70,32 @@ fun OrderListRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load(refresh = true) }
     LaunchedEffect(paymentReturn) {
         paymentReturn?.let {
-            viewModel.handleVnPayReturn(it.orderCode, it.result)
+            viewModel.handlePaymentReturn(it.orderCode, it.result, it.provider)
             onPaymentReturnConsumed(it)
         }
     }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.consumeMessage() }
     }
-    LaunchedEffect(state.paymentUrl) {
-        state.paymentUrl?.let { url ->
-            runCatching { uriHandler.openUri(url) }
+    LaunchedEffect(state.paymentLaunch, state.paymentLaunchMethod) {
+        if (state.paymentLaunchMethod == CheckoutPaymentMethod.VNPAY) state.paymentLaunch?.let { launch ->
+            runCatching { uriHandler.openUri(launch.url) }
                 .onFailure { snackbar.showSnackbar("Không thể mở trang thanh toán VNPay.") }
-            viewModel.consumePaymentUrl()
+            viewModel.consumePaymentLaunch()
+        }
+    }
+
+    if (state.paymentLaunchMethod == CheckoutPaymentMethod.ZALOPAY) {
+        state.paymentLaunch?.let { launch ->
+            ZaloPayLaunchDialog(
+                paymentUrl = launch.url,
+                qrContent = launch.qrContent,
+                onOpenOnThisDevice = {
+                    runCatching { uriHandler.openUri(launch.url) }
+                    viewModel.consumePaymentLaunch()
+                },
+                onDismiss = viewModel::consumePaymentLaunch,
+            )
         }
     }
 

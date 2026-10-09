@@ -1,4 +1,4 @@
-package com.foodhub.app
+package com.example.foodhubapp.feature.table.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -137,6 +137,22 @@ class TableScanRepository(
             sessionStore.save(tableSession)
             tableSession
         }
+    }
+
+    suspend fun endSession() = withContext(Dispatchers.IO) {
+        val session = sessionStore.current() ?: return@withContext
+        val request = Request.Builder()
+            .url("https://foodhub-8lv1.onrender.com/api/v1/table/session/end")
+            .header("X-Table-Token", session.tableToken)
+            .post(JSONObject().toString().toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val message = response.body?.string().orEmpty().asJsonObject()?.optString("message")
+                throw TableScanException(message?.takeIf(String::isNotBlank) ?: "Không thể kết thúc phiên bàn")
+            }
+        }
+        sessionStore.clear()
     }
 
     private fun String.asJsonObject(): JSONObject? = runCatching { JSONObject(this) }.getOrNull()

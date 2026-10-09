@@ -36,10 +36,11 @@ import com.example.foodhubapp.feature.cart.data.CartItem
 import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.cart.viewmodel.CartViewModel
 import com.example.foodhubapp.core.payment.VnPayReturn
+import com.example.foodhubapp.core.payment.ZaloPayLaunchDialog
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodImage
 import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.*
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -67,7 +68,7 @@ fun CartRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load() }
     LaunchedEffect(paymentReturn) {
         paymentReturn?.let {
-            viewModel.handleVnPayReturn(it.orderCode, it.result)
+            viewModel.handlePaymentReturn(it.orderCode, it.result, it.provider)
             onPaymentReturnConsumed(it)
         }
     }
@@ -79,11 +80,26 @@ fun CartRoute(
         }
     }
 
-    LaunchedEffect(state.paymentUrl) {
-        state.paymentUrl?.let { url ->
+    LaunchedEffect(state.paymentLaunch, state.paymentMethod) {
+        if (state.paymentMethod == CheckoutPaymentMethod.VNPAY) state.paymentLaunch?.let { launch ->
+            val url = launch.url
             runCatching { uriHandler.openUri(url) }
                 .onFailure { snackbar.showSnackbar("Không thể mở trang thanh toán VNPay.") }
-            viewModel.consumePaymentUrl()
+            viewModel.consumePaymentLaunch()
+        }
+    }
+
+    if (state.paymentMethod == CheckoutPaymentMethod.ZALOPAY) {
+        state.paymentLaunch?.let { launch ->
+            ZaloPayLaunchDialog(
+                paymentUrl = launch.url,
+                qrContent = launch.qrContent,
+                onOpenOnThisDevice = {
+                    runCatching { uriHandler.openUri(launch.url) }
+                    viewModel.consumePaymentLaunch()
+                },
+                onDismiss = viewModel::consumePaymentLaunch,
+            )
         }
     }
 
@@ -216,21 +232,30 @@ fun CartScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text("Phương thức thanh toán", fontWeight = FontWeight.SemiBold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         PaymentChoice(
                             label = if (cartType == CartType.DINE_IN) "Tiền mặt tại bàn" else "Tiền mặt khi nhận",
                             selected = paymentMethod == CheckoutPaymentMethod.CASH,
                             enabled = !isCheckingOut,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             onClick = { onPaymentMethodChange(CheckoutPaymentMethod.CASH) }
                         )
-                        PaymentChoice(
-                            label = "VNPay",
-                            selected = paymentMethod == CheckoutPaymentMethod.VNPAY,
-                            enabled = !isCheckingOut,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPaymentMethodChange(CheckoutPaymentMethod.VNPAY) }
-                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PaymentChoice(
+                                label = "VNPay",
+                                selected = paymentMethod == CheckoutPaymentMethod.VNPAY,
+                                enabled = !isCheckingOut,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onPaymentMethodChange(CheckoutPaymentMethod.VNPAY) }
+                            )
+                            PaymentChoice(
+                                label = "ZaloPay / QR",
+                                selected = paymentMethod == CheckoutPaymentMethod.ZALOPAY,
+                                enabled = !isCheckingOut,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onPaymentMethodChange(CheckoutPaymentMethod.ZALOPAY) }
+                            )
+                        }
                     }
                     Row(
                         Modifier.fillMaxWidth(),
@@ -256,8 +281,11 @@ fun CartScreen(
                             Text("Đang xử lý…")
                         } else {
                             Text(
-                                if (paymentMethod == CheckoutPaymentMethod.VNPAY) "Thanh toán bằng VNPay"
-                                else "Gửi đơn • Thanh toán tiền mặt",
+                                when (paymentMethod) {
+                                    CheckoutPaymentMethod.VNPAY -> "Thanh toán bằng VNPay"
+                                    CheckoutPaymentMethod.ZALOPAY -> "Thanh toán bằng ZaloPay"
+                                    CheckoutPaymentMethod.CASH -> "Gửi đơn • Thanh toán tiền mặt"
+                                },
                                 fontWeight = FontWeight.Bold
                             )
                         }

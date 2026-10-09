@@ -20,7 +20,9 @@ import com.example.foodhubapp.feature.order.data.OrderRepository
 import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
 import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
-import com.foodhub.app.TableSessionStore
+import com.example.foodhubapp.feature.order.data.PaymentLaunch
+import com.example.foodhubapp.feature.order.data.displayName
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,7 +49,7 @@ data class CartUiState(
     val editingFood: FoodDetail? = null,
     val isLoadingEditor: Boolean = false,
     val isCheckingOut: Boolean = false,
-    val paymentUrl: String? = null,
+    val paymentLaunch: PaymentLaunch? = null,
     val paymentMethod: CheckoutPaymentMethod = CheckoutPaymentMethod.CASH,
     val cartType: CartType = CartType.TAKEAWAY
 )
@@ -191,8 +193,15 @@ class CartViewModel @JvmOverloads constructor(
                 }
                 val paymentMethod = state.value.paymentMethod
                 val order = orderRepository.createOrder(orderType, paymentMethod)
-                if (paymentMethod == CheckoutPaymentMethod.VNPAY) {
-                    state.update { it.copy(paymentUrl = order.paymentUrl) }
+                if (paymentMethod != CheckoutPaymentMethod.CASH) {
+                    state.update {
+                        it.copy(
+                            paymentLaunch = PaymentLaunch(
+                                url = requireNotNull(order.paymentUrl),
+                                qrContent = order.qrContent,
+                            )
+                        )
+                    }
                 } else {
                     state.update {
                         it.copy(
@@ -215,13 +224,19 @@ class CartViewModel @JvmOverloads constructor(
      * Return URL chỉ là tín hiệu quay lại app; IPN/backend mới là nguồn sự thật.
      * Poll ngắn để tránh hiển thị thành công khi VNPay đã redirect nhưng IPN đến trễ.
      */
-    fun handleVnPayReturn(orderCode: String, gatewayResult: String?) {
+    fun handlePaymentReturn(orderCode: String, gatewayResult: String?, provider: String) {
         if (orderCode.isBlank() || state.value.isCheckingOut) return
+        val method = if (provider.equals("zalopay", ignoreCase = true)) {
+            CheckoutPaymentMethod.ZALOPAY
+        } else {
+            CheckoutPaymentMethod.VNPAY
+        }
+        val providerName = method.displayName()
         state.update {
             it.copy(
                 isCheckingOut = true,
                 message = if (gatewayResult == "failed") {
-                    "VNPay chưa hoàn tất. Đang kiểm tra trạng thái giao dịch…"
+                    "$providerName chưa hoàn tất. Đang kiểm tra trạng thái giao dịch…"
                 } else {
                     "Đang xác nhận thanh toán với máy chủ…"
                 }
@@ -230,7 +245,7 @@ class CartViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 repeat(PAYMENT_POLL_ATTEMPTS) { attempt ->
-                    val payment = orderRepository.getVnPayStatus(orderCode)
+                    val payment = orderRepository.getPaymentStatus(orderCode, method)
                     when (payment.paymentStatus) {
                         "PAID" -> {
                             state.update {
@@ -254,7 +269,7 @@ class CartViewModel @JvmOverloads constructor(
                     }
                     if (attempt < PAYMENT_POLL_ATTEMPTS - 1) delay(PAYMENT_POLL_INTERVAL_MS)
                 }
-                state.update { it.copy(message = "VNPay vẫn đang xử lý. Bạn có thể bấm thanh toán lại để mở lại giao dịch đang chờ.") }
+                state.update { it.copy(message = "$providerName vẫn đang xử lý. Bạn có thể mở lại giao dịch từ danh sách đơn hàng.") }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -306,7 +321,7 @@ class CartViewModel @JvmOverloads constructor(
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
     fun dismissTableScan() { state.update { it.copy(requiresTableScan = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
-    fun consumePaymentUrl() { state.update { it.copy(paymentUrl = null) } }
+    fun consumePaymentLaunch() { state.update { it.copy(paymentLaunch = null) } }
 }
 
 internal fun cartError(error: Exception): String = when (error) {
