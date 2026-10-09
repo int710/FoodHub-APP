@@ -1,6 +1,5 @@
 package com.example.foodhubapp.feature.cart.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,10 +30,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.cart.data.Cart
 import com.example.foodhubapp.feature.cart.data.CartItem
+import com.example.foodhubapp.feature.cart.data.CartType
+import com.example.foodhubapp.feature.cart.data.CheckoutRequest
 import com.example.foodhubapp.feature.cart.viewmodel.CartViewModel
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodImage
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.CardStroke
+import com.example.foodhubapp.theme.CeramicSurface
+import com.example.foodhubapp.theme.OnSurfaceVariant
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -45,17 +51,27 @@ import java.util.Locale
 fun CartRoute(
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
+    onOrderCreated: () -> Unit = {},
     viewModel: CartViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var deleteTarget by remember { mutableStateOf<CartItem?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var showCheckout by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbar.showSnackbar(it)
             viewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(state.checkoutResult) {
+        state.checkoutResult?.let { result ->
+            result.paymentUrl?.let { runCatching { uriHandler.openUri(it) } }
+            viewModel.consumeCheckoutResult()
+            onOrderCreated()
         }
     }
 
@@ -65,12 +81,16 @@ fun CartRoute(
         error = state.error,
         busyItemId = state.busyItemId,
         isClearing = state.isClearing,
+        cartType = state.cartType,
+        isCheckingOut = state.isCheckingOut,
         onBackClick = onBackClick,
         onRetry = viewModel::load,
         onQuantityChange = viewModel::changeQuantity,
         onEdit = viewModel::edit,
         onDelete = { deleteTarget = it },
         onClear = { confirmClear = true },
+        onTypeChange = viewModel::selectType,
+        onCheckout = { showCheckout = true },
         snackbarHost = { SnackbarHost(snackbar) }
     )
 
@@ -95,6 +115,17 @@ fun CartRoute(
         },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
     )
+    if (showCheckout) {
+        CheckoutDialog(
+            type = state.cartType,
+            isSubmitting = state.isCheckingOut,
+            onDismiss = { if (!state.isCheckingOut) showCheckout = false },
+            onSubmit = {
+                showCheckout = false
+                viewModel.checkout(it)
+            },
+        )
+    }
     // ViewModel tải FoodDetail trước; dialog chỉ mở khi đã có contract option đầy đủ.
     state.editingItem?.let { item ->
         if (state.isLoadingEditor) AlertDialog(
@@ -128,12 +159,16 @@ fun CartScreen(
     error: String?,
     busyItemId: String?,
     isClearing: Boolean,
+    cartType: CartType = CartType.TAKEAWAY,
+    isCheckingOut: Boolean = false,
     onBackClick: () -> Unit,
     onRetry: () -> Unit,
     onQuantityChange: (CartItem, Int) -> Unit,
     onEdit: (CartItem) -> Unit,
     onDelete: (CartItem) -> Unit,
     onClear: () -> Unit,
+    onTypeChange: (CartType) -> Unit = {},
+    onCheckout: () -> Unit = {},
     snackbarHost: @Composable () -> Unit = {}
 ) {
     Scaffold(
@@ -153,13 +188,23 @@ fun CartScreen(
         },
         bottomBar = {
             if (cart.items.isNotEmpty()) Surface(shadowElevation = 8.dp, color = CeramicSurface) {
-                Row(
+                Column(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Tổng cộng", color = OnSurfaceVariant)
-                    Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Tổng cộng", color = OnSurfaceVariant)
+                        Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    }
+                    Button(
+                        onClick = onCheckout,
+                        enabled = !isCheckingOut && busyItemId == null && !isClearing,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                    ) {
+                        if (isCheckingOut) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        else Text("Đặt món")
+                    }
                 }
             }
         }
@@ -173,6 +218,17 @@ fun CartScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(CartType.TAKEAWAY, CartType.DELIVERY, CartType.DINE_IN).forEach { type ->
+                                FilterChip(
+                                    selected = cartType == type,
+                                    onClick = { onTypeChange(type) },
+                                    label = { Text(type.label()) },
+                                )
+                            }
+                        }
+                    }
                     items(cart.items, key = { it.id }) { item ->
                         CartItemRow(
                             item,
@@ -186,6 +242,56 @@ fun CartScreen(
             }
         }
     }
+}
+
+@Composable
+private fun CheckoutDialog(
+    type: CartType,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (CheckoutRequest) -> Unit,
+) {
+    var paymentMethod by rememberSaveable { mutableStateOf("CASH") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var recipientName by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
+    val deliveryValid = type != CartType.DELIVERY ||
+        (recipientName.isNotBlank() && phone.isNotBlank() && address.isNotBlank())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Xác nhận ${type.label().lowercase()}") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Phương thức thanh toán", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(paymentMethod == "CASH", { paymentMethod = "CASH" }, { Text("Tiền mặt") })
+                    FilterChip(paymentMethod == "VNPAY", { paymentMethod = "VNPAY" }, { Text("VNPay") })
+                }
+                if (type == CartType.DELIVERY) {
+                    OutlinedTextField(recipientName, { recipientName = it }, label = { Text("Người nhận") }, singleLine = true)
+                    OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(11) }, label = { Text("Số điện thoại") }, singleLine = true)
+                    OutlinedTextField(address, { address = it }, label = { Text("Địa chỉ giao hàng") }, minLines = 2)
+                }
+                OutlinedTextField(note, { note = it.take(255) }, label = { Text("Ghi chú đơn hàng") }, minLines = 2)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSubmit(CheckoutRequest(type, paymentMethod, note, recipientName, phone, address))
+                },
+                enabled = deliveryValid && !isSubmitting,
+            ) { Text("Tạo đơn") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Hủy") } },
+    )
+}
+
+private fun CartType.label(): String = when (this) {
+    CartType.DINE_IN -> "Tại bàn"
+    CartType.TAKEAWAY -> "Mang về"
+    CartType.DELIVERY -> "Giao hàng"
 }
 
 @Composable

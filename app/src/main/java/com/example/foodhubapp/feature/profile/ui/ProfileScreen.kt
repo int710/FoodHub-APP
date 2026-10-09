@@ -13,15 +13,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.profile.viewmodel.ProfileUiState
 import com.example.foodhubapp.feature.profile.viewmodel.ProfileViewModel
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.CardStroke
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
 
 @Composable
 fun ProfileRoute(
@@ -30,18 +38,21 @@ fun ProfileRoute(
     onMenuClick: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshProfile() }
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) onLoggedOut()
     }
-    ProfileScreen(state, viewModel::logout, onMenuClick)
+    ProfileScreen(state, viewModel::logout, onMenuClick, viewModel::updateProfile)
 }
 
 @Composable
 fun ProfileScreen(
     uiState: ProfileUiState,
     onLogoutClick: () -> Unit,
-    onMenuClick: () -> Unit = {}
+    onMenuClick: () -> Unit = {},
+    onUpdateProfile: (String, String) -> Unit = { _, _ -> },
 ) {
+    var showEdit by remember { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxSize()
@@ -87,6 +98,9 @@ fun ProfileScreen(
             ProfileDetail("Email", uiState.user?.email)
             HorizontalDivider(color = CardStroke)
             ProfileDetail("Số điện thoại", uiState.user?.phoneNumber)
+            OutlinedButton(onClick = { showEdit = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Chỉnh sửa thông tin")
+            }
             Spacer(Modifier.height(24.dp))
             if (uiState.errorMessage != null) {
                 Text(uiState.errorMessage, color = MaterialTheme.colorScheme.error)
@@ -117,6 +131,24 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold)
             }
         }
+    }
+    if (showEdit) {
+        var name by remember(uiState.user?.fullName) { mutableStateOf(uiState.user?.fullName.orEmpty()) }
+        var phone by remember(uiState.user?.phoneNumber) { mutableStateOf(uiState.user?.phoneNumber.orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { showEdit = false },
+            title = { Text("Thông tin cá nhân") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(name, { name = it }, label = { Text("Họ tên") }, singleLine = true)
+                    OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(11) }, label = { Text("Số điện thoại") }, singleLine = true)
+                }
+            },
+            confirmButton = {
+                Button(onClick = { onUpdateProfile(name, phone); showEdit = false }, enabled = name.isNotBlank()) { Text("Lưu") }
+            },
+            dismissButton = { TextButton(onClick = { showEdit = false }) { Text("Hủy") } },
+        )
     }
 }
 

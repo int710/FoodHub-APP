@@ -38,7 +38,7 @@ export const UpdateDetailSchema = z
       variantOptionIds: z.array(z.string().min(1)).optional()
     })
   })
-  .refine((d) => Object.keys(d).length > 0, { message: 'Phải có ít nhất 1 field' })
+  .refine((d) => Object.keys(d.body).length > 0, { message: 'Phải có ít nhất 1 field', path: ['body'] })
 
 export type UpdateDetailItemType = z.infer<typeof UpdateDetailSchema>['body']
 
@@ -104,4 +104,9 @@ export const updateKitchenItemStatusSchema = z.object({
   body: z.object({
     status: z.enum([ItemStatus.PREPARING, ItemStatus.READY])
   })
+})
+
+export const completeOrderSchema = z.object({
+  params: orderIdParamsSchema,
+  body: z.object({}).strict()
 })

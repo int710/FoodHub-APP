@@ -31,17 +31,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.R
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.Brand
-import com.example.foodhubapp.ui.theme.BrandDark
-import com.example.foodhubapp.ui.theme.BrandSoft
-import com.example.foodhubapp.ui.theme.CardStroke
-import com.example.foodhubapp.ui.theme.HeadingFont
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.SoftGreen
-import com.example.foodhubapp.ui.theme.SurfaceContainerLow
-import com.example.foodhubapp.ui.theme.WarmAccent
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandDark
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.CardStroke
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.SoftGreen
+import com.example.foodhubapp.theme.SurfaceContainerLow
+import com.example.foodhubapp.theme.WarmAccent
 
 @Composable
 internal fun OnboardingTopBar(onSkipClick: () -> Unit) {

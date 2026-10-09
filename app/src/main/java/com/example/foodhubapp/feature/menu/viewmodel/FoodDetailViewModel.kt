@@ -9,6 +9,8 @@ import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.menu.data.*
 import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.order.data.OrderingContextStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,7 @@ import org.json.JSONException
 data class FoodDetailUiState(
     val isLoading: Boolean = false,
     val food: FoodDetail? = null,
+    val reviews: List<FoodReview> = emptyList(),
     val error: String? = null,
     val isAdding: Boolean = false,
     val message: String? = null,
@@ -31,7 +34,9 @@ class FoodDetailViewModel @JvmOverloads constructor(
     application: Application,
     savedStateHandle: SavedStateHandle,
     private val repository: FoodRepository = RemoteFoodRepository(
-        accessToken = TokenStore(application.applicationContext)::getAccessToken
+        accessToken = TokenStore(application.applicationContext)::getAccessToken,
+        cartType = OrderingContextStore(application.applicationContext)::currentType,
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
     )
 ) : AndroidViewModel(application) {
     private val foodId = savedStateHandle.get<String>("foodId").orEmpty()
@@ -48,7 +53,8 @@ class FoodDetailViewModel @JvmOverloads constructor(
             try {
                 check(foodId.isNotBlank()) { "Không tìm thấy ID món ăn." }
                 val food = repository.getFood(foodId)
-                state.update { it.copy(food = food) }
+                val reviews = runCatching { repository.getReviews(foodId) }.getOrDefault(emptyList())
+                state.update { it.copy(food = food, reviews = reviews) }
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) {
                 state.update { it.copy(error = foodError(error)) }
@@ -80,10 +86,20 @@ class FoodDetailViewModel @JvmOverloads constructor(
             try {
                 // Repository tạo JSON, gắn Bearer token và gọi POST cart/TAKEAWAY/items/add.
                 repository.addToCart(selection)
-                state.update { it.copy(message = "Đã thêm món vào giỏ mang đi.") }
+                val typeLabel = when (OrderingContextStore(getApplication()).currentType()) {
+                    com.example.foodhubapp.feature.cart.data.CartType.DINE_IN -> "tại bàn"
+                    com.example.foodhubapp.feature.cart.data.CartType.DELIVERY -> "giao hàng"
+                    com.example.foodhubapp.feature.cart.data.CartType.TAKEAWAY -> "mang đi"
+                }
+                state.update { it.copy(message = "Đã thêm món vào giỏ $typeLabel.") }
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) {
                 if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
+                    if (error is FoodHubApiException) {
+                        viewModelScope.launch {
+                            runCatching { TokenStore(getApplication()).clearTokens() }
+                        }
+                    }
                     state.update { it.copy(requiresLogin = true) }
                 } else state.update { it.copy(message = foodError(error)) }
             } finally {

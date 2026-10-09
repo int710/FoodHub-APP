@@ -40,24 +40,23 @@ import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.auth.model.AuthMode
 import com.example.foodhubapp.feature.auth.viewmodel.LoginUiState
 import com.example.foodhubapp.feature.auth.viewmodel.LoginViewModel
-import com.example.foodhubapp.ui.theme.AppBackground
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.Brand
-import com.example.foodhubapp.ui.theme.CaptionBrown
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
-import com.example.foodhubapp.ui.theme.InputBackgroundSoft
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.Success
-import com.example.foodhubapp.ui.theme.Warning
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.InputBackgroundSoft
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.Warning
 
 @Composable
 fun LoginRoute(
     onBackClick: () -> Unit,
-    onLoginClick: () -> Unit,
+    onLoginClick: (String?) -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
     onForgotPasswordClick: () -> Unit = {},
+    onVerifyEmailClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = viewModel()
 ) {
@@ -65,7 +64,7 @@ fun LoginRoute(
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
-            onLoginClick()
+            onLoginClick(uiState.userRole)
         }
     }
 
@@ -74,12 +73,12 @@ fun LoginRoute(
         onAccountChange = viewModel::onAccountChange,
         onPasswordChange = viewModel::onPasswordChange,
         onTogglePassword = viewModel::togglePasswordVisibility,
-        onToggleRemember = viewModel::toggleRememberMe,
         onBackClick = onBackClick,
         onLoginClick = viewModel::login,
         onRegisterClick = onRegisterClick,
         onGuestQrClick = onGuestQrClick,
         onForgotPasswordClick = onForgotPasswordClick,
+        onVerifyEmailClick = onVerifyEmailClick,
         modifier = modifier
     )
 }
@@ -90,12 +89,12 @@ fun LoginScreen(
     onAccountChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
-    onToggleRemember: () -> Unit,
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
     onForgotPasswordClick: () -> Unit = {},
+    onVerifyEmailClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -158,30 +157,9 @@ fun LoginScreen(
                     onAccountChange = onAccountChange,
                     onPasswordChange = onPasswordChange,
                     onTogglePassword = onTogglePassword,
-                    onToggleRemember = onToggleRemember,
                     onLoginClick = onLoginClick,
                     onForgotPasswordClick = onForgotPasswordClick
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                DividerLabel(text = "Hoặc đăng nhập nhanh bằng")
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SocialButton(
-                        text = "Google",
-                        iconRes = R.drawable.ic_auth_google,
-                        onClick = {},
-                        modifier = Modifier.weight(1f)
-                    )
-                    SocialButton(
-                        text = "Apple",
-                        iconRes = R.drawable.ic_auth_apple,
-                        onClick = {},
-                        modifier = Modifier.weight(1f)
-                    )
-                }
                 Spacer(modifier = Modifier.height(16.dp))
                 GuestQrCard(onGuestQrClick = onGuestQrClick)
                 Spacer(modifier = Modifier.height(24.dp))
@@ -189,6 +167,12 @@ fun LoginScreen(
                     normalText = "Chưa có tài khoản?",
                     actionText = "Đăng ký ngay",
                     onClick = onRegisterClick
+                )
+                Text(
+                    "Xác minh email bằng token",
+                    modifier = Modifier.clickable(onClick = onVerifyEmailClick).padding(12.dp),
+                    color = Brand,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -201,7 +185,6 @@ private fun LoginFormCard(
     onAccountChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
-    onToggleRemember: () -> Unit,
     onLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit
 ) {
@@ -216,7 +199,7 @@ private fun LoginFormCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AuthTextField(
-                label = "Số điện thoại hoặc Email",
+                label = "Email",
                 value = uiState.account,
                 onValueChange = onAccountChange,
                 iconRes = R.drawable.ic_auth_email,
@@ -237,12 +220,16 @@ private fun LoginFormCard(
                     )
                 }
             )
-            AuthCheckRow(
-                text = "Ghi nhớ đăng nhập",
-                checked = uiState.rememberMe,
-                onClick = onToggleRemember,
-                trailingText = "Quên mật khẩu?",
-                onTrailingClick = onForgotPasswordClick
+            Text(
+                text = "Quên mật khẩu?",
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .clickable(onClick = onForgotPasswordClick)
+                    .padding(vertical = 4.dp),
+                color = Brand,
+                fontFamily = BodyFont,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
             )
             if (uiState.errorMessage != null) {
                 Text(
@@ -389,7 +376,6 @@ private fun LoginScreenPreview() {
             onAccountChange = {},
             onPasswordChange = {},
             onTogglePassword = {},
-            onToggleRemember = {},
             onBackClick = {},
             onLoginClick = {},
             onRegisterClick = {},

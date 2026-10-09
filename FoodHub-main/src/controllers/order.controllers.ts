@@ -18,12 +18,14 @@ import {
   confirmOrderSchema,
   rejectOrderSchema,
   serveOrderSchema,
+  completeOrderSchema,
   updateKitchenItemStatusSchema
 } from '~/models/schemas/order.schema'
 import { vnpay } from '~/config/vnpay'
-import { emitOrderItemStatusUpdate, emitOrderStatusUpdate } from '~/socket/orders/order.emitter'
+import { emitNewOrder, emitOrderItemStatusUpdate, emitOrderStatusUpdate } from '~/socket/orders/order.emitter'
 import { TokenPayload } from '~/models/schemas/token.schema'
 import notificationsServices from '~/services/notifications.services'
+import { priceCart } from '~/services/cart-pricing.services'
 
 function mapOrderTypeToCartType(type: OrderType): CartType {
   if (type === OrderType.DINE_IN) return CartType.DINE_IN
@@ -128,46 +130,22 @@ export const ordersController = {
       }
     }
 
-    const menuItems = await prisma.menuItem.findMany({
-      where: { id: { in: cart.items.map((i) => i.menuItemId) } },
-      select: { id: true, name: true, basePrice: true, isAvailable: true }
-    })
-    const menuMap = new Map(menuItems.map((i) => [i.id, i]))
-
-    const invalidItems = cart.items.filter((i) => !menuMap.has(i.menuItemId))
-    if (invalidItems.length) {
-      throw new ErrorWithStatus({
-        httpStatusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Một số món trong giỏ không còn tồn tại'
-      })
-    }
-
-    const unavailableItems = cart.items.filter((i) => !menuMap.get(i.menuItemId)?.isAvailable)
-    if (unavailableItems.length) {
-      throw new ErrorWithStatus({
-        httpStatusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Một số món hiện không còn phục vụ'
-      })
-    }
-
-    let subtotal = 0
-    const orderItemsData = cart.items.map((item) => {
-      const menuItem = menuMap.get(item.menuItemId)!
-      const unitPrice = Number(menuItem.basePrice.toString())
-      const subTotal = Number((unitPrice * item.quantity).toFixed(2))
-      subtotal += subTotal
-
+    const pricedCart = await priceCart(cart.items, true)
+    const subtotal = pricedCart.totalAmount
+    const orderItemsData = pricedCart.items.map((item) => {
       return {
         menuItemId: item.menuItemId,
         quantity: item.quantity,
-        unitPrice: new Prisma.Decimal(unitPrice.toFixed(2)),
-        subTotal: new Prisma.Decimal(subTotal.toFixed(2)),
+        unitPrice: new Prisma.Decimal(item.unitPrice.toFixed(2)),
+        subTotal: new Prisma.Decimal(item.subTotal.toFixed(2)),
         snapshot: {
           menuItemId: item.menuItemId,
-          name: menuItem.name,
+          name: item.name,
+          image: item.imageUrl,
           quantity: item.quantity,
           note: item.note || '',
-          variantOptionIds: item.variantOptionIds || []
+          variantOptionIds: item.variantOptions.map((option) => option.id),
+          variantOptions: item.variantOptions
         },
         status: ItemStatus.WAITING,
         note: item.note || null
@@ -226,9 +204,7 @@ export const ordersController = {
       return order
     })
 
-    if (!isVnpay) {
-      await cartsServices.clearCart(cartType, ownerId)
-    } if (isVnpay) {
+    if (isVnpay) {
       const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || '127.0.0.1'
       const paymentUrl = vnpay.buildPaymentUrl({
         vnp_Amount: totalAmount, // lib tự x100
@@ -254,7 +230,7 @@ export const ordersController = {
     await notificationsServices.createOrderCreated(createdOrder.id).catch((error) => {
       console.error('[Notification] Failed to create new order notification:', error)
     })
-    // TODO: bắn socket cho quán: io.to(`restaurant`).emit('new-order', createdOrder)
+    emitNewOrder(createdOrder)
 
     return res.json(ApiResponse('Tạo đơn hàng tiền mặt thành công', {
       order: createdOrder,
@@ -366,6 +342,12 @@ export const ordersController = {
     const order = await ordersServices.serveOrder(params.id)
 
     return res.json(ApiResponse('Đã phục vụ đơn hàng', order))
+  },
+
+  async complete(req: Request, res: Response) {
+    const { params } = completeOrderSchema.parse({ params: req.params, body: req.body })
+    const order = await ordersServices.completeOrder(params.id)
+    return res.json(ApiResponse('Đã hoàn tất đơn hàng', order))
   },
 
   async cancel(req: Request, res: Response) {

@@ -34,7 +34,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.example.foodhubapp.R
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.feature.menu.data.FoodReview
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.CaptionBrown
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.InputBackground
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.Warning
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -126,6 +136,7 @@ fun FoodDetailScreen(
     food: FoodDetail,
     onBackClick: () -> Unit,
     onAddToCart: (FoodCartSelection) -> Unit,
+    reviews: List<FoodReview> = emptyList(),
     onCartClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     isAdding: Boolean = false,
@@ -311,6 +322,21 @@ fun FoodDetailScreen(
                     Text(food.rating, fontWeight = FontWeight.Bold)
                 }
                 Text(food.description, color = OnSurfaceVariant, lineHeight = 23.sp)
+
+                if (reviews.isNotEmpty()) {
+                    Text("Đánh giá (${reviews.size})", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    reviews.take(5).forEach { review ->
+                        Surface(color = Color.White, shape = RoundedCornerShape(8.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(review.customerName, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                                    Text("★ ${review.rating}/5", color = Warning, fontWeight = FontWeight.Bold)
+                                }
+                                if (review.comment.isNotBlank()) Text(review.comment, color = OnSurfaceVariant)
+                            }
+                        }
+                    }
+                }
                 
                 HorizontalDivider(
                     Modifier.padding(vertical = 8.dp),
@@ -421,8 +447,7 @@ private fun FoodDetailPreview() {
                 painterResource(R.drawable.food_detail_burger),
                 PreviewBurger.name,
                 Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+                contentScale = ContentScale.Crop)
         })
     }
 }

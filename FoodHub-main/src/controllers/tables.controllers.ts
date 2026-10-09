@@ -5,6 +5,11 @@ import { ApiResponse } from '~/models/ApiResponse'
 import tableServices from '~/services/tables.services'
 import { TABLE_MESSAGE } from '~/constants/message'
 
+export const getAllTablesController = async (req: Request, res: Response, next: NextFunction) => {
+  const result = await tableServices.getAllTables()
+  return res.json(ApiResponse('Get all tables success', result))
+}
+
 export const createTableController = async (
   req: Request<ParamsDictionary, any, TableReqBody>,
   res: Response,
@@ -36,6 +41,12 @@ export const toggleController = async (req: Request<{ id: string }>, res: Respon
   const result = await tableServices.toggleTable(req.params.id)
   const msg = result.isActive ? 'Bàn đã mở lại' : 'Bàn đã tạm ngưng (bảo trì)'
   return res.json(ApiResponse(msg, result))
+}
+
+export const endTableSessionController = async (req: Request, res: Response) => {
+  const session = req.decoded_tokenTableSession!
+  const result = await tableServices.endSession(session.tableId, session.sessionId)
+  return res.json(ApiResponse('Đã kết thúc phiên bàn', result))
 }
 
 export const qrScanController = async (

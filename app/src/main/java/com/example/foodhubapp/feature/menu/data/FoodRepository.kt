@@ -5,6 +5,7 @@ import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodOption
 import com.example.foodhubapp.feature.menu.ui.FoodOptionGroup
+import com.example.foodhubapp.feature.cart.data.CartType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -39,6 +40,14 @@ data class MenuCategory(
     val items: List<MenuFood>
 )
 
+data class FoodReview(
+    val id: String,
+    val customerName: String,
+    val rating: Int,
+    val comment: String,
+    val createdAt: String,
+)
+
 /**
  * Ngoại lệ ném ra khi người dùng chưa đăng nhập nhưng cố gắng thêm món vào giỏ hàng.
  */
@@ -55,6 +64,8 @@ interface FoodRepository {
     /** Lấy thông tin chi tiết của một món ăn theo ID. */
     suspend fun getFood(id: String): FoodDetail
 
+    suspend fun getReviews(id: String): List<FoodReview> = emptyList()
+
     /** Thêm món ăn được chọn vào giỏ hàng trên server. */
     suspend fun addToCart(selection: FoodCartSelection)
 }
@@ -64,7 +75,9 @@ interface FoodRepository {
  */
 class RemoteFoodRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
-    private val accessToken: suspend () -> String? = { null }
+    private val cartType: () -> CartType = { CartType.TAKEAWAY },
+    private val tableToken: () -> String? = { null },
+    private val accessToken: suspend () -> String? = { null },
 ) : FoodRepository {
 
     /**
@@ -104,6 +117,22 @@ class RemoteFoodRepository(
         parseFoodDetail(responseJson)
     }
 
+    override suspend fun getReviews(id: String): List<FoodReview> = withContext(Dispatchers.IO) {
+        val encodedId = URLEncoder.encode(id, "UTF-8")
+        val payload = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
+            .optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
+        payload.objects().map { review ->
+            FoodReview(
+                id = review.optString("id", review.optString("_id")),
+                customerName = review.optJSONObject("customer")?.optString("name")
+                    ?.takeIf(String::isNotBlank) ?: "Khách hàng",
+                rating = review.optInt("rating", 0),
+                comment = review.optionalString("comment").orEmpty(),
+                createdAt = review.optString("createdAt"),
+            )
+        }
+    }
+
     /**
      * Gửi request thêm món vào giỏ hàng mang đi (TAKEAWAY) lên server.
      */
@@ -113,8 +142,17 @@ class RemoteFoodRepository(
             "Số lượng hoặc ghi chú không hợp lệ"
         }
 
-        // Lấy token xác thực, nếu chưa đăng nhập thì ném ngoại lệ
-        val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
+        val type = cartType()
+        val headers = if (type == CartType.DINE_IN) {
+            val token = tableToken()?.takeIf(String::isNotBlank)
+                ?: throw IllegalStateException("Phiên bàn không còn hợp lệ. Vui lòng quét lại QR.")
+            mutableMapOf("x-table-token" to token).apply {
+                accessToken()?.takeIf(String::isNotBlank)?.let { put("Authorization", "Bearer $it") }
+            }
+        } else {
+            val token = accessToken()?.takeIf(String::isNotBlank) ?: throw LoginRequiredException()
+            mapOf("Authorization" to "Bearer $token")
+        }
 
         // Tạo JSON body gửi lên API /cart/TAKEAWAY/items/add
         val bodyJson = JSONObject()
@@ -124,9 +162,9 @@ class RemoteFoodRepository(
             .put("note", selection.note)
 
         apiClient.post(
-            path = "/cart/TAKEAWAY/items/add",
+            path = "/cart/${type.name}/items/add",
             body = bodyJson,
-            headers = mapOf("Authorization" to "Bearer $token")
+            headers = headers,
         )
         Unit
     }

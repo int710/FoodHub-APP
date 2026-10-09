@@ -31,7 +31,8 @@ data class OrderItem(
     val quantity: Int,
     val unitPrice: Long,
     val subTotal: Long,
-    val description: String
+    val description: String,
+    val menuItemId: String = "",
 )
 
 data class CustomerOrder(
@@ -61,6 +62,7 @@ interface OrderRepository {
     suspend fun getHistory(page: Int, limit: Int = 20, type: OrderType? = null): OrderPage
     suspend fun cancel(orderId: String, reason: String)
     suspend fun createVnPayUrl(orderCode: String): String
+    suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String)
 }
 
 /** API của màn Đơn hàng. Mọi thao tác CUSTOMER đều dùng Bearer token hiện tại. */
@@ -101,6 +103,17 @@ class RemoteOrderRepository(
             ?: data?.optionalString("paymentUrl")
             ?: error("Máy chủ chưa trả đường dẫn thanh toán VNPay.")
     }
+
+    override suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String) =
+        withContext(Dispatchers.IO) {
+            apiClient.post(
+                "/reviews/feedback",
+                JSONObject().put("orderId", orderId).put("menuItemId", menuItemId)
+                    .put("rating", rating).put("comment", comment.trim()).put("images", JSONArray()),
+                authHeaders(),
+            )
+            Unit
+        }
 
     private suspend fun authHeaders(): Map<String, String> {
         val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
@@ -179,6 +192,7 @@ private fun parseOrderItem(json: JSONObject): OrderItem {
     val note = json.optionalString("note")
     return OrderItem(
         id = json.firstString("id", "orderItemId"),
+        menuItemId = json.firstString("menuItemId").ifBlank { menuItem?.firstString("id").orEmpty() },
         name = name,
         imageUrl = image,
         quantity = quantity,

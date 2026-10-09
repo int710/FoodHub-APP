@@ -9,11 +9,16 @@ import com.example.foodhubapp.feature.cart.data.Cart
 import com.example.foodhubapp.feature.cart.data.CartItem
 import com.example.foodhubapp.feature.cart.data.CartItemUpdate
 import com.example.foodhubapp.feature.cart.data.CartRepository
+import com.example.foodhubapp.feature.cart.data.CartType
+import com.example.foodhubapp.feature.cart.data.CheckoutRequest
+import com.example.foodhubapp.feature.cart.data.CheckoutResult
 import com.example.foodhubapp.feature.cart.data.RemoteCartRepository
 import com.example.foodhubapp.feature.menu.data.FoodRepository
 import com.example.foodhubapp.feature.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.order.data.OrderingContextStore
+import com.example.foodhubapp.feature.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +41,10 @@ data class CartUiState(
     val requiresLogin: Boolean = false,
     val editingItem: CartItem? = null,
     val editingFood: FoodDetail? = null,
-    val isLoadingEditor: Boolean = false
+    val isLoadingEditor: Boolean = false,
+    val cartType: CartType = CartType.TAKEAWAY,
+    val isCheckingOut: Boolean = false,
+    val checkoutResult: CheckoutResult? = null,
 )
 
 /**
@@ -46,11 +54,13 @@ data class CartUiState(
 class CartViewModel @JvmOverloads constructor(
     application: Application,
     private val cartRepository: CartRepository = RemoteCartRepository(
-        accessToken = TokenStore(application.applicationContext)::getAccessToken
+        accessToken = TokenStore(application.applicationContext)::getAccessToken,
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
     ),
     private val foodRepository: FoodRepository = RemoteFoodRepository()
 ) : AndroidViewModel(application) {
-    private val state = MutableStateFlow(CartUiState())
+    private val orderingContextStore = OrderingContextStore(application.applicationContext)
+    private val state = MutableStateFlow(CartUiState(cartType = orderingContextStore.currentType()))
     val uiState = state.asStateFlow()
 
     init { load() }
@@ -61,7 +71,7 @@ class CartViewModel @JvmOverloads constructor(
         state.update { it.copy(isLoading = true, error = null, requiresLogin = false) }
         viewModelScope.launch {
             try {
-                state.update { it.copy(cart = cartRepository.getCart()) }
+                state.update { it.copy(cart = cartRepository.getCart(it.cartType)) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -75,6 +85,20 @@ class CartViewModel @JvmOverloads constructor(
     fun changeQuantity(item: CartItem, quantity: Int) {
         if (quantity !in 1..99) return
         update(item.id, CartItemUpdate(quantity = quantity), "Đã cập nhật số lượng.")
+    }
+
+    fun selectType(type: CartType) {
+        if (type == state.value.cartType || state.value.isLoading || state.value.isCheckingOut) return
+        if (orderingContextStore.currentType() == CartType.DINE_IN && type != CartType.DINE_IN) {
+            state.update { it.copy(message = "Hãy kết thúc phiên bàn trước khi chuyển loại đơn.") }
+            return
+        }
+        runCatching { orderingContextStore.select(type) }
+            .onFailure { state.update { current -> current.copy(message = it.message) } }
+            .onSuccess {
+                state.update { current -> current.copy(cartType = type, cart = Cart(emptyList(), 0), error = null) }
+                load()
+            }
     }
 
     fun edit(item: CartItem) {
@@ -126,7 +150,7 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     fun delete(item: CartItem) {
-        runItemAction(item.id, "Đã xóa món khỏi giỏ.") { cartRepository.deleteItem(item.id) }
+        runItemAction(item.id, "Đã xóa món khỏi giỏ.") { cartRepository.deleteItem(item.id, state.value.cartType) }
     }
 
     fun clear() {
@@ -135,7 +159,7 @@ class CartViewModel @JvmOverloads constructor(
         state.update { it.copy(isClearing = true, message = null) }
         viewModelScope.launch {
             try {
-                cartRepository.clear()
+                cartRepository.clear(current.cartType)
                 state.update { it.copy(cart = Cart(emptyList(), 0), message = "Đã xóa toàn bộ giỏ hàng.") }
             } catch (error: CancellationException) {
                 throw error
@@ -148,7 +172,7 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     private fun update(itemId: String, update: CartItemUpdate, successMessage: String) {
-        runItemAction(itemId, successMessage) { cartRepository.updateItem(itemId, update) }
+        runItemAction(itemId, successMessage) { cartRepository.updateItem(itemId, update, state.value.cartType) }
     }
 
     private fun runItemAction(itemId: String, successMessage: String, action: suspend () -> Unit) {
@@ -160,7 +184,7 @@ class CartViewModel @JvmOverloads constructor(
                 action()
                 // Luôn GET lại sau PATCH/DELETE. Giá và tổng tiền phải lấy từ backend,
                 // không tự tính rồi coi đó là kết quả chính thức.
-                val cart = cartRepository.getCart()
+                val cart = cartRepository.getCart(state.value.cartType)
                 state.update { it.copy(cart = cart, message = successMessage) }
             } catch (error: CancellationException) {
                 throw error
@@ -174,7 +198,14 @@ class CartViewModel @JvmOverloads constructor(
 
     private fun handleError(error: Exception, loadError: Boolean = false) {
         // 401 và thiếu token cùng đi vào một luồng đăng nhập thống nhất.
-        if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
+        if (error is LoginRequiredException ||
+            (error is FoodHubApiException && error.statusCode == 401 && state.value.cartType != CartType.DINE_IN)
+        ) {
+            if (error is FoodHubApiException && error.statusCode == 401) {
+                viewModelScope.launch {
+                    runCatching { TokenStore(getApplication()).clearTokens() }
+                }
+            }
             state.update { it.copy(requiresLogin = true, error = if (loadError) null else it.error) }
         } else if (loadError) {
             state.update { it.copy(error = cartError(error)) }
@@ -185,6 +216,32 @@ class CartViewModel @JvmOverloads constructor(
 
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
+
+    fun checkout(request: CheckoutRequest) {
+        val current = state.value
+        if (current.cart.items.isEmpty() || current.isCheckingOut || request.type != current.cartType) return
+        state.update { it.copy(isCheckingOut = true, message = null, checkoutResult = null) }
+        viewModelScope.launch {
+            try {
+                val result = cartRepository.checkout(request)
+                state.update {
+                    it.copy(
+                        cart = Cart(emptyList(), 0),
+                        checkoutResult = result,
+                        message = "Đã tạo đơn ${result.orderCode}.",
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(isCheckingOut = false) }
+            }
+        }
+    }
+
+    fun consumeCheckoutResult() { state.update { it.copy(checkoutResult = null) } }
 }
 
 internal fun cartError(error: Exception): String = when (error) {

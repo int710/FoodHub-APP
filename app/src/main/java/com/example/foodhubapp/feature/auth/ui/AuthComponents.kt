@@ -48,25 +48,25 @@ import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.auth.model.AuthMode
 import com.example.foodhubapp.feature.auth.viewmodel.LoginUiState
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.Brand
-import com.example.foodhubapp.ui.theme.BrandSoft
-import com.example.foodhubapp.ui.theme.CaptionBrown
-import com.example.foodhubapp.ui.theme.CardStroke
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
-import com.example.foodhubapp.ui.theme.HeadingFont
-import com.example.foodhubapp.ui.theme.InputBackgroundSoft
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.Primary
-import com.example.foodhubapp.ui.theme.PrimaryContainer
-import com.example.foodhubapp.ui.theme.SoftGreen
-import com.example.foodhubapp.ui.theme.Success
-import com.example.foodhubapp.ui.theme.SuccessDark
-import com.example.foodhubapp.ui.theme.SuccessSoft
-import com.example.foodhubapp.ui.theme.SurfaceContainerLow
-import com.example.foodhubapp.ui.theme.Warning
-import com.example.foodhubapp.ui.theme.WarningDark
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.CaptionBrown
+import com.example.foodhubapp.theme.CardStroke
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.InputBackgroundSoft
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.Primary
+import com.example.foodhubapp.theme.PrimaryContainer
+import com.example.foodhubapp.theme.SoftGreen
+import com.example.foodhubapp.theme.Success
+import com.example.foodhubapp.theme.SuccessDark
+import com.example.foodhubapp.theme.SuccessSoft
+import com.example.foodhubapp.theme.SurfaceContainerLow
+import com.example.foodhubapp.theme.Warning
+import com.example.foodhubapp.theme.WarningDark
 
 @Composable
 internal fun AuthHeaderBar(
@@ -723,11 +723,48 @@ private fun LoginScreenPreview() {
             onAccountChange = {},
             onPasswordChange = {},
             onTogglePassword = {},
-            onToggleRemember = {},
             onBackClick = {},
             onLoginClick = {},
             onRegisterClick = {},
             onGuestQrClick = {}
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Thẻ Đăng ký Intro Card")
+@Composable
+private fun RegisterIntroCardPreview() {
+    FoodHubAppTheme {
+        Column(modifier = Modifier.padding(16.dp)) {
+            RegisterIntroCard(
+                selectedMode = AuthMode.Register,
+                onLoginClick = {},
+                onRegisterClick = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Các Component Auth")
+@Composable
+private fun AuthComponentsPreview() {
+    FoodHubAppTheme {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AuthHeaderBar(onBackClick = {})
+            LoginBrandHero()
+            AuthTextField(
+                label = "Số điện thoại / Email",
+                value = "0987654321",
+                onValueChange = {},
+                iconRes = R.drawable.ic_auth_person
+            )
+            PrimaryAuthButton(text = "Đăng nhập", onClick = {})
+            RewardsBanner()
+        }
     }
 }

@@ -21,6 +21,7 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val categories: List<MenuCategory> = emptyList(),
     val selectedCategoryId: String? = null,
+    val maxPrice: Long? = null,
     val query: String = "",
     val cartItemCount: Int = 0,
     val userName: String? = null,
@@ -31,6 +32,7 @@ data class HomeUiState(
             .filter { selectedCategoryId == null || it.id == selectedCategoryId }
             .flatMap { it.items }
             .filter { food -> query.isBlank() || food.name.contains(query.trim(), ignoreCase = true) }
+            .filter { food -> maxPrice == null || food.price <= maxPrice }
 
     val popularFoods: List<MenuFood>
         get() {
@@ -84,4 +86,5 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun onQueryChange(query: String) { state.update { it.copy(query = query) } }
     fun selectCategory(categoryId: String?) { state.update { it.copy(selectedCategoryId = categoryId) } }
+    fun selectMaxPrice(maxPrice: Long?) { state.update { it.copy(maxPrice = maxPrice) } }
 }

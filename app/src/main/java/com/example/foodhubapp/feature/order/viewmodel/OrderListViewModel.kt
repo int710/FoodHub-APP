@@ -10,6 +10,7 @@ import com.example.foodhubapp.feature.order.data.CustomerOrder
 import com.example.foodhubapp.feature.order.data.OrderRepository
 import com.example.foodhubapp.feature.order.data.OrderStatus
 import com.example.foodhubapp.feature.order.data.OrderType
+import com.example.foodhubapp.feature.order.data.OrderItem
 import com.example.foodhubapp.feature.order.data.RemoteOrderRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -169,8 +170,30 @@ class OrderListViewModel @JvmOverloads constructor(
         }
     }
 
+    fun review(order: CustomerOrder, item: OrderItem, rating: Int, comment: String) {
+        if (state.value.busyOrderId != null || rating !in 1..5 || item.menuItemId.isBlank()) return
+        state.update { it.copy(busyOrderId = order.id, message = null) }
+        viewModelScope.launch {
+            try {
+                repository.submitReview(order.id, item.menuItemId, rating, comment)
+                state.update { it.copy(message = "Cảm ơn bạn đã đánh giá ${item.name}.") }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(busyOrderId = null) }
+            }
+        }
+    }
+
     private fun handleError(error: Exception, loadError: Boolean = false) {
         if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
+            if (error is FoodHubApiException) {
+                viewModelScope.launch {
+                    runCatching { TokenStore(getApplication()).clearTokens() }
+                }
+            }
             state.update { it.copy(requiresLogin = true, error = null) }
             return
         }

@@ -6,6 +6,7 @@ import { ApiResponse } from '~/models/ApiResponse'
 import { ErrorWithStatus } from '~/models/Errors'
 import { CartItem, UpdateDetailItemType } from '~/models/schemas/order.schema'
 import cartsServices, { CartType } from '~/services/carts.services'
+import { priceCart } from '~/services/cart-pricing.services'
 
 type NormalizedCartContext = {
   type: CartType
@@ -60,7 +61,16 @@ const cartControllers = {
   async getCart(req: Request, res: Response) {
     const ctx = getCartContextFromRequest(req)
     const data = await cartsServices.getCart(ctx.type, ctx.ownerId)
-    return res.json(ApiResponse(`Giỏ hàng ${ctx.displayName}`, data))
+    const priced = await priceCart(data.items)
+    const subtotal = priced.totalAmount
+    const vatAmount = Number((subtotal * 0.1).toFixed(2))
+    return res.json(ApiResponse(`Giỏ hàng ${ctx.displayName}`, {
+      ...data,
+      items: priced.items,
+      subtotal,
+      vatAmount,
+      totalAmount: Number((subtotal + vatAmount).toFixed(2))
+    }))
   },
 
   async updateItem(req: Request<{ itemId: string }, any, UpdateDetailItemType>, res: Response) {

@@ -33,6 +33,7 @@ class TokenStore(
     private val accessTokenKey = stringPreferencesKey("access_token")
     private val refreshTokenKey = stringPreferencesKey("refresh_token")
     private val userKey = stringPreferencesKey("user")
+
     val user: Flow<UserDto?> = context.authDataStore.data.map { preferences ->
         preferences[userKey]?.let { value ->
             runCatching { UserDto.fromJson(JSONObject(value)) }.getOrNull()
@@ -76,6 +77,7 @@ class TokenStore(
                     .put("fullName", user.fullName)
                     .put("phoneNumber", user.phoneNumber ?: "")
                     .put("email", user.email ?: "")
+                    .put("role", user.role)
                     .toString()
             }
 
@@ -101,6 +103,20 @@ class TokenStore(
      * @return Chuỗi Refresh Token hoặc null nếu không tồn tại.
      */
     suspend fun getRefreshToken(): String? = refreshToken.first()
+
+    suspend fun getUser(): UserDto? = user.first()
+
+    suspend fun saveUser(user: UserDto) {
+        context.authDataStore.edit { preferences ->
+            preferences[userKey] = JSONObject()
+                .put("id", user.id)
+                .put("fullName", user.fullName)
+                .put("phoneNumber", user.phoneNumber ?: "")
+                .put("email", user.email ?: "")
+                .put("role", user.role)
+                .toString()
+        }
+    }
 
     /**
      * Xóa toàn bộ token khỏi DataStore khi người dùng đăng xuất hoặc hết hạn phiên.

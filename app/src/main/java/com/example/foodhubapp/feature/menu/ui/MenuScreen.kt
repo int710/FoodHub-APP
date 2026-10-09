@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.menu.viewmodel.MenuViewModel
-import com.example.foodhubapp.ui.theme.*
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.CardStroke
 import java.text.NumberFormat
 import java.util.Locale
 
