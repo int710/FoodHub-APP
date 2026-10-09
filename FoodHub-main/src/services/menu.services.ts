@@ -250,7 +250,7 @@ class MenuServices {
       include: { options: { orderBy: { sortOrder: 'asc' } } }
     })
 
-    this.invalidateItemCache(itemId)
+    await this.invalidateItemCache(itemId)
     return group
   }
 
@@ -301,6 +301,7 @@ class MenuServices {
       },
       include: { options: { orderBy: { sortOrder: 'asc' } } }
     })
+    await this.invalidateItemCache(group.itemId)
     return updated
   }
 

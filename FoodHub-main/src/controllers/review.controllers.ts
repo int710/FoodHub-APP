@@ -19,7 +19,7 @@ const reviewController = {
     const limit = Number(req.query.limit) || 10
 
     const result = await reviewsServices.listByMenuItem(menuItemId, page, limit)
-    return res.json(result)
+    return res.json({ ...result, pagination: { page, limit, total: result.total } })
   }
 }
 

@@ -7,8 +7,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import com.example.foodhubapp.feature.auth.model.UserDto
+import com.example.foodhubapp.feature.shared.auth.model.UserDto
 import org.json.JSONObject
+import com.example.foodhubapp.core.network.SessionTokens
 
 /**
  * Tên của DataStore Preferences lưu trữ thông tin phiên đăng nhập (token).
@@ -105,6 +106,24 @@ class TokenStore(
     suspend fun getRefreshToken(): String? = refreshToken.first()
 
     suspend fun getUser(): UserDto? = user.first()
+
+    internal suspend fun sessionTokens(): SessionTokens {
+        val preferences = context.authDataStore.data.first()
+        return SessionTokens(preferences[accessTokenKey], preferences[refreshTokenKey])
+    }
+
+    internal suspend fun replaceSessionTokens(expected: SessionTokens, replacement: SessionTokens): Boolean {
+        var replaced = false
+        context.authDataStore.edit { preferences ->
+            if (SessionTokens(preferences[accessTokenKey], preferences[refreshTokenKey]) == expected) {
+                replacement.access?.let { preferences[accessTokenKey] = it } ?: preferences.remove(accessTokenKey)
+                replacement.refresh?.let { preferences[refreshTokenKey] = it } ?: preferences.remove(refreshTokenKey)
+                if (replacement.access == null) preferences.remove(userKey)
+                replaced = true
+            }
+        }
+        return replaced
+    }
 
     suspend fun saveUser(user: UserDto) {
         context.authDataStore.edit { preferences ->

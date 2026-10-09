@@ -37,7 +37,8 @@ class FoodHubApiClient(
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+        .build(),
+    private val refreshSession: (OkHttpClient, String, String?) -> String? = FoodHubSessionRefresh::refresh,
 ) {
     /**
      * Thực hiện yêu cầu HTTP GET đến một đường dẫn API cụ thể.
@@ -113,10 +114,12 @@ class FoodHubApiClient(
 
         var activeHeaders = headers
         var response = httpClient.newCall(buildRequest(activeHeaders)).execute()
-        if (response.code == 401 && headers.containsKey("Authorization") && !path.startsWith("/user/")) {
+        val authEndpoint = path.substringBefore('?') in setOf("/user/login", "/user/register", "/user/refresh-token",
+            "/user/logout", "/user/forgot-password", "/user/reset-password", "/user/verify-email")
+        if (response.code == 401 && headers.containsKey("Authorization") && !authEndpoint) {
             val unauthorizedBody = response.body?.string().orEmpty()
             response.close()
-            val accessToken = FoodHubSessionRefresh.refresh(httpClient, baseUrl)
+            val accessToken = refreshSession(httpClient, baseUrl, headers["Authorization"]?.removePrefix("Bearer "))
             if (!accessToken.isNullOrBlank()) {
                 activeHeaders = headers + ("Authorization" to "Bearer $accessToken")
                 response = httpClient.newCall(buildRequest(activeHeaders)).execute()

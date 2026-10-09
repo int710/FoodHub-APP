@@ -1,6 +1,8 @@
 import { Server, Socket } from "socket.io"
 import { getConversationRoom } from "../socket.room"
 import { ConversationModel } from "~/models/mongodb/conversation.model"
+import { ConversationServices } from '~/services/conversation.services'
+import { isSocketSessionActive } from '../socket.middleware'
 
 interface TypingPayload {
   conversationId: string
@@ -8,15 +10,12 @@ interface TypingPayload {
 
 const canAccessConversation = async (socket: Socket, conversationId: string) => {
   const user = socket.data.user
-  if (!user) return false
-  if (user.role === 'STAFF' || user.role === 'ADMIN') return true
+  if (!user || !(await isSocketSessionActive(socket))) return false
 
-  const ownerId = user.authType === 'TABLE_GUEST' ? user.tableId : user.user_id
-  const conversation = await ConversationModel.findOne({
-    _id: conversationId,
-    customerId: ownerId
-  }).select({ _id: 1 }).lean()
-  return !!conversation
+  const ownerId = user.authType === 'TABLE_GUEST' ? user.sessionId : user.user_id
+  const conversation = await ConversationModel.findById(conversationId)
+  if (!conversation || !(await ConversationServices.isActive(conversation))) return false
+  return user.role === 'STAFF' || user.role === 'ADMIN' || conversation.customerId === ownerId
 }
 
 export const RegisterTypingSocket = (_io: Server, socket: Socket): void => {

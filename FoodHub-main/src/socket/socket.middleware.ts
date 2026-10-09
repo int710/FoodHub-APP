@@ -59,7 +59,8 @@ export const socketAuthMiddleware = async (socket: Socket, next: (err?: Error) =
         email: '',
         authType: 'TABLE_GUEST',
         tableId: decodedTable.tableId,
-        sessionId: decodedTable.sessionId
+        sessionId: decodedTable.sessionId,
+        exp: decodedTable.exp
       };
       return next();
     }
@@ -93,3 +94,12 @@ export const socketAuthMiddleware = async (socket: Socket, next: (err?: Error) =
     return next(new SocketAuthError("Invalid or expired token", HTTP_STATUS.UNAUTHORIZED));
   }
 };
+
+export const isSocketSessionActive = async (socket: Socket): Promise<boolean> => {
+  const user = socket.data.user
+  if (!user) return false
+  if (user.exp && user.exp * 1000 <= Date.now()) return false
+  if (user.authType !== 'TABLE_GUEST') return true
+  if (!user.sessionId || !user.tableId) return false
+  return (await redis.get(RedisKey.tableSession(user.sessionId))) === user.tableId
+}

@@ -10,6 +10,8 @@ import { TableReqBody } from '~/models/schemas/table.schema'
 import { signToken } from '~/utils/jwt'
 import { generateQR } from '~/utils/QRCode'
 import { ConversationServices } from '~/services/conversation.services'
+import { getOptionalSocketIO } from '~/socket/socket.instance'
+import { getTableSessionRoom } from '~/socket/socket.room'
 
 class TableServices {
   async getAllTables() {
@@ -176,6 +178,8 @@ class TableServices {
     }
 
     const sessionId = randomUUID()
+    // Retire the legacy table-owned chat; new conversations belong to a QR session.
+    await ConversationServices.closeForCustomer(table.id)
 
     // Tìm kiếm xem bàn này đã có chủ hay chưa
     const currentHost = await redis.get(RedisKey.tableHost(table.id))
@@ -223,15 +227,27 @@ class TableServices {
       redis.del(RedisKey.tableSession(sessionId)),
       redis.srem(sessionsKey, sessionId)
     ])
+    const io = getOptionalSocketIO()
+    const room = getTableSessionRoom(sessionId)
+    io?.to(room).emit('table-session:ended', { tableId, sessionId })
+    io?.in(room).disconnectSockets(true)
+    await ConversationServices.closeForCustomer(sessionId)
+
+    const members = await redis.smembers(sessionsKey)
+    const active = []
+    for (const member of members) {
+      if ((await redis.get(RedisKey.tableSession(member))) === tableId) active.push(member)
+      else await redis.srem(sessionsKey, member)
+    }
 
     const currentHost = await redis.get<string>(RedisKey.tableHost(tableId))
     if (currentHost === sessionId) {
-      const remaining = await redis.smembers(sessionsKey)
+      const remaining = active
       if (remaining.length > 0) await redis.set(RedisKey.tableHost(tableId), remaining[0], TTL_8H)
       else await redis.del(RedisKey.tableHost(tableId))
     }
 
-    const remainingCount = await redis.scard(sessionsKey)
+    const remainingCount = active.length
     if (remainingCount === 0) {
       await Promise.all([
         redis.del(sessionsKey, RedisKey.cartTable(tableId)),
@@ -239,6 +255,13 @@ class TableServices {
       ])
     }
     return { ended: true, tableId, sessionId, remainingSessions: remainingCount }
+  }
+
+  async endAllSessions(tableId: string) {
+    const sessions = await redis.smembers(RedisKey.tableSessions(tableId))
+    for (const sessionId of sessions) await this.endSession(tableId, sessionId)
+    await redis.del(RedisKey.tableSessions(tableId), RedisKey.tableHost(tableId), RedisKey.cartTable(tableId))
+    await ConversationServices.closeForCustomer(tableId)
   }
 }
 

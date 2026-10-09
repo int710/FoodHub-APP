@@ -1,11 +1,14 @@
 package com.example.foodhubapp.navigation
 
+import android.net.Uri
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -14,20 +17,26 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.foodhubapp.feature.auth.ui.ForgotPasswordRoute
-import com.example.foodhubapp.core.payment.VnPayReturn
-import com.example.foodhubapp.feature.auth.ui.LoginRoute
-import com.example.foodhubapp.feature.auth.ui.RegisterRoute
-import com.example.foodhubapp.feature.cart.ui.CartRoute
-import com.example.foodhubapp.feature.home.ui.HomeRoute
-import com.example.foodhubapp.feature.menu.ui.FoodDetailRoute
-import com.example.foodhubapp.feature.menu.ui.MenuRoute
-import com.example.foodhubapp.feature.onboarding.ui.OnboardingScreen
-import com.example.foodhubapp.feature.order.ui.OrderListRoute
-import com.example.foodhubapp.feature.profile.ui.ProfileRoute
-import com.example.foodhubapp.feature.splash.ui.FoodHubSplashRoute
-import com.example.foodhubapp.feature.table.ScanScreen
-import com.example.foodhubapp.feature.table.data.TableSessionStore
+import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.payment.toVnPayReturnOrNull
+import com.example.foodhubapp.feature.shared.auth.ui.ForgotPasswordRoute
+import com.example.foodhubapp.feature.shared.auth.ui.LoginRoute
+import com.example.foodhubapp.feature.shared.auth.ui.RegisterRoute
+import com.example.foodhubapp.feature.shared.auth.ui.AccountTokenMode
+import com.example.foodhubapp.feature.shared.auth.ui.AccountTokenRoute
+import com.example.foodhubapp.feature.customer.cart.ui.CartRoute
+import com.example.foodhubapp.feature.customer.home.ui.HomeRoute
+import com.example.foodhubapp.feature.customer.menu.ui.FoodDetailRoute
+import com.example.foodhubapp.feature.customer.menu.ui.MenuRoute
+import com.example.foodhubapp.feature.customer.onboarding.ui.OnboardingScreen
+import com.example.foodhubapp.feature.shared.notification.ui.NotificationRoute
+import com.example.foodhubapp.feature.customer.order.ui.OrderListRoute
+import com.example.foodhubapp.feature.customer.profile.ui.ProfileRoute
+import com.example.foodhubapp.feature.customer.splash.ui.FoodHubSplashRoute
+import com.example.foodhubapp.feature.admin.navigation.AdminApp
+import com.example.foodhubapp.feature.customer.chat.ChatScreen
+import com.example.foodhubapp.feature.customer.table.ScanScreen
+import kotlinx.coroutines.launch
 
 /**
  * Biểu đồ điều hướng trung tâm (Navigation Graph) của ứng dụng.
@@ -39,18 +48,13 @@ fun AppNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     startDestination: String = AppRoutes.Splash,
-    paymentReturn: VnPayReturn? = null,
-    onPaymentReturnConsumed: (VnPayReturn) -> Unit = {}
+    deepLinkUri: Uri? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    LaunchedEffect(paymentReturn) {
-        if (paymentReturn != null) {
-            val target = if (TableSessionStore(context).current() != null) AppRoutes.Cart else AppRoutes.Orders
-            if (navController.currentDestination?.route != target) {
-                navController.navigate(target) { launchSingleTop = true }
-            }
-        }
-    }
+    val coroutineScope = rememberCoroutineScope()
+    val tokenStore = remember(context) { TokenStore(context.applicationContext) }
+    val paymentReturn = deepLinkUri?.toVnPayReturnOrNull()
 
     NavHost(
         navController = navController,
@@ -93,15 +97,17 @@ fun AppNavGraph(
         composable(AppRoutes.Splash) {
             FoodHubSplashRoute(
                 onSplashFinished = { isAuthenticated ->
-                    val nextRoute = if (isAuthenticated) {
-                        AppRoutes.Home
-                    } else {
-                        AppRoutes.Onboarding
-                    }
+                    coroutineScope.launch {
+                        val nextRoute = when {
+                            !isAuthenticated -> AppRoutes.Onboarding
+                            tokenStore.getUser()?.role.equals("ADMIN", ignoreCase = true) -> AppRoutes.Admin
+                            else -> AppRoutes.Home
+                        }
 
-                    navController.navigate(nextRoute) {
-                        popUpTo(AppRoutes.Splash) {
-                            inclusive = true // Xóa Splash khỏi backstack
+                        navController.navigate(nextRoute) {
+                            popUpTo(AppRoutes.Splash) {
+                                inclusive = true // Xóa Splash khỏi backstack
+                            }
                         }
                     }
                 }
@@ -130,8 +136,10 @@ fun AppNavGraph(
                 onMenuClick = { navController.navigate(AppRoutes.Menu) },
                 onCartClick = { navController.navigate(AppRoutes.Cart) },
                 onOrdersClick = { navController.navigate(AppRoutes.Orders) { launchSingleTop = true } },
-                onScanQrClick = { navController.navigate(AppRoutes.ScanTable) { launchSingleTop = true } },
-                onProfileClick = { navController.navigate(AppRoutes.Profile) }
+                onProfileClick = { navController.navigate(AppRoutes.Profile) },
+                onQrClick = { navController.navigate(AppRoutes.QrScan) },
+                onChatClick = { navController.navigate(AppRoutes.TableChat) { launchSingleTop = true } },
+                onNotificationsClick = { navController.navigate(AppRoutes.Notifications) { launchSingleTop = true } },
             )
         }
 
@@ -141,14 +149,21 @@ fun AppNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onLoginClick = {
-                    val previousRoute = navController.previousBackStackEntry?.destination?.route
-                    if (previousRoute == AppRoutes.FoodDetail || previousRoute == AppRoutes.Cart || previousRoute == AppRoutes.Orders) {
-                        navController.popBackStack()
-                    } else {
-                        navController.navigate(AppRoutes.Home) {
+                onLoginClick = { role ->
+                    if (role.equals("ADMIN", ignoreCase = true)) {
+                        navController.navigate(AppRoutes.Admin) {
                             popUpTo(navController.graph.id)
                             launchSingleTop = true
+                        }
+                    } else {
+                        val previousRoute = navController.previousBackStackEntry?.destination?.route
+                        if (previousRoute == AppRoutes.FoodDetail || previousRoute == AppRoutes.Cart || previousRoute == AppRoutes.Orders) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(AppRoutes.Home) {
+                                popUpTo(navController.graph.id)
+                                launchSingleTop = true
+                            }
                         }
                     }
                 },
@@ -156,14 +171,15 @@ fun AppNavGraph(
                     navController.navigateToAuth(AppRoutes.Register)
                 },
                 onGuestQrClick = {
-                    navController.navigate(AppRoutes.ScanTable)
+                    navController.navigate(AppRoutes.QrScan)
                 },
                 onForgotPasswordClick = {
                     navController.navigate(AppRoutes.ForgotPassword) { launchSingleTop = true }
-                }
+                },
+                onVerifyEmailClick = { navController.navigate(AppRoutes.VerifyEmail) { launchSingleTop = true } },
             )
         }
-
+         // Màn hình quên mật khẩu
         composable(AppRoutes.ForgotPassword) {
             ForgotPasswordRoute(
                 onBackClick = { navController.popBackStack() },
@@ -173,7 +189,40 @@ fun AppNavGraph(
                         popUpTo(AppRoutes.ForgotPassword) { inclusive = true }
                         launchSingleTop = true
                     }
-                }
+                },
+                onResetTokenClick = { navController.navigate(AppRoutes.ResetPassword) { launchSingleTop = true } },
+            )
+        }
+
+        composable(
+            AppRoutes.ResetPasswordPattern,
+            arguments = listOf(navArgument("token") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }),
+        ) { entry ->
+            AccountTokenRoute(
+                mode = AccountTokenMode.RESET_PASSWORD,
+                initialToken = entry.arguments?.getString("token").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onSuccess = { navController.navigateToAuth(AppRoutes.Login) },
+            )
+        }
+
+        composable(
+            AppRoutes.VerifyEmailPattern,
+            arguments = listOf(navArgument("token") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }),
+        ) { entry ->
+            AccountTokenRoute(
+                mode = AccountTokenMode.VERIFY_EMAIL,
+                initialToken = entry.arguments?.getString("token").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onSuccess = { navController.navigateToAuth(AppRoutes.Login) },
             )
         }
 
@@ -195,7 +244,7 @@ fun AppNavGraph(
             )
         }
 
-        // 6. Màn hình Hồ sơ Cá nhân (Profile): Sử dụng hiệu ứng trượt trơn tru
+        // 6. Màn hình Hồ sơ Cá nhân
         composable(AppRoutes.Profile) {
             ProfileRoute(
                 onLoggedOut = {
@@ -208,31 +257,62 @@ fun AppNavGraph(
             )
         }
 
-        composable(AppRoutes.ScanTable) {
-            ScanScreen(
-                onBack = { navController.popBackStack() },
-                onContinue = {
-                    val origin = navController.previousBackStackEntry?.destination?.route
-                    val canReturnToOrdering = origin == AppRoutes.Home || origin == AppRoutes.Menu ||
-                        origin == AppRoutes.FoodDetail || origin == AppRoutes.Cart
-                    if (canReturnToOrdering) {
-                        navController.popBackStack()
-                    } else {
-                        navController.navigate(AppRoutes.Home) {
-                            popUpTo(navController.graph.id)
-                            launchSingleTop = true
-                        }
-                    }
-                }
-            )
-        }
-
         // 7. Màn hình Menu / Khách vãng lai quét QR
         composable(AppRoutes.Menu) {
             MenuRoute(
                 onFoodClick = { navController.navigate(AppRoutes.foodDetail(it)) },
                 onBackClick = { navController.popBackStack() },
                 onCartClick = { navController.navigate(AppRoutes.Cart) }
+            )
+        }
+
+        composable(AppRoutes.QrScan) {
+            ScanScreen(
+                onContinue = {
+                    navController.navigate(AppRoutes.TableChat) {
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(AppRoutes.TableChat) {
+            ChatScreen(
+                onBack = { navController.popBackStack() },
+                onSessionEnded = {
+                    navController.navigate(AppRoutes.Home) {
+                        popUpTo(AppRoutes.Home) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(AppRoutes.Notifications) {
+            NotificationRoute(
+                onBack = { navController.popBackStack() },
+                onLoginClick = { navController.navigate(AppRoutes.Login) { launchSingleTop = true } },
+                onOpenOrder = {
+                    navController.navigate(AppRoutes.Orders) {
+                        popUpTo(AppRoutes.Notifications) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(AppRoutes.Admin) {
+            AdminApp(
+                onLogout = {
+                    coroutineScope.launch {
+                        tokenStore.clearTokens()
+                        navController.navigate(AppRoutes.Login) {
+                            popUpTo(navController.graph.id)
+                            launchSingleTop = true
+                        }
+                    }
+                }
             )
         }
 
@@ -244,19 +324,21 @@ fun AppNavGraph(
             FoodDetailRoute(
                 onBackClick = { navController.popBackStack() },
                 onLoginClick = { navController.navigate(AppRoutes.Login) { launchSingleTop = true } },
-                onScanQrClick = { navController.navigate(AppRoutes.ScanTable) { launchSingleTop = true } },
                 onCartClick = { navController.navigate(AppRoutes.Cart) }
             )
         }
 
-        // 9. Màn hình Giỏ hàng (Cart)
+        // 9. Màn hình Giỏ hàng
         composable(AppRoutes.Cart) {
             CartRoute(
-                paymentReturn = paymentReturn,
-                onPaymentReturnConsumed = onPaymentReturnConsumed,
                 onBackClick = { navController.popBackStack() },
                 onLoginClick = { navController.navigate(AppRoutes.Login) { launchSingleTop = true } },
-                onScanQrClick = { navController.navigate(AppRoutes.ScanTable) { launchSingleTop = true } }
+                onOrderCreated = {
+                    navController.navigate(AppRoutes.Orders) {
+                        popUpTo(AppRoutes.Cart) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 
@@ -269,19 +351,39 @@ fun AppNavGraph(
             popExitTransition = { fadeOut(animationSpec = tween(250)) }
         ) {
             OrderListRoute(
-                paymentReturn = paymentReturn,
-                onPaymentReturnConsumed = onPaymentReturnConsumed,
                 onHomeClick = {
                     navController.navigate(AppRoutes.Home) {
                         popUpTo(AppRoutes.Home) { inclusive = false }
                         launchSingleTop = true
                     }
                 },
-                onNotificationClick = { /* Notification API sẽ được nối ở feature riêng. */ },
+                onNotificationClick = { navController.navigate(AppRoutes.Notifications) { launchSingleTop = true } },
                 onProfileClick = { navController.navigate(AppRoutes.Profile) { launchSingleTop = true } },
-                onLoginClick = { navController.navigate(AppRoutes.Login) { launchSingleTop = true } }
+                onLoginClick = { navController.navigate(AppRoutes.Login) { launchSingleTop = true } },
+                onChatClick = { navController.navigate(AppRoutes.TableChat) { launchSingleTop = true } },
+                paymentReturn = paymentReturn,
+                onPaymentReturnConsumed = { onDeepLinkConsumed() },
             )
         }
+    }
+
+    LaunchedEffect(deepLinkUri) {
+        val uri = deepLinkUri ?: return@LaunchedEffect
+        if (uri.scheme == "foodhub") {
+            val route = when (uri.host) {
+                "verify" -> uri.getQueryParameter("token")?.let(AppRoutes::verifyEmail)
+                "reset-password" -> uri.getQueryParameter("token")?.let(AppRoutes::resetPassword)
+                "payment" -> AppRoutes.Orders
+                else -> null
+            }
+            route?.let {
+                navController.navigate(it) {
+                    popUpTo(AppRoutes.Splash) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+        if (uri.host != "payment") onDeepLinkConsumed()
     }
 }
 

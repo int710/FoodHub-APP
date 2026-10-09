@@ -5,9 +5,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.foodhubapp.core.network.FoodHubApiException
-import com.example.foodhubapp.feature.menu.data.*
-import com.example.foodhubapp.feature.menu.ui.*
-import com.example.foodhubapp.feature.menu.viewmodel.FoodDetailViewModel
+import com.example.foodhubapp.feature.customer.menu.data.*
+import com.example.foodhubapp.feature.customer.menu.ui.*
+import com.example.foodhubapp.feature.customer.menu.viewmodel.FoodDetailViewModel
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
 import org.junit.Test

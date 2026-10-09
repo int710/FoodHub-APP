@@ -1,6 +1,6 @@
 package com.example.foodhubapp
 
-import com.example.foodhubapp.feature.table.data.extractQrToken
+import com.example.foodhubapp.feature.customer.table.data.extractQrToken
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

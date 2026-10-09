@@ -9,9 +9,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.example.foodhubapp.feature.menu.data.*
-import com.example.foodhubapp.feature.menu.ui.*
-import com.example.foodhubapp.feature.menu.viewmodel.FoodDetailViewModel
+import com.example.foodhubapp.feature.customer.menu.data.*
+import com.example.foodhubapp.feature.customer.menu.ui.*
+import com.example.foodhubapp.feature.customer.menu.viewmodel.FoodDetailViewModel
 import com.example.foodhubapp.theme.FoodHubAppTheme
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertTrue

@@ -1,8 +1,8 @@
 package com.example.foodhubapp
 
-import com.example.foodhubapp.feature.home.viewmodel.HomeUiState
-import com.example.foodhubapp.feature.menu.data.MenuCategory
-import com.example.foodhubapp.feature.menu.data.MenuFood
+import com.example.foodhubapp.feature.customer.home.viewmodel.HomeUiState
+import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
+import com.example.foodhubapp.feature.customer.menu.data.MenuFood
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

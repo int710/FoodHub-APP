@@ -1,5 +1,4 @@
 import { Request, Response } from 'express'
-import { Prisma } from '~/generated/prisma/client'
 import { OrderStatus, OrderType, PaymentStatus, Role } from '~/generated/prisma/enums'
 import { prisma } from '~/config/prisma'
 import { vnpay } from '~/config/vnpay'
@@ -152,36 +151,23 @@ const paymentController = {
         return res.status(200).json(IpnInvalidAmount)
       }
 
-      if (order.status !== OrderStatus.PENDING_PAYMENT) {
+      if (payment.status === PaymentStatus.PAID ||
+        (order.status !== OrderStatus.PENDING_PAYMENT && order.status !== OrderStatus.CANCELLED)) {
         return res.status(200).json(InpOrderAlreadyConfirmed)
       }
 
       if (verify.isSuccess && verify.vnp_ResponseCode === '00') {
-        const paymentApplied = await prisma.$transaction(async (tx) => {
-          const updated = await tx.order.updateMany({
-            where: { id: order.id, status: OrderStatus.PENDING_PAYMENT },
-            data: {
-              status: OrderStatus.PENDING_CONFIRMATION,
-              paidAt: new Date(),
-              expireAt: null
-            }
-          })
-          if (updated.count === 0) return false
-
-          await tx.payment.update({
-            where: { id: payment.id },
-            data: {
-              status: PaymentStatus.PAID,
-              txnRef: verify.vnp_TxnRef as string,
-              gatewayData: req.query as Prisma.InputJsonValue,
-              paidAt: new Date()
-            }
-          })
-          return true
-        })
+        const paymentApplied = await paymentServices.applyVnpayResult(
+          order.id, payment.id, true, verify.vnp_TxnRef as string, req.query
+        )
 
         if (!paymentApplied) {
           return res.status(200).json(InpOrderAlreadyConfirmed)
+        }
+
+        if (paymentApplied === OrderStatus.CANCELLED) {
+          console.error('[VNPay] Payment received after cancellation; manual refund required:', order.orderCode)
+          return res.status(200).json(IpnSuccess)
         }
 
         await notificationsServices.createOrderStatusNotification({
@@ -206,20 +192,10 @@ const paymentController = {
         return res.status(200).json(IpnSuccess)
       }
 
-      await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: OrderStatus.PAYMENT_FAILED }
-        })
-
-        await tx.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: PaymentStatus.FAILED,
-            gatewayData: req.query as Prisma.InputJsonValue
-          }
-        })
-      })
+      const failureApplied = await paymentServices.applyVnpayResult(
+        order.id, payment.id, false, verify.vnp_TxnRef as string, req.query
+      )
+      if (!failureApplied) return res.status(200).json(InpOrderAlreadyConfirmed)
 
       await notificationsServices.createOrderStatusNotification({
         orderId: order.id,
