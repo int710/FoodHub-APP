@@ -27,7 +27,8 @@ data class FoodDetailUiState(
     val error: String? = null,
     val isAdding: Boolean = false,
     val message: String? = null,
-    val requiresLogin: Boolean = false
+    val requiresLogin: Boolean = false,
+    val requiresTableScan: Boolean = false,
 )
 
 class FoodDetailViewModel @JvmOverloads constructor(
@@ -40,6 +41,7 @@ class FoodDetailViewModel @JvmOverloads constructor(
     )
 ) : AndroidViewModel(application) {
     private val foodId = savedStateHandle.get<String>("foodId").orEmpty()
+    private val tableSessionStore = TableSessionStore(application.applicationContext)
     private val state = MutableStateFlow(FoodDetailUiState())
     val uiState = state.asStateFlow()
 
@@ -81,7 +83,9 @@ class FoodDetailViewModel @JvmOverloads constructor(
             state.update { it.copy(message = "Vui lòng kiểm tra số lượng và tùy chọn bắt buộc.") }
             return
         }
-        state.update { it.copy(isAdding = true, message = null, requiresLogin = false) }
+        state.update {
+            it.copy(isAdding = true, message = null, requiresLogin = false, requiresTableScan = false)
+        }
         viewModelScope.launch {
             try {
                 // Repository tạo JSON, gắn Bearer token và gọi POST cart/TAKEAWAY/items/add.
@@ -94,7 +98,10 @@ class FoodDetailViewModel @JvmOverloads constructor(
                 state.update { it.copy(message = "Đã thêm món vào giỏ $typeLabel.") }
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) {
-                if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
+                if (error is FoodHubApiException && error.statusCode == 401 && tableSessionStore.current() != null) {
+                    tableSessionStore.clear()
+                    state.update { it.copy(requiresTableScan = true) }
+                } else if (error is LoginRequiredException || (error is FoodHubApiException && error.statusCode == 401)) {
                     state.update { it.copy(requiresLogin = true) }
                 } else state.update { it.copy(message = foodError(error)) }
             } finally {
@@ -104,6 +111,7 @@ class FoodDetailViewModel @JvmOverloads constructor(
     }
 
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
+    fun dismissTableScan() { state.update { it.copy(requiresTableScan = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
 }
 

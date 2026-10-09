@@ -30,7 +30,7 @@ class TableSessionStore(context: Context) {
 
     fun save(session: TableSession) {
         val previousToken = preferences.getString(KEY_TABLE_TOKEN, null)
-        preferences.edit()
+        val editor = preferences.edit()
             .putString(KEY_TABLE_ID, session.tableId)
             .putString(KEY_TABLE_NAME, session.tableName)
             .putString(KEY_FLOOR, session.floor)
@@ -38,10 +38,8 @@ class TableSessionStore(context: Context) {
             .putString(KEY_TABLE_TOKEN, session.tableToken)
             .putString(KEY_SESSION_ID, session.sessionId)
             .putLong(KEY_EXPIRES_AT, session.expiresAtEpochMillis ?: 0L)
-            .apply {
-                if (previousToken != session.tableToken) remove(KEY_CONVERSATION_ID)
-            }
-            .commit()
+        if (previousToken != session.tableToken) editor.remove(KEY_CONVERSATION_ID)
+        editor.commit()
     }
 
     fun current(): TableSession? {
@@ -66,7 +64,7 @@ class TableSessionStore(context: Context) {
 
     fun conversationId(): String? = preferences.getString(KEY_CONVERSATION_ID, null)
 
-    fun clearConversationId() = preferences.edit { remove(KEY_CONVERSATION_ID) }
+    fun clearConversationId() = preferences.edit().remove(KEY_CONVERSATION_ID).commit()
 
     fun saveConversationId(conversationId: String) {
         preferences.edit().putString(KEY_CONVERSATION_ID, conversationId).apply()
