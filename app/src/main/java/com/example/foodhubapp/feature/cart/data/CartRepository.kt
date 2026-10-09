@@ -44,21 +44,6 @@ data class Cart(
     val totalAmount: Long
 )
 
-data class CheckoutRequest(
-    val type: CartType,
-    val paymentMethod: String,
-    val note: String = "",
-    val recipientName: String = "",
-    val phone: String = "",
-    val address: String = "",
-)
-
-data class CheckoutResult(
-    val orderId: String,
-    val orderCode: String,
-    val paymentUrl: String?,
-)
-
 /** Body của PATCH cart item; theo docs phải có ít nhất một trường khác null. */
 data class CartItemUpdate(
     val quantity: Int? = null,
@@ -75,20 +60,19 @@ interface CartRepository {
     suspend fun updateItem(itemId: String, update: CartItemUpdate, type: CartType = CartType.TAKEAWAY)
     suspend fun deleteItem(itemId: String, type: CartType = CartType.TAKEAWAY)
     suspend fun clear(type: CartType = CartType.TAKEAWAY)
-    suspend fun checkout(request: CheckoutRequest): CheckoutResult
 }
 
 /**
- * Repository gọi API thật. Mọi request cart hiện dùng Bearer token CUSTOMER;
- * công việc mạng được chuyển sang Dispatchers.IO để không chặn main thread.
+ * Repository gọi API thật. DINE_IN dùng X-Table-Token; các ngữ cảnh tài khoản
+ * dùng Bearer token. Công việc mạng được chuyển khỏi main thread.
  */
 class RemoteCartRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
-    private val tableToken: () -> String? = { null },
-    private val accessToken: suspend () -> String? = { null },
+    private val tableToken: suspend () -> String? = { null },
+    private val accessToken: suspend () -> String? = { null }
 ) : CartRepository {
     override suspend fun getCart(type: CartType): Cart = withContext(Dispatchers.IO) {
-        parseCart(apiClient.getJson("/cart/${type.name}/items", requestHeaders(type)))
+        parseCart(apiClient.getJson("/cart/${type.name}/items", authHeaders(type)))
     }
 
     override suspend fun updateItem(itemId: String, update: CartItemUpdate, type: CartType) =
@@ -108,60 +92,31 @@ class RemoteCartRepository(
             apiClient.patch(
                 "/cart/${type.name}/items/${itemId.encoded()}",
                 body,
-                requestHeaders(type)
+                authHeaders(type)
             )
             Unit
         }
 
     override suspend fun deleteItem(itemId: String, type: CartType) = withContext(Dispatchers.IO) {
         require(itemId.isNotBlank())
-        apiClient.delete("/cart/${type.name}/items/${itemId.encoded()}", requestHeaders(type))
+        apiClient.delete("/cart/${type.name}/items/${itemId.encoded()}", authHeaders(type))
         Unit
     }
 
     override suspend fun clear(type: CartType) = withContext(Dispatchers.IO) {
-        apiClient.delete("/cart/${type.name}/clear", requestHeaders(type))
+        apiClient.delete("/cart/${type.name}/clear", authHeaders(type))
         Unit
     }
 
-    override suspend fun checkout(request: CheckoutRequest): CheckoutResult = withContext(Dispatchers.IO) {
-        require(request.paymentMethod in setOf("CASH", "VNPAY"))
-        if (request.type == CartType.DELIVERY) {
-            require(request.recipientName.isNotBlank() && request.phone.isNotBlank() && request.address.isNotBlank()) {
-                "Vui lòng nhập đủ thông tin giao hàng."
+    private suspend fun authHeaders(type: CartType): Map<String, String> {
+        if (type == CartType.DINE_IN) {
+            val token = tableToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
+            return buildMap {
+                put("X-Table-Token", token)
+                accessToken()?.takeIf { it.isNotBlank() }?.let { put("Authorization", "Bearer $it") }
             }
         }
-        val body = JSONObject()
-            .put("note", request.note.trim())
-            .put("paymentMethod", request.paymentMethod)
-        if (request.type == CartType.DELIVERY) {
-            body.put(
-                "deliveryInfo",
-                JSONObject()
-                    .put("recipientName", request.recipientName.trim())
-                    .put("phone", request.phone.trim())
-                    .put("address", request.address.trim()),
-            )
-        }
-        val response = apiClient.post("/order/${request.type.name}/new", body, requestHeaders(request.type))
-        val data = response.optJSONObject("data") ?: response
-        val order = data.optJSONObject("order") ?: data
-        CheckoutResult(
-            orderId = order.optString("id"),
-            orderCode = data.optString("orderCode", order.optString("orderCode")),
-            paymentUrl = data.optionalString("paymentUrl") ?: response.optionalString("paymentUrl"),
-        )
-    }
-
-    private suspend fun requestHeaders(type: CartType): Map<String, String> {
-        if (type == CartType.DINE_IN) {
-            val token = tableToken()?.takeIf(String::isNotBlank)
-                ?: throw IllegalStateException("Phiên bàn không còn hợp lệ. Vui lòng quét lại QR.")
-            val headers = mutableMapOf("x-table-token" to token)
-            accessToken()?.takeIf(String::isNotBlank)?.let { headers["Authorization"] = "Bearer $it" }
-            return headers
-        }
-        val token = accessToken()?.takeIf(String::isNotBlank) ?: throw LoginRequiredException()
+        val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
         return mapOf("Authorization" to "Bearer $token")
     }
 }

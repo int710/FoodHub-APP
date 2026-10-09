@@ -1,14 +1,19 @@
 package com.example.foodhubapp.feature.onboarding.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,11 +32,9 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { onboardingHeroPages.size })
     val coroutineScope = rememberCoroutineScope()
 
+    Box(modifier.fillMaxSize().background(AppBackground), contentAlignment = Alignment.TopCenter) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(AppBackground)
-            .padding(horizontal = 16.dp)
+        modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp)
     ) {
         OnboardingTopBar(onSkipClick = onSkipClick)
         Spacer(modifier = Modifier.height(8.dp))
@@ -59,6 +62,7 @@ fun OnboardingScreen(
             onLoginClick = onLoginClick
         )
         Spacer(modifier = Modifier.height(26.dp))
+    }
     }
 }
 

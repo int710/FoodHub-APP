@@ -1,5 +1,6 @@
 package com.example.foodhubapp.feature.cart.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,28 +19,27 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.cart.data.Cart
 import com.example.foodhubapp.feature.cart.data.CartItem
 import com.example.foodhubapp.feature.cart.data.CartType
-import com.example.foodhubapp.feature.cart.data.CheckoutRequest
 import com.example.foodhubapp.feature.cart.viewmodel.CartViewModel
+import com.example.foodhubapp.core.payment.VnPayReturn
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodImage
-import com.example.foodhubapp.theme.AppBackground
-import com.example.foodhubapp.theme.Brand
-import com.example.foodhubapp.theme.CardStroke
-import com.example.foodhubapp.theme.CeramicSurface
-import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.feature.order.data.CheckoutPaymentMethod
+import com.example.foodhubapp.ui.theme.*
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -49,17 +49,28 @@ import java.util.Locale
  */
 @Composable
 fun CartRoute(
+    paymentReturn: VnPayReturn? = null,
+    onPaymentReturnConsumed: (VnPayReturn) -> Unit = {},
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
-    onOrderCreated: () -> Unit = {},
+    onScanQrClick: () -> Unit,
     viewModel: CartViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val uriHandler = LocalUriHandler.current
     var deleteTarget by remember { mutableStateOf<CartItem?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
-    var showCheckout by remember { mutableStateOf(false) }
-    val uriHandler = LocalUriHandler.current
+
+    // Cart có thể đã nằm trong back stack trước khi người dùng thêm món. Luôn
+    // đồng bộ lại Redis khi quay về màn hình để item vừa thêm xuất hiện ngay.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load() }
+    LaunchedEffect(paymentReturn) {
+        paymentReturn?.let {
+            viewModel.handleVnPayReturn(it.orderCode, it.result)
+            onPaymentReturnConsumed(it)
+        }
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -67,11 +78,12 @@ fun CartRoute(
             viewModel.consumeMessage()
         }
     }
-    LaunchedEffect(state.checkoutResult) {
-        state.checkoutResult?.let { result ->
-            result.paymentUrl?.let { runCatching { uriHandler.openUri(it) } }
-            viewModel.consumeCheckoutResult()
-            onOrderCreated()
+
+    LaunchedEffect(state.paymentUrl) {
+        state.paymentUrl?.let { url ->
+            runCatching { uriHandler.openUri(url) }
+                .onFailure { snackbar.showSnackbar("Không thể mở trang thanh toán VNPay.") }
+            viewModel.consumePaymentUrl()
         }
     }
 
@@ -81,7 +93,6 @@ fun CartRoute(
         error = state.error,
         busyItemId = state.busyItemId,
         isClearing = state.isClearing,
-        cartType = state.cartType,
         isCheckingOut = state.isCheckingOut,
         onBackClick = onBackClick,
         onRetry = viewModel::load,
@@ -89,9 +100,11 @@ fun CartRoute(
         onEdit = viewModel::edit,
         onDelete = { deleteTarget = it },
         onClear = { confirmClear = true },
-        onTypeChange = viewModel::selectType,
-        onCheckout = { showCheckout = true },
-        snackbarHost = { SnackbarHost(snackbar) }
+        onCheckout = viewModel::checkout,
+        snackbarHost = { SnackbarHost(snackbar) },
+        cartType = state.cartType,
+        paymentMethod = state.paymentMethod,
+        onPaymentMethodChange = viewModel::selectPaymentMethod
     )
 
     // Giữ item cần xóa ở Route để chỉ gọi API sau khi người dùng xác nhận.
@@ -115,17 +128,6 @@ fun CartRoute(
         },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
     )
-    if (showCheckout) {
-        CheckoutDialog(
-            type = state.cartType,
-            isSubmitting = state.isCheckingOut,
-            onDismiss = { if (!state.isCheckingOut) showCheckout = false },
-            onSubmit = {
-                showCheckout = false
-                viewModel.checkout(it)
-            },
-        )
-    }
     // ViewModel tải FoodDetail trước; dialog chỉ mở khi đã có contract option đầy đủ.
     state.editingItem?.let { item ->
         if (state.isLoadingEditor) AlertDialog(
@@ -146,6 +148,15 @@ fun CartRoute(
         },
         dismissButton = { TextButton(onClick = viewModel::dismissLogin) { Text("Để sau") } }
     )
+    if (state.requiresTableScan) AlertDialog(
+        onDismissRequest = viewModel::dismissTableScan,
+        title = { Text("Phiên bàn đã hết hạn") },
+        text = { Text("Vui lòng quét lại mã QR trên bàn để tiếp tục với giỏ tại bàn.") },
+        confirmButton = {
+            TextButton(onClick = { viewModel.dismissTableScan(); onScanQrClick() }) { Text("Quét lại QR") }
+        },
+        dismissButton = { TextButton(onClick = viewModel::dismissTableScan) { Text("Để sau") } }
+    )
 }
 
 /**
@@ -159,17 +170,18 @@ fun CartScreen(
     error: String?,
     busyItemId: String?,
     isClearing: Boolean,
-    cartType: CartType = CartType.TAKEAWAY,
-    isCheckingOut: Boolean = false,
+    isCheckingOut: Boolean,
     onBackClick: () -> Unit,
     onRetry: () -> Unit,
     onQuantityChange: (CartItem, Int) -> Unit,
     onEdit: (CartItem) -> Unit,
     onDelete: (CartItem) -> Unit,
     onClear: () -> Unit,
-    onTypeChange: (CartType) -> Unit = {},
-    onCheckout: () -> Unit = {},
-    snackbarHost: @Composable () -> Unit = {}
+    onCheckout: () -> Unit,
+    snackbarHost: @Composable () -> Unit = {},
+    cartType: CartType = CartType.TAKEAWAY,
+    paymentMethod: CheckoutPaymentMethod = CheckoutPaymentMethod.CASH,
+    onPaymentMethodChange: (CheckoutPaymentMethod) -> Unit = {}
 ) {
     Scaffold(
         containerColor = AppBackground,
@@ -180,7 +192,18 @@ fun CartScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại") }
-                Text("Giỏ hàng", Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 21.sp)
+                Column(Modifier.weight(1f)) {
+                    Text("Giỏ hàng", fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                    Text(
+                        when (cartType) {
+                            CartType.DINE_IN -> "Ăn tại bàn • DINE_IN"
+                            CartType.TAKEAWAY -> "Nhận tại quầy • TAKEAWAY"
+                            CartType.DELIVERY -> "Giao tận nơi • DELIVERY"
+                        },
+                        color = OnSurfaceVariant,
+                        fontSize = 9.sp
+                    )
+                }
                 if (cart.items.isNotEmpty()) TextButton(onClick = onClear, enabled = !isClearing && busyItemId == null) {
                     Text("Xóa tất cả", color = Brand)
                 }
@@ -190,20 +213,54 @@ fun CartScreen(
             if (cart.items.isNotEmpty()) Surface(shadowElevation = 8.dp, color = CeramicSurface) {
                 Column(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Phương thức thanh toán", fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PaymentChoice(
+                            label = if (cartType == CartType.DINE_IN) "Tiền mặt tại bàn" else "Tiền mặt khi nhận",
+                            selected = paymentMethod == CheckoutPaymentMethod.CASH,
+                            enabled = !isCheckingOut,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPaymentMethodChange(CheckoutPaymentMethod.CASH) }
+                        )
+                        PaymentChoice(
+                            label = "VNPay",
+                            selected = paymentMethod == CheckoutPaymentMethod.VNPAY,
+                            enabled = !isCheckingOut,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPaymentMethodChange(CheckoutPaymentMethod.VNPAY) }
+                        )
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("Tổng cộng", color = OnSurfaceVariant)
                         Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                     }
                     Button(
                         onClick = onCheckout,
-                        enabled = !isCheckingOut && busyItemId == null && !isClearing,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                        enabled = !isCheckingOut && !isClearing && busyItemId == null,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Brand)
                     ) {
-                        if (isCheckingOut) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                        else Text("Đặt món")
+                        if (isCheckingOut) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Đang xử lý…")
+                        } else {
+                            Text(
+                                if (paymentMethod == CheckoutPaymentMethod.VNPAY) "Thanh toán bằng VNPay"
+                                else "Gửi đơn • Thanh toán tiền mặt",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -215,20 +272,10 @@ fun CartScreen(
                 error != null -> ErrorContent(error, onRetry, Modifier.align(Alignment.Center))
                 cart.items.isEmpty() -> EmptyCart(Modifier.align(Alignment.Center))
                 else -> LazyColumn(
+                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize().align(Alignment.TopCenter),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(CartType.TAKEAWAY, CartType.DELIVERY, CartType.DINE_IN).forEach { type ->
-                                FilterChip(
-                                    selected = cartType == type,
-                                    onClick = { onTypeChange(type) },
-                                    label = { Text(type.label()) },
-                                )
-                            }
-                        }
-                    }
                     items(cart.items, key = { it.id }) { item ->
                         CartItemRow(
                             item,
@@ -245,53 +292,32 @@ fun CartScreen(
 }
 
 @Composable
-private fun CheckoutDialog(
-    type: CartType,
-    isSubmitting: Boolean,
-    onDismiss: () -> Unit,
-    onSubmit: (CheckoutRequest) -> Unit,
+private fun PaymentChoice(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
-    var paymentMethod by rememberSaveable { mutableStateOf("CASH") }
-    var note by rememberSaveable { mutableStateOf("") }
-    var recipientName by rememberSaveable { mutableStateOf("") }
-    var phone by rememberSaveable { mutableStateOf("") }
-    var address by rememberSaveable { mutableStateOf("") }
-    val deliveryValid = type != CartType.DELIVERY ||
-        (recipientName.isNotBlank() && phone.isNotBlank() && address.isNotBlank())
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Xác nhận ${type.label().lowercase()}") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Phương thức thanh toán", fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(paymentMethod == "CASH", { paymentMethod = "CASH" }, { Text("Tiền mặt") })
-                    FilterChip(paymentMethod == "VNPAY", { paymentMethod = "VNPAY" }, { Text("VNPay") })
-                }
-                if (type == CartType.DELIVERY) {
-                    OutlinedTextField(recipientName, { recipientName = it }, label = { Text("Người nhận") }, singleLine = true)
-                    OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(11) }, label = { Text("Số điện thoại") }, singleLine = true)
-                    OutlinedTextField(address, { address = it }, label = { Text("Địa chỉ giao hàng") }, minLines = 2)
-                }
-                OutlinedTextField(note, { note = it.take(255) }, label = { Text("Ghi chú đơn hàng") }, minLines = 2)
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSubmit(CheckoutRequest(type, paymentMethod, note, recipientName, phone, address))
-                },
-                enabled = deliveryValid && !isSubmitting,
-            ) { Text("Tạo đơn") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Hủy") } },
-    )
-}
-
-private fun CartType.label(): String = when (this) {
-    CartType.DINE_IN -> "Tại bàn"
-    CartType.TAKEAWAY -> "Mang về"
-    CartType.DELIVERY -> "Giao hàng"
+    Surface(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) Brand.copy(alpha = 0.08f) else CeramicSurface,
+        border = androidx.compose.foundation.BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) Brand else CardStroke
+        )
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
 }
 
 @Composable

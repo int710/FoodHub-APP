@@ -1,8 +1,10 @@
 package com.example.foodhubapp.feature.home.ui
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,12 +17,16 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,26 +40,14 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.example.foodhubapp.R
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.home.viewmodel.HomeUiState
 import com.example.foodhubapp.feature.home.viewmodel.HomeViewModel
 import com.example.foodhubapp.feature.menu.data.MenuFood
-import com.example.foodhubapp.feature.notification.viewmodel.NotificationViewModel
-import com.example.foodhubapp.feature.cart.data.CartType
-import com.example.foodhubapp.feature.order.data.OrderingContextStore
-import com.example.foodhubapp.feature.table.data.TableSessionStore
-import com.example.foodhubapp.theme.AppBackground
-import com.example.foodhubapp.theme.Brand
-import com.example.foodhubapp.theme.BrandSoft
-import com.example.foodhubapp.theme.InputBackground
-import com.example.foodhubapp.theme.Neutral
-import com.example.foodhubapp.theme.OnSurfaceVariant
-import com.example.foodhubapp.theme.PrimaryContainer
-import com.example.foodhubapp.theme.SoftGreen
-import com.example.foodhubapp.theme.SuccessDark
-import com.example.foodhubapp.theme.SuccessSoft
-import com.example.foodhubapp.theme.WarmAccent
-import com.example.foodhubapp.theme.Warning
-import com.example.foodhubapp.theme.WarningDark
+import com.example.foodhubapp.feature.table.data.RestaurantTable
+import com.example.foodhubapp.feature.table.data.RestaurantTableStatus
+import com.example.foodhubapp.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -63,47 +57,35 @@ fun HomeRoute(
     onMenuClick: () -> Unit,
     onCartClick: () -> Unit,
     onOrdersClick: () -> Unit,
+    onScanQrClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onQrClick: () -> Unit,
-    onChatClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
-    viewModel: HomeViewModel = viewModel(),
-    notificationViewModel: NotificationViewModel = viewModel(),
+    viewModel: HomeViewModel = viewModel()
 ) {
-    val context = LocalContext.current
-    val tableSessionStore = remember(context) { TableSessionStore(context.applicationContext) }
-    val orderingContextStore = remember(context) { OrderingContextStore(context.applicationContext) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val notificationState by notificationViewModel.uiState.collectAsStateWithLifecycle()
-    var hasTableSession by remember { mutableStateOf(tableSessionStore.current() != null) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val unavailable = { label: String ->
+        scope.launch { snackbar.showSnackbar("$label chưa khả dụng với API hiện tại.") }
+        Unit
+    }
 
     // Cập nhật lại badge cart và menu khi người dùng quay về từ màn chi tiết/giỏ.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.load()
-        hasTableSession = tableSessionStore.current() != null
-        notificationViewModel.refresh()
-    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load() }
 
     HomeScreen(
         state = state,
         onQueryChange = viewModel::onQueryChange,
-        onMaxPriceChange = viewModel::selectMaxPrice,
         onCategoryClick = viewModel::selectCategory,
         onRetry = viewModel::load,
         onFoodClick = onFoodClick,
         onMenuClick = onMenuClick,
         onCartClick = onCartClick,
         onOrdersClick = onOrdersClick,
+        onScanQrClick = onScanQrClick,
         onProfileClick = onProfileClick,
-        onQrClick = onQrClick,
-        onDeliveryClick = {
-            orderingContextStore.select(CartType.DELIVERY)
-            onMenuClick()
-        },
-        hasTableSession = hasTableSession,
-        onChatClick = onChatClick,
-        onNotificationsClick = onNotificationsClick,
-        notificationUnreadCount = notificationState.unreadCount,
+        onUnavailable = unavailable,
+        onCartTypeChange = viewModel::selectCartType,
+        snackbarHost = { SnackbarHost(snackbar) }
     )
 }
 
@@ -111,7 +93,6 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onQueryChange: (String) -> Unit,
-    onMaxPriceChange: (Long?) -> Unit = {},
     onCategoryClick: (String?) -> Unit,
     onRetry: () -> Unit,
     onFoodClick: (String) -> Unit,
@@ -119,26 +100,17 @@ fun HomeScreen(
     onCartClick: () -> Unit,
     onOrdersClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onQrClick: () -> Unit,
-    onDeliveryClick: () -> Unit = {},
-    hasTableSession: Boolean = false,
-    onChatClick: () -> Unit = {},
-    onNotificationsClick: () -> Unit = {},
-    notificationUnreadCount: Int = 0,
+    onUnavailable: (String) -> Unit,
+    onScanQrClick: () -> Unit = {},
+    onCartTypeChange: (CartType) -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {}
 ) {
+    var showContextPicker by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         containerColor = AppBackground,
-        topBar = { HomeHeader(state.cartItemCount, onCartClick, onProfileClick, onQrClick) },
-        bottomBar = {
-            HomeBottomBar(
-                onOrdersClick = onOrdersClick,
-                onProfileClick = onProfileClick,
-                hasTableSession = hasTableSession,
-                onChatClick = onChatClick,
-                onNotificationsClick = onNotificationsClick,
-                notificationUnreadCount = notificationUnreadCount,
-            )
-        }
+        snackbarHost = snackbarHost,
+        topBar = { HomeHeader(state, onCartClick, onProfileClick, onScanQrClick) },
+        bottomBar = { HomeBottomBar(onOrdersClick, onProfileClick, onUnavailable) }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading && state.categories.isEmpty()) {
@@ -148,14 +120,15 @@ fun HomeScreen(
             } else {
                 val visible = state.visibleFoods
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize().align(Alignment.TopCenter),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    item { OrderingContext() }
-                    item { SearchRow(state.query, onQueryChange, state.maxPrice, onMaxPriceChange) }
+                    item { OrderingContext(state, { showContextPicker = true }) }
+                    item { SearchRow(state.query, onQueryChange, onUnavailable) }
                     item { DiscoveryBanner(onMenuClick) }
-                    item { QuickActions(onMenuClick, onQrClick, onDeliveryClick) }
+                    item { QuickActions(onMenuClick, onScanQrClick, onCartTypeChange, onUnavailable) }
+                    item { TableMapSection(state.tables, state.tableError, state.tableSession?.tableId, onScanQrClick, onRetry) }
                     item {
                         SectionTitle("Danh Mục Món Ăn", "Tất cả (${state.categories.sumOf { it.items.size }})", onMenuClick)
                         Spacer(Modifier.height(10.dp))
@@ -179,32 +152,54 @@ fun HomeScreen(
                             RecommendationCard(food, fallbackFor(food, visible), onFoodClick)
                         }
                     }
-                    item {
-                        ServiceBar(hasTableSession, onChatClick)
-                    }
+                    item { ServiceBar { onUnavailable("Gọi phục vụ") } }
                 }
             }
         }
     }
+    if (showContextPicker) OrderingContextDialog(
+        currentType = state.cartType,
+        isAuthenticated = state.isAuthenticated,
+        onDismiss = { showContextPicker = false },
+        onScanQr = {
+            showContextPicker = false
+            onScanQrClick()
+        },
+        onSelect = {
+            showContextPicker = false
+            onCartTypeChange(it)
+        }
+    )
 }
 
 @Composable
 private fun HomeHeader(
-    cartCount: Int,
+    state: HomeUiState,
     onCartClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onQrClick: () -> Unit
+    onScanQrClick: () -> Unit
 ) {
     Surface(color = AppBackground.copy(alpha = .96f), shadowElevation = 2.dp) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("FoodHub", color = Brand, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("Trang Chủ", color = OnSurfaceVariant, fontSize = 10.sp)
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(R.drawable.foodhub_logo),
+                    contentDescription = "FoodHub",
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                )
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text("FoodHub", color = Brand, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    val customerLabel = if (state.isAuthenticated) " • CUSTOMER" else ""
+                    val sessionLabel = state.tableSession?.let { "${it.tableName} • DINE_IN$customerLabel" }
+                        ?: "${state.userName?.ifBlank { null } ?: "Khách"}$customerLabel • ${state.cartType.name}"
+                    Text(sessionLabel, color = OnSurfaceVariant, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
-            HeaderButton("Quét mã QR", onQrClick) {
+            HeaderButton("Quét mã QR", onScanQrClick) {
                 Icon(Icons.Default.QrCodeScanner, null, Modifier.size(20.dp))
             }
             Spacer(Modifier.width(6.dp))
@@ -212,10 +207,10 @@ private fun HomeHeader(
                 HeaderButton("Giỏ hàng", onCartClick) {
                     Icon(Icons.Default.ShoppingCart, null, Modifier.size(20.dp))
                 }
-                if (cartCount > 0) Badge(
+                if (state.cartItemCount > 0) Badge(
                     Modifier.align(Alignment.TopEnd).offset(x = 1.dp, y = (-1).dp),
                     containerColor = Brand
-                ) { Text(cartCount.coerceAtMost(99).toString()) }
+                ) { Text(state.cartItemCount.coerceAtMost(99).toString()) }
             }
             Spacer(Modifier.width(6.dp))
             IconButton(onClick = onProfileClick, modifier = Modifier.size(44.dp)) {
@@ -243,32 +238,121 @@ private fun HeaderButton(description: String, onClick: () -> Unit, icon: @Compos
 }
 
 @Composable
-private fun OrderingContext() {
-    Surface(shape = RoundedCornerShape(12.dp), color = Color.White, shadowElevation = 1.dp) {
+private fun OrderingContext(state: HomeUiState, onChangeContext: () -> Unit) {
+    val session = state.tableSession
+    val isDineIn = session != null
+    val color = when (state.cartType) {
+        CartType.DINE_IN -> Brand
+        CartType.TAKEAWAY -> Color(0xFF282526)
+        CartType.DELIVERY -> Color(0xFF008A62)
+    }
+    val title = when (state.cartType) {
+        CartType.DINE_IN -> "Đang dùng món tại: ${session?.tableName ?: "Bàn đã quét"}"
+        CartType.TAKEAWAY -> "Nhận tại quầy (Takeaway)"
+        CartType.DELIVERY -> "Giao tận nơi (Delivery)"
+    }
+    val detail = when (state.cartType) {
+        CartType.DINE_IN -> listOfNotNull(
+            session?.floor,
+            session?.capacity?.let { "$it ghế" },
+            "Giỏ dùng chung theo bàn"
+        ).joinToString(" • ")
+        CartType.TAKEAWAY -> "Giỏ TAKEAWAY theo tài khoản • Nhận món tại quầy"
+        CartType.DELIVERY -> "Giỏ DELIVERY theo tài khoản • Yêu cầu đăng nhập"
+    }
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = .055f),
+        border = BorderStroke(if (isDineIn) 1.5.dp else 1.dp, color.copy(alpha = if (isDineIn) .8f else .2f)),
+        shadowElevation = 1.dp
+    ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(32.dp).background(SuccessSoft, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.TakeoutDining, null, Modifier.size(18.dp), tint = SuccessDark)
+            Box(Modifier.size(42.dp).background(color, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(
+                    if (isDineIn) Icons.Default.QrCodeScanner else if (state.cartType == CartType.DELIVERY) Icons.Default.DeliveryDining else Icons.Default.TakeoutDining,
+                    null,
+                    Modifier.size(21.dp),
+                    tint = Color.White
+                )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text("Đặt món mang về", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text("Giỏ TAKEAWAY • Sẵn sàng chọn món", color = OnSurfaceVariant, fontSize = 11.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, Modifier.weight(1f, fill = false), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.width(6.dp))
+                    Surface(shape = CircleShape, color = color.copy(alpha = .12f)) {
+                        Text(state.cartType.name, Modifier.padding(horizontal = 6.dp, vertical = 2.dp), color = color, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text(detail, color = OnSurfaceVariant, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Surface(shape = CircleShape, color = SuccessSoft) {
-                Text("Đang hoạt động", Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = SuccessDark, fontSize = 10.sp)
+            TextButton(onClick = onChangeContext, contentPadding = PaddingValues(horizontal = 7.dp)) {
+                Text("Đổi", color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-private fun SearchRow(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    maxPrice: Long?,
-    onMaxPriceChange: (Long?) -> Unit,
+private fun OrderingContextDialog(
+    currentType: CartType,
+    isAuthenticated: Boolean,
+    onDismiss: () -> Unit,
+    onScanQr: () -> Unit,
+    onSelect: (CartType) -> Unit
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chọn hình thức đặt món", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ContextChoice("Ăn tại bàn", "Quét QR để dùng giỏ chung theo bàn", Icons.Default.QrCodeScanner, Brand, currentType == CartType.DINE_IN, onScanQr)
+                ContextChoice("Nhận tại quầy", "Giỏ TAKEAWAY theo tài khoản", Icons.Default.TakeoutDining, Color(0xFF282526), currentType == CartType.TAKEAWAY) { onSelect(CartType.TAKEAWAY) }
+                ContextChoice(
+                    "Giao tận nơi",
+                    if (isAuthenticated) "Giỏ DELIVERY theo tài khoản" else "Cần đăng nhập trước khi đặt giao hàng",
+                    Icons.Default.DeliveryDining,
+                    Color(0xFF008A62),
+                    currentType == CartType.DELIVERY
+                ) { onSelect(CartType.DELIVERY) }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Đóng") } }
+    )
+}
+
+@Composable
+private fun ContextChoice(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    color: Color,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = color.copy(alpha = .055f),
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, color.copy(alpha = if (selected) .8f else .18f))
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).background(color, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(20.dp), tint = Color.White)
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(subtitle, color = OnSurfaceVariant, fontSize = 10.sp)
+            }
+            if (selected) Icon(Icons.Default.CheckCircle, "Đang chọn", tint = color, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onUnavailable: (String) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = query,
@@ -297,32 +381,12 @@ private fun SearchRow(
                 unfocusedBorderColor = Color.Transparent
             )
         )
-        Box {
-            FilledIconButton(
-                onClick = { menuExpanded = true },
-                modifier = Modifier.size(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (maxPrice == null) PrimaryContainer else Brand
-                )
-            ) { Icon(Icons.Default.Tune, "Lọc theo giá", tint = Color.White) }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                listOf(
-                    "Tất cả mức giá" to null,
-                    "Tối đa 50.000đ" to 50_000L,
-                    "Tối đa 100.000đ" to 100_000L,
-                    "Tối đa 200.000đ" to 200_000L,
-                ).forEach { (label, value) ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = { onMaxPriceChange(value); menuExpanded = false },
-                        leadingIcon = {
-                            if (maxPrice == value) Icon(Icons.Default.Check, null)
-                        },
-                    )
-                }
-            }
-        }
+        FilledIconButton(
+            onClick = { onUnavailable("Bộ lọc nâng cao") },
+            modifier = Modifier.size(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = PrimaryContainer)
+        ) { Icon(Icons.Default.Tune, "Lọc món ăn", tint = Color.White) }
     }
 }
 
@@ -358,18 +422,212 @@ private fun DiscoveryBanner(onMenuClick: () -> Unit) {
 @Composable
 private fun QuickActions(
     onMenuClick: () -> Unit,
-    onQrClick: () -> Unit,
-    onDeliveryClick: () -> Unit,
+    onScanQrClick: () -> Unit,
+    onCartTypeChange: (CartType) -> Unit,
+    onUnavailable: (String) -> Unit
 ) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 380.dp
+        val actions = listOf<@Composable () -> Unit>(
+            { QuickAction("Quét QR\nBàn", BrandSoft, onScanQrClick, Modifier.fillMaxWidth()) { Icon(Icons.Default.QrCodeScanner, null, tint = Brand) } },
+            { QuickAction("Đặt Mang\nVề", WarmAccent, { onCartTypeChange(CartType.TAKEAWAY); onMenuClick() }, Modifier.fillMaxWidth()) { Icon(Icons.Default.TakeoutDining, null, tint = WarningDark) } },
+            { QuickAction("Giao Tận\nNơi", SoftGreen, { onCartTypeChange(CartType.DELIVERY); onMenuClick() }, Modifier.fillMaxWidth()) { Icon(Icons.Default.DeliveryDining, null, tint = SuccessDark) } },
+            { QuickAction("Mã Giảm\nGiá", Color(0xFFFFB59D), { onUnavailable("Mã giảm giá") }, Modifier.fillMaxWidth()) { Icon(Icons.Default.ConfirmationNumber, null, tint = Brand) } }
+        )
+        if (compact) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                actions.chunked(2).forEach { rowActions ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowActions.forEach { action -> Box(Modifier.weight(1f)) { action() } }
+                    }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                actions.forEach { action -> Box(Modifier.weight(1f)) { action() } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableMapSection(
+    tables: List<RestaurantTable>,
+    error: String?,
+    activeTableId: String?,
+    onScanQrClick: () -> Unit,
+    onRetry: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionTitle("Sơ Đồ Bàn", "Quét QR", onScanQrClick)
+        when {
+            error != null && tables.isEmpty() -> Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, CardStroke)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Chưa tải được sơ đồ bàn.", Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 12.sp)
+                    TextButton(onClick = onRetry) { Text("Thử lại") }
+                }
+            }
+            tables.isEmpty() -> Box(
+                Modifier.fillMaxWidth().height(92.dp).background(Color.White, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator(Modifier.size(24.dp), color = Brand, strokeWidth = 2.dp) }
+            else -> {
+                TableLegend(tables)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val columns = when {
+                        maxWidth < 600.dp -> 2
+                        maxWidth < 780.dp -> 3
+                        else -> 4
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        tables.groupBy { it.floor ?: "Khu vực chung" }.forEach { (floor, floorTables) ->
+                            Text(floor, color = OnSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                floorTables.chunked(columns).forEach { rowTables ->
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        rowTables.forEach { table ->
+                                            TableMapCard(table, table.id == activeTableId, onScanQrClick, Modifier.weight(1f))
+                                        }
+                                        repeat(columns - rowTables.size) { Spacer(Modifier.weight(1f)) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableLegend(tables: List<RestaurantTable>) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        QuickAction("Quét QR\nBàn", BrandSoft, onQrClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.QrCodeScanner, null, tint = Brand)
+        TableLegendItem(Color(0xFF28A66A), "Trống ${tables.count { it.status == RestaurantTableStatus.AVAILABLE }}")
+        TableLegendItem(Brand, "Có khách ${tables.count { it.status == RestaurantTableStatus.OCCUPIED }}")
+        TableLegendItem(Color(0xFF8D9098), "Tạm ngưng ${tables.count { it.status == RestaurantTableStatus.INACTIVE }}")
+    }
+}
+
+@Composable
+private fun TableLegendItem(color: Color, label: String) {
+    Surface(color = color.copy(alpha = .08f), shape = RoundedCornerShape(50), border = BorderStroke(1.dp, color.copy(alpha = .18f))) {
+        Row(
+            Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(Modifier.size(6.dp).background(color, CircleShape))
+            Text(label, color = OnSurfaceVariant, fontSize = 9.sp, maxLines = 1)
         }
-        QuickAction("Đặt Mang\nVề", WarmAccent, onMenuClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.TakeoutDining, null, tint = WarningDark)
+    }
+}
+
+@Composable
+@OptIn(ExperimentalComposeUiApi::class)
+private fun TableMapCard(
+    table: RestaurantTable,
+    isCurrent: Boolean,
+    onScanQrClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (color, label) = when (table.status) {
+        RestaurantTableStatus.AVAILABLE -> Color(0xFF168F58) to "Bàn trống"
+        RestaurantTableStatus.OCCUPIED -> Brand to "Có khách"
+        RestaurantTableStatus.INACTIVE -> Color(0xFF777B84) to "Tạm ngưng"
+    }
+    var showDetails by remember(table.id) { mutableStateOf(false) }
+    val cardColor = if (isCurrent) Brand else color
+    val cardLabel = if (isCurrent) "Đang hoạt động" else label
+    Box(modifier) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(86.dp)
+                .pointerInput(table.id) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            if (awaitPointerEvent().type == PointerEventType.Enter) showDetails = true
+                        }
+                    }
+                }
+                .clickable { showDetails = true }
+                .semantics { contentDescription = "${table.name}, $cardLabel, ${table.capacity} chỗ" },
+            shape = RoundedCornerShape(12.dp),
+            color = cardColor.copy(alpha = if (isCurrent) .065f else .035f),
+            border = BorderStroke(if (isCurrent) 1.5.dp else 1.dp, cardColor.copy(alpha = if (isCurrent) .9f else .22f))
+        ) {
+            Column(
+                Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        table.name,
+                        Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    Surface(shape = RoundedCornerShape(5.dp), color = Color(0xFFECEBEA)) {
+                        Text("${table.capacity} ghế", Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = OnSurfaceVariant, fontSize = 9.sp)
+                    }
+                }
+                Text(
+                    listOfNotNull(table.floor, table.note).joinToString(" - ").ifBlank { "Khu vực chung" },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = OnSurfaceVariant,
+                    fontSize = 10.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Box(Modifier.size(6.dp).background(cardColor, CircleShape))
+                    Text(cardLabel, color = cardColor, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
-        QuickAction("Giao Tận\nNơi", SoftGreen, onDeliveryClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.DeliveryDining, null, tint = SuccessDark)
+        DropdownMenu(
+            expanded = showDetails,
+            onDismissRequest = { showDetails = false },
+            shape = RoundedCornerShape(14.dp),
+            containerColor = Color.White,
+            shadowElevation = 8.dp
+        ) {
+            Column(Modifier.widthIn(min = 176.dp).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.TableRestaurant, null, Modifier.size(20.dp), tint = color)
+                    Spacer(Modifier.width(8.dp))
+                    Text(table.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).background(cardColor, CircleShape))
+                    Spacer(Modifier.width(6.dp))
+                    Text(cardLabel, color = cardColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Text("Sức chứa: ${table.capacity} chỗ", color = OnSurfaceVariant, fontSize = 11.sp)
+                if (table.status == RestaurantTableStatus.AVAILABLE && !isCurrent) {
+                    TextButton(
+                        onClick = {
+                            showDetails = false
+                            onScanQrClick()
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Quét QR")
+                    }
+                }
+            }
         }
     }
 }
@@ -502,7 +760,7 @@ private fun HomeFoodImage(url: String?, @DrawableRes fallback: Int, modifier: Mo
 }
 
 @Composable
-private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
+private fun ServiceBar(onClick: () -> Unit) {
     Surface(shape = RoundedCornerShape(12.dp), color = InputBackground) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(WarmAccent, CircleShape), contentAlignment = Alignment.Center) {
@@ -511,17 +769,9 @@ private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text("Cần trợ giúp tại bàn?", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text(
-                    if (hasTableSession) "Nhắn tin trực tiếp với nhân viên" else "Tính năng sẽ mở khi có phiên QR bàn",
-                    color = OnSurfaceVariant,
-                    fontSize = 10.sp,
-                )
+                Text("Tính năng sẽ mở khi có phiên QR bàn", color = OnSurfaceVariant, fontSize = 10.sp)
             }
-            Button(
-                onClick = onClick,
-                enabled = hasTableSession,
-                colors = ButtonDefaults.buttonColors(containerColor = Warning, contentColor = WarningDark),
-            ) {
+            Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Warning, contentColor = WarningDark)) {
                 Text("Gọi phục vụ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -529,53 +779,25 @@ private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HomeBottomBar(
-    onOrdersClick: () -> Unit,
-    onProfileClick: () -> Unit,
-    hasTableSession: Boolean,
-    onChatClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
-    notificationUnreadCount: Int,
-) {
+private fun HomeBottomBar(onOrdersClick: () -> Unit, onProfileClick: () -> Unit, onUnavailable: (String) -> Unit) {
     Surface(color = AppBackground.copy(alpha = .97f), shadowElevation = 8.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
             BottomDestination(Icons.Default.Home, "Trang chủ", true, {})
             BottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", false, onOrdersClick)
-            if (hasTableSession) {
-                BottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
-            }
-            BottomDestination(
-                Icons.Default.NotificationsNone,
-                "Thông báo",
-                false,
-                onNotificationsClick,
-                notificationUnreadCount,
-            )
+            BottomDestination(Icons.Default.NotificationsNone, "Thông báo", false) { onUnavailable("Thông báo") }
             BottomDestination(Icons.Default.Person, "Cá nhân", false, onProfileClick)
         }
     }
 }
 
 @Composable
-private fun RowScope.BottomDestination(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    badgeCount: Int = 0,
-) {
+private fun RowScope.BottomDestination(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Column(
         Modifier.weight(1f).fillMaxHeight().clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (badgeCount > 0) {
-            BadgedBox(badge = { Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString()) } }) {
-                Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
-            }
-        } else {
-            Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
-        }
+        Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
         Spacer(Modifier.height(2.dp))
         Text(label, color = if (selected) Brand else OnSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }

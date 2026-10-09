@@ -10,6 +10,7 @@ import java.math.BigDecimal
 import java.net.URLEncoder
 
 enum class OrderType { DINE_IN, TAKEAWAY, DELIVERY }
+enum class CheckoutPaymentMethod { CASH, VNPAY }
 
 enum class OrderStatus {
     PENDING_PAYMENT,
@@ -31,8 +32,7 @@ data class OrderItem(
     val quantity: Int,
     val unitPrice: Long,
     val subTotal: Long,
-    val description: String,
-    val menuItemId: String = "",
+    val description: String
 )
 
 data class CustomerOrder(
@@ -58,16 +58,52 @@ data class OrderPage(
     val hasMore: Boolean
 )
 
+data class CreatedVnPayOrder(
+    val orderId: String,
+    val orderCode: String,
+    val paymentUrl: String
+)
+
+data class CreatedOrder(
+    val orderId: String,
+    val orderCode: String,
+    val paymentMethod: CheckoutPaymentMethod,
+    val paymentUrl: String?
+)
+
+data class VnPayPaymentStatus(
+    val orderId: String,
+    val orderCode: String,
+    val orderStatus: OrderStatus,
+    val paymentStatus: String?,
+    val paidAt: String?,
+    val shouldPoll: Boolean
+)
+
 interface OrderRepository {
     suspend fun getHistory(page: Int, limit: Int = 20, type: OrderType? = null): OrderPage
     suspend fun cancel(orderId: String, reason: String)
+    suspend fun createOrder(
+        type: OrderType = OrderType.TAKEAWAY,
+        paymentMethod: CheckoutPaymentMethod = CheckoutPaymentMethod.CASH,
+        note: String? = null
+    ): CreatedOrder
+    suspend fun createVnPayOrder(type: OrderType = OrderType.TAKEAWAY, note: String? = null): CreatedVnPayOrder {
+        val created = createOrder(type, CheckoutPaymentMethod.VNPAY, note)
+        return CreatedVnPayOrder(
+            orderId = created.orderId,
+            orderCode = created.orderCode,
+            paymentUrl = requireNotNull(created.paymentUrl) { "Máy chủ chưa trả đường dẫn thanh toán VNPay." }
+        )
+    }
     suspend fun createVnPayUrl(orderCode: String): String
-    suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String)
+    suspend fun getVnPayStatus(orderCode: String): VnPayPaymentStatus
 }
 
 /** API của màn Đơn hàng. Mọi thao tác CUSTOMER đều dùng Bearer token hiện tại. */
 class RemoteOrderRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val tableToken: suspend () -> String? = { null },
     private val accessToken: suspend () -> String? = { null }
 ) : OrderRepository {
     override suspend fun getHistory(page: Int, limit: Int, type: OrderType?): OrderPage = withContext(Dispatchers.IO) {
@@ -91,12 +127,45 @@ class RemoteOrderRepository(
         Unit
     }
 
+    override suspend fun createOrder(
+        type: OrderType,
+        paymentMethod: CheckoutPaymentMethod,
+        note: String?
+    ): CreatedOrder =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("paymentMethod", paymentMethod.name)
+            note?.trim()?.takeIf { it.isNotEmpty() }?.let { body.put("note", it) }
+
+            val response = apiClient.post(
+                "/order/${type.name}/new",
+                body,
+                orderHeaders(type)
+            )
+            val data = response.optJSONObject("data")
+                ?: error("Máy chủ chưa trả thông tin đơn hàng VNPay.")
+            val order = data.optJSONObject("order")
+            val orderCode = data.optionalString("orderCode")
+                ?: order?.optionalString("orderCode")
+                ?: error("Máy chủ chưa trả mã đơn hàng.")
+            val paymentUrl = data.optionalString("paymentUrl")
+            if (paymentMethod == CheckoutPaymentMethod.VNPAY && paymentUrl == null) {
+                error("Máy chủ chưa trả đường dẫn thanh toán VNPay.")
+            }
+
+            CreatedOrder(
+                orderId = order?.optionalString("id").orEmpty(),
+                orderCode = orderCode,
+                paymentMethod = paymentMethod,
+                paymentUrl = paymentUrl
+            )
+        }
+
     override suspend fun createVnPayUrl(orderCode: String): String = withContext(Dispatchers.IO) {
         require(orderCode.isNotBlank())
         val response = apiClient.post(
             "/payment/vnpay/create",
             JSONObject().put("orderCode", orderCode),
-            authHeaders()
+            optionalSessionHeaders()
         )
         val data = response.optJSONObject("data")
         response.optionalString("paymentUrl")
@@ -104,20 +173,45 @@ class RemoteOrderRepository(
             ?: error("Máy chủ chưa trả đường dẫn thanh toán VNPay.")
     }
 
-    override suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String) =
-        withContext(Dispatchers.IO) {
-            apiClient.post(
-                "/reviews/feedback",
-                JSONObject().put("orderId", orderId).put("menuItemId", menuItemId)
-                    .put("rating", rating).put("comment", comment.trim()).put("images", JSONArray()),
-                authHeaders(),
-            )
-            Unit
-        }
+    override suspend fun getVnPayStatus(orderCode: String): VnPayPaymentStatus = withContext(Dispatchers.IO) {
+        require(orderCode.isNotBlank())
+        val response = apiClient.getJson(
+            "/payment/vnpay/status/${orderCode.encoded()}",
+            optionalSessionHeaders()
+        )
+        val data = response.optJSONObject("data")
+            ?: error("Máy chủ chưa trả trạng thái thanh toán.")
+
+        VnPayPaymentStatus(
+            orderId = data.firstString("orderId", "id"),
+            orderCode = data.firstString("orderCode", "code"),
+            orderStatus = enumValueOrNull<OrderStatus>(data.optString("orderStatus")) ?: OrderStatus.UNKNOWN,
+            paymentStatus = data.optionalString("paymentStatus"),
+            paidAt = data.optionalString("paidAt"),
+            shouldPoll = data.optBoolean("shouldPoll", false)
+        )
+    }
 
     private suspend fun authHeaders(): Map<String, String> {
         val token = accessToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
         return mapOf("Authorization" to "Bearer $token")
+    }
+
+    private suspend fun orderHeaders(type: OrderType): Map<String, String> {
+        if (type == OrderType.DINE_IN) {
+            val token = tableToken()?.takeIf { it.isNotBlank() } ?: throw LoginRequiredException()
+            return buildMap {
+                put("X-Table-Token", token)
+                accessToken()?.takeIf { it.isNotBlank() }?.let { put("Authorization", "Bearer $it") }
+            }
+        }
+        return authHeaders()
+    }
+
+    private suspend fun optionalSessionHeaders(): Map<String, String> {
+        tableToken()?.takeIf { it.isNotBlank() }?.let { return mapOf("X-Table-Token" to it) }
+        accessToken()?.takeIf { it.isNotBlank() }?.let { return mapOf("Authorization" to "Bearer $it") }
+        return emptyMap()
     }
 }
 
@@ -148,7 +242,7 @@ private fun parseOrder(json: JSONObject): CustomerOrder {
     val table = json.optJSONObject("table")
     val delivery = json.optJSONObject("deliveryInfo")
     val payments = json.optJSONArray("payments")
-    val payment = payments?.lastObject() ?: json.optJSONObject("payment")
+    val payment = payments?.firstObject() ?: json.optJSONObject("payment")
     val items = json.optJSONArray("items")?.objects()?.map(::parseOrderItem).orEmpty()
     return CustomerOrder(
         id = json.firstString("id", "orderId"),
@@ -192,7 +286,6 @@ private fun parseOrderItem(json: JSONObject): OrderItem {
     val note = json.optionalString("note")
     return OrderItem(
         id = json.firstString("id", "orderItemId"),
-        menuItemId = json.firstString("menuItemId").ifBlank { menuItem?.firstString("id").orEmpty() },
         name = name,
         imageUrl = image,
         quantity = quantity,
@@ -208,7 +301,7 @@ private inline fun <reified T : Enum<T>> enumValueOrNull(value: String): T? =
 private fun String.encoded() = URLEncoder.encode(this, "UTF-8")
 private fun JSONArray.objects(): List<JSONObject> = (0 until length()).mapNotNull { optJSONObject(it) }
 private fun JSONArray.values(): List<Any> = (0 until length()).mapNotNull { opt(it) }
-private fun JSONArray.lastObject(): JSONObject? = if (length() == 0) null else optJSONObject(length() - 1)
+private fun JSONArray.firstObject(): JSONObject? = if (length() == 0) null else optJSONObject(0)
 private fun JSONObject.firstArray(vararg keys: String): JSONArray? = keys.firstNotNullOfOrNull(::optJSONArray)
 private fun JSONObject.firstString(vararg keys: String): String =
     keys.firstNotNullOfOrNull { optionalString(it) }.orEmpty()

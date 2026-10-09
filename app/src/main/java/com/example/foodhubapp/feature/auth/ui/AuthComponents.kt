@@ -130,24 +130,14 @@ internal fun LoginBrandHero(modifier: Modifier = Modifier) {
                 .size(80.dp)
                 .shadow(6.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .padding(8.dp),
+                .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.verticalGradient(listOf(Primary, Color(0xFFFF7A35)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_logo),
-                    contentDescription = "FoodHub",
-                    modifier = Modifier.size(46.dp)
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.foodhub_logo),
+                contentDescription = "FoodHub",
+                modifier = Modifier.size(80.dp)
+            )
         }
         Spacer(modifier = Modifier.height(14.dp))
         Row(
@@ -609,19 +599,13 @@ internal fun SocialButton(
 
 @Composable
 internal fun SmallFoodHubLogo() {
-    Box(
+    Image(
+        painter = painterResource(id = R.drawable.foodhub_logo),
+        contentDescription = null,
         modifier = Modifier
             .size(32.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(Brush.verticalGradient(listOf(Primary, Color(0xFFFF7A35)))),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.ic_logo),
-            contentDescription = null,
-            modifier = Modifier.size(22.dp)
-        )
-    }
+    )
 }
 
 @Composable

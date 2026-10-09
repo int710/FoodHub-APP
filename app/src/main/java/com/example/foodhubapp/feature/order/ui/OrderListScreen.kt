@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +32,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.menu.ui.FoodImage
-import com.example.foodhubapp.feature.notification.viewmodel.NotificationViewModel
+import com.example.foodhubapp.core.payment.VnPayReturn
 import com.example.foodhubapp.feature.order.data.CustomerOrder
 import com.example.foodhubapp.feature.order.data.OrderItem
 import com.example.foodhubapp.feature.order.data.OrderStatus
@@ -41,21 +40,7 @@ import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.viewmodel.OrderGroup
 import com.example.foodhubapp.feature.order.viewmodel.OrderListUiState
 import com.example.foodhubapp.feature.order.viewmodel.OrderListViewModel
-import com.example.foodhubapp.feature.table.data.TableSessionStore
-import com.example.foodhubapp.theme.AppBackground
-import com.example.foodhubapp.theme.Brand
-import com.example.foodhubapp.theme.BrandSoft
-import com.example.foodhubapp.theme.CaptionBrown
-import com.example.foodhubapp.theme.CardStroke
-import com.example.foodhubapp.theme.CeramicSurface
-import com.example.foodhubapp.theme.InputBackgroundSoft
-import com.example.foodhubapp.theme.MutedDot
-import com.example.foodhubapp.theme.Neutral
-import com.example.foodhubapp.theme.OnSurfaceVariant
-import com.example.foodhubapp.theme.Success
-import com.example.foodhubapp.theme.SuccessDark
-import com.example.foodhubapp.theme.SuccessSoft
-import com.example.foodhubapp.theme.WarningDark
+import com.example.foodhubapp.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.Instant
@@ -66,29 +51,26 @@ import java.util.Locale
 
 @Composable
 fun OrderListRoute(
+    paymentReturn: VnPayReturn? = null,
+    onPaymentReturnConsumed: (VnPayReturn) -> Unit = {},
     onHomeClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     onLoginClick: () -> Unit,
-    onChatClick: () -> Unit,
-    viewModel: OrderListViewModel = viewModel(),
-    notificationViewModel: NotificationViewModel = viewModel(),
+    viewModel: OrderListViewModel = viewModel()
 ) {
-    val context = LocalContext.current
-    val tableSessionStore = remember(context) { TableSessionStore(context.applicationContext) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val notificationState by notificationViewModel.uiState.collectAsStateWithLifecycle()
-    var hasTableSession by remember { mutableStateOf(tableSessionStore.current() != null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     var cancelTarget by remember { mutableStateOf<CustomerOrder?>(null) }
-    var reviewTarget by remember { mutableStateOf<Pair<CustomerOrder, OrderItem>?>(null) }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.load(refresh = true)
-        notificationViewModel.refresh()
-        hasTableSession = tableSessionStore.current() != null
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load(refresh = true) }
+    LaunchedEffect(paymentReturn) {
+        paymentReturn?.let {
+            viewModel.handleVnPayReturn(it.orderCode, it.result)
+            onPaymentReturnConsumed(it)
+        }
     }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.consumeMessage() }
@@ -110,13 +92,12 @@ fun OrderListRoute(
         onLoadMore = viewModel::loadMore,
         onCancel = { cancelTarget = it },
         onPay = viewModel::pay,
-        onReview = { order, item -> reviewTarget = order to item },
         onHomeClick = onHomeClick,
-        onNotificationClick = onNotificationClick,
+        onNotificationClick = {
+            onNotificationClick()
+            scope.launch { snackbar.showSnackbar("Thông báo chưa được nối vào màn hình riêng.") }
+        },
         onProfileClick = onProfileClick,
-        hasTableSession = hasTableSession,
-        onChatClick = onChatClick,
-        notificationUnreadCount = notificationState.unreadCount,
         snackbarHost = { SnackbarHost(snackbar) }
     )
 
@@ -129,16 +110,6 @@ fun OrderListRoute(
                 cancelTarget = null
                 viewModel.cancel(order, reason)
             }
-        )
-    }
-    reviewTarget?.let { (order, item) ->
-        ReviewDialog(
-            itemName = item.name,
-            onDismiss = { reviewTarget = null },
-            onSubmit = { rating, comment ->
-                viewModel.review(order, item, rating, comment)
-                reviewTarget = null
-            },
         )
     }
     if (state.requiresLogin) AlertDialog(
@@ -162,31 +133,19 @@ fun OrderListScreen(
     onLoadMore: () -> Unit,
     onCancel: (CustomerOrder) -> Unit,
     onPay: (CustomerOrder) -> Unit,
-    onReview: (CustomerOrder, OrderItem) -> Unit = { _, _ -> },
     onHomeClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
-    hasTableSession: Boolean = false,
-    onChatClick: () -> Unit = {},
-    notificationUnreadCount: Int = 0,
     snackbarHost: @Composable () -> Unit = {}
 ) {
     Scaffold(
         containerColor = AppBackground,
         snackbarHost = snackbarHost,
         topBar = { OrderHeader(state, onRefresh) },
-        bottomBar = {
-            OrderBottomBar(
-                onHomeClick = onHomeClick,
-                onNotificationClick = onNotificationClick,
-                onProfileClick = onProfileClick,
-                hasTableSession = hasTableSession,
-                onChatClick = onChatClick,
-                notificationUnreadCount = notificationUnreadCount,
-            )
-        }
+        bottomBar = { OrderBottomBar(onHomeClick, onNotificationClick, onProfileClick) }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()) {
             OrderGroupTabs(state.selectedGroup, onGroupClick)
             OrderTypeFilters(state.selectedType, onTypeClick)
             Box(Modifier.fillMaxSize()) {
@@ -202,10 +161,10 @@ fun OrderListScreen(
                         items(state.visibleOrders, key = { it.id }) { order ->
                             OrderCard(
                                 order = order,
-                                busy = state.busyOrderId == order.id,
+                                busy = state.busyOrderId == order.id ||
+                                    state.checkingPaymentOrderCode == order.orderCode,
                                 onCancel = { onCancel(order) },
-                                onPay = { onPay(order) },
-                                onReview = { item -> onReview(order, item) },
+                                onPay = { onPay(order) }
                             )
                         }
                         if (state.hasMore) item {
@@ -226,6 +185,7 @@ fun OrderListScreen(
                     trackColor = BrandSoft
                 )
             }
+        }
         }
     }
 }
@@ -330,13 +290,7 @@ private fun OrderFilterChip(label: String, icon: ImageVector, selected: Boolean,
 }
 
 @Composable
-private fun OrderCard(
-    order: CustomerOrder,
-    busy: Boolean,
-    onCancel: () -> Unit,
-    onPay: () -> Unit,
-    onReview: (OrderItem) -> Unit,
-) {
+private fun OrderCard(order: CustomerOrder, busy: Boolean, onCancel: () -> Unit, onPay: () -> Unit) {
     var expanded by rememberSaveable(order.id) { mutableStateOf(false) }
     val visibleItems = if (expanded) order.items else order.items.take(2)
     Surface(
@@ -357,8 +311,7 @@ private fun OrderCard(
             visibleItems.forEach { OrderItemRow(it) }
             if (order.items.size > 2) {
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(
-                        InputBackgroundSoft)
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(InputBackgroundSoft)
                         .clickable { expanded = !expanded }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -412,44 +365,8 @@ private fun OrderCard(
                     }
                 }
             }
-            if (order.status == OrderStatus.COMPLETED && order.items.isNotEmpty()) {
-                order.items.distinctBy { it.menuItemId }.filter { it.menuItemId.isNotBlank() }.forEach { item ->
-                    OutlinedButton(
-                        onClick = { onReview(item) },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Đánh giá ${item.name}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                }
-            }
         }
     }
-}
-
-@Composable
-private fun ReviewDialog(itemName: String, onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
-    var rating by rememberSaveable { mutableStateOf(5) }
-    var comment by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Đánh giá $itemName") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    (1..5).forEach { value ->
-                        Text(
-                            if (value <= rating) "★" else "☆",
-                            Modifier.clickable { rating = value }.padding(4.dp),
-                            color = Brand,
-                            fontSize = 30.sp,
-                        )
-                    }
-                }
-                OutlinedTextField(comment, { comment = it.take(1000) }, label = { Text("Nhận xét") }, minLines = 3)
-            }
-        },
-        confirmButton = { Button(onClick = { onSubmit(rating, comment) }) { Text("Gửi đánh giá") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
-    )
 }
 
 @Composable
@@ -589,53 +506,25 @@ private fun OrderError(message: String, onRetry: () -> Unit, modifier: Modifier 
 }
 
 @Composable
-private fun OrderBottomBar(
-    onHomeClick: () -> Unit,
-    onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit,
-    hasTableSession: Boolean,
-    onChatClick: () -> Unit,
-    notificationUnreadCount: Int,
-) {
+private fun OrderBottomBar(onHomeClick: () -> Unit, onNotificationClick: () -> Unit, onProfileClick: () -> Unit) {
     Surface(color = AppBackground.copy(alpha = .97f), shadowElevation = 8.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
             OrderBottomDestination(Icons.Default.Home, "Trang chủ", false, onHomeClick)
             OrderBottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", true, {})
-            if (hasTableSession) {
-                OrderBottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
-            }
-            OrderBottomDestination(
-                Icons.Default.NotificationsNone,
-                "Thông báo",
-                false,
-                onNotificationClick,
-                notificationUnreadCount,
-            )
+            OrderBottomDestination(Icons.Default.NotificationsNone, "Thông báo", false, onNotificationClick)
             OrderBottomDestination(Icons.Default.Person, "Cá nhân", false, onProfileClick)
         }
     }
 }
 
 @Composable
-private fun RowScope.OrderBottomDestination(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    badgeCount: Int = 0,
-) {
+private fun RowScope.OrderBottomDestination(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Column(
         Modifier.weight(1f).fillMaxHeight().clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (badgeCount > 0) {
-            BadgedBox(badge = { Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString()) } }) {
-                Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
-            }
-        } else {
-            Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
-        }
+        Icon(icon, label, Modifier.size(20.dp), tint = if (selected) Brand else OnSurfaceVariant)
         Spacer(Modifier.height(2.dp))
         Text(label, color = if (selected) Brand else OnSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }

@@ -22,6 +22,7 @@ object AppRoutes {
     const val Login = "login"           // Màn hình đăng nhập
     const val Register = "register"     // Màn hình đăng ký
     const val Home = "home"             // Màn hình trang chủ chính
+    const val ScanTable = "scan_table"  // Quét QR để nhận table token
     const val Menu = "menu"             // Màn hình thực đơn / quét QR
     const val Cart = "cart"             // Giỏ hàng mang đi
     const val Orders = "orders"         // Lịch sử và trạng thái đơn của khách hàng

@@ -1,11 +1,11 @@
 package com.example.foodhubapp.feature.menu.data
 
 import com.example.foodhubapp.core.network.FoodHubApiClient
+import com.example.foodhubapp.feature.cart.data.CartType
 import com.example.foodhubapp.feature.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.menu.ui.FoodOption
 import com.example.foodhubapp.feature.menu.ui.FoodOptionGroup
-import com.example.foodhubapp.feature.cart.data.CartType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -40,19 +40,11 @@ data class MenuCategory(
     val items: List<MenuFood>
 )
 
-data class FoodReview(
-    val id: String,
-    val customerName: String,
-    val rating: Int,
-    val comment: String,
-    val createdAt: String,
-)
-
 /**
  * Ngoại lệ ném ra khi người dùng chưa đăng nhập nhưng cố gắng thêm món vào giỏ hàng.
  */
 class LoginRequiredException :
-    IllegalStateException("Vui lòng đăng nhập để thêm món vào giỏ mang đi.")
+    IllegalStateException("Vui lòng đăng nhập để sử dụng giỏ hàng này.")
 
 /**
  * Giao diện (Interface) định nghĩa các phương thức làm việc với dữ liệu thực đơn và món ăn.
@@ -64,9 +56,7 @@ interface FoodRepository {
     /** Lấy thông tin chi tiết của một món ăn theo ID. */
     suspend fun getFood(id: String): FoodDetail
 
-    suspend fun getReviews(id: String): List<FoodReview> = emptyList()
-
-    /** Thêm món ăn được chọn vào giỏ hàng trên server. */
+    /** Thêm món vào giỏ DINE_IN khi có phiên QR, nếu không dùng giỏ TAKEAWAY của tài khoản. */
     suspend fun addToCart(selection: FoodCartSelection)
 }
 
@@ -75,9 +65,9 @@ interface FoodRepository {
  */
 class RemoteFoodRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
-    private val cartType: () -> CartType = { CartType.TAKEAWAY },
-    private val tableToken: () -> String? = { null },
-    private val accessToken: suspend () -> String? = { null },
+    private val tableToken: suspend () -> String? = { null },
+    private val accountCartType: suspend () -> CartType = { CartType.TAKEAWAY },
+    private val accessToken: suspend () -> String? = { null }
 ) : FoodRepository {
 
     /**
@@ -117,22 +107,6 @@ class RemoteFoodRepository(
         parseFoodDetail(responseJson)
     }
 
-    override suspend fun getReviews(id: String): List<FoodReview> = withContext(Dispatchers.IO) {
-        val encodedId = URLEncoder.encode(id, "UTF-8")
-        val payload = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
-            .optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
-        payload.objects().map { review ->
-            FoodReview(
-                id = review.optString("id", review.optString("_id")),
-                customerName = review.optJSONObject("customer")?.optString("name")
-                    ?.takeIf(String::isNotBlank) ?: "Khách hàng",
-                rating = review.optInt("rating", 0),
-                comment = review.optionalString("comment").orEmpty(),
-                createdAt = review.optString("createdAt"),
-            )
-        }
-    }
-
     /**
      * Gửi request thêm món vào giỏ hàng mang đi (TAKEAWAY) lên server.
      */
@@ -142,19 +116,21 @@ class RemoteFoodRepository(
             "Số lượng hoặc ghi chú không hợp lệ"
         }
 
-        val type = cartType()
-        val headers = if (type == CartType.DINE_IN) {
-            val token = tableToken()?.takeIf(String::isNotBlank)
-                ?: throw IllegalStateException("Phiên bàn không còn hợp lệ. Vui lòng quét lại QR.")
-            mutableMapOf("x-table-token" to token).apply {
-                accessToken()?.takeIf(String::isNotBlank)?.let { put("Authorization", "Bearer $it") }
+        val tableSessionToken = tableToken()?.takeIf { it.isNotBlank() }
+        val userToken = accessToken()?.takeIf { it.isNotBlank() }
+        val cartType = if (tableSessionToken != null) CartType.DINE_IN else accountCartType()
+        val headers = if (cartType == CartType.DINE_IN) {
+            val token = tableSessionToken ?: throw LoginRequiredException()
+            buildMap {
+                put("X-Table-Token", token)
+                userToken?.let { put("Authorization", "Bearer $it") }
             }
         } else {
-            val token = accessToken()?.takeIf(String::isNotBlank) ?: throw LoginRequiredException()
+            val token = userToken ?: throw LoginRequiredException()
             mapOf("Authorization" to "Bearer $token")
         }
 
-        // Tạo JSON body gửi lên API /cart/TAKEAWAY/items/add
+        // Body dùng chung cho `/cart/DINE_IN/items/add` và `/cart/TAKEAWAY/items/add`.
         val bodyJson = JSONObject()
             .put("menuItemId", selection.menuItemId)
             .put("quantity", selection.quantity)
@@ -162,9 +138,9 @@ class RemoteFoodRepository(
             .put("note", selection.note)
 
         apiClient.post(
-            path = "/cart/${type.name}/items/add",
+            path = "/cart/${cartType.name}/items/add",
             body = bodyJson,
-            headers = headers,
+            headers = headers
         )
         Unit
     }
