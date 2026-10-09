@@ -89,10 +89,6 @@ class CartViewModel @JvmOverloads constructor(
 
     fun selectType(type: CartType) {
         if (type == state.value.cartType || state.value.isLoading || state.value.isCheckingOut) return
-        if (orderingContextStore.currentType() == CartType.DINE_IN && type != CartType.DINE_IN) {
-            state.update { it.copy(message = "Hãy kết thúc phiên bàn trước khi chuyển loại đơn.") }
-            return
-        }
         runCatching { orderingContextStore.select(type) }
             .onFailure { state.update { current -> current.copy(message = it.message) } }
             .onSuccess {

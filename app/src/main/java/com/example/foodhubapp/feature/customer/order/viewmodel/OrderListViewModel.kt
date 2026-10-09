@@ -14,6 +14,8 @@ import com.example.foodhubapp.feature.customer.order.data.OrderType
 import com.example.foodhubapp.feature.customer.order.data.OrderItem
 import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
 import com.example.foodhubapp.feature.customer.order.data.PaymentLaunch
+import com.example.foodhubapp.feature.customer.order.data.CustomerOrderSocketClient
+import com.example.foodhubapp.feature.customer.order.data.CustomerOrderSocketEvent
 import com.example.foodhubapp.feature.customer.order.data.displayName
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -75,8 +77,12 @@ class OrderListViewModel @JvmOverloads constructor(
     private val state = MutableStateFlow(OrderListUiState())
     val uiState = state.asStateFlow()
     private var paymentPollingJob: Job? = null
+    private val orderSocket = CustomerOrderSocketClient(application.applicationContext)
 
-    init { load(refresh = true) }
+    init {
+        load(refresh = true)
+        viewModelScope.launch { orderSocket.connect(::onRealtimeOrderChanged) }
+    }
 
     fun load(refresh: Boolean = false) {
         val current = state.value
@@ -99,6 +105,7 @@ class OrderListViewModel @JvmOverloads constructor(
                 state.update {
                     it.copy(orders = page.orders, page = page.page, hasMore = page.hasMore, requiresLogin = false)
                 }
+                orderSocket.watch(page.orders.map { it.id })
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -291,6 +298,38 @@ class OrderListViewModel @JvmOverloads constructor(
     fun consumeMessage() { state.update { it.copy(message = null) } }
     fun consumePaymentLaunch() {
         state.update { it.copy(paymentLaunch = null, paymentLaunchMethod = null) }
+    }
+
+    private fun onRealtimeOrderChanged(event: CustomerOrderSocketEvent) {
+        if (event.orderId.isBlank()) return
+        val parsedStatus = event.status?.let { value ->
+            runCatching { OrderStatus.valueOf(value) }.getOrNull()
+        }
+        if (parsedStatus != null) {
+            state.update { current ->
+                current.copy(
+                    orders = current.orders.map { order ->
+                        if (order.id == event.orderId) order.copy(status = parsedStatus) else order
+                    },
+                    message = "Đơn hàng vừa được cập nhật: ${parsedStatus.name.replace('_', ' ')}.",
+                )
+            }
+        } else {
+            state.update { it.copy(message = if (event.isItemUpdate) "Món trong đơn vừa được quán cập nhật." else "Đơn hàng vừa được cập nhật.") }
+        }
+        viewModelScope.launch {
+            runCatching { repository.getHistory(page = 1, type = state.value.selectedType) }
+                .onSuccess { page ->
+                    state.update { it.copy(orders = page.orders, page = page.page, hasMore = page.hasMore) }
+                    orderSocket.watch(page.orders.map { it.id })
+                }
+        }
+    }
+
+    override fun onCleared() {
+        paymentPollingJob?.cancel()
+        orderSocket.disconnect()
+        super.onCleared()
     }
 }
 

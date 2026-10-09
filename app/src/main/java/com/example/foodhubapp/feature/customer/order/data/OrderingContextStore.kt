@@ -11,10 +11,20 @@ class OrderingContextStore(context: Context) {
     private val tableSessionStore = TableSessionStore(appContext)
 
     fun currentType(): CartType {
-        if (tableSessionStore.current() != null) return CartType.DINE_IN
-        return runCatching {
-            CartType.valueOf(preferences.getString(KEY_TYPE, CartType.TAKEAWAY.name).orEmpty())
-        }.getOrDefault(CartType.TAKEAWAY)
+        val stored = preferences.getString(KEY_TYPE, null)
+        if (stored == null) return if (tableSessionStore.current() != null) CartType.DINE_IN else CartType.TAKEAWAY
+        val type = runCatching { CartType.valueOf(stored) }.getOrDefault(CartType.TAKEAWAY)
+        return if (type == CartType.DINE_IN && tableSessionStore.current() == null) CartType.TAKEAWAY else type
+    }
+
+    fun selectDefault(isLoggedIn: Boolean) {
+        if (tableSessionStore.current() != null) {
+            select(CartType.DINE_IN)
+        } else if (!isLoggedIn) {
+            if (!preferences.contains(KEY_TYPE) || currentType() == CartType.DELIVERY) select(CartType.TAKEAWAY)
+        } else if (!preferences.contains(KEY_TYPE)) {
+            select(CartType.DELIVERY)
+        }
     }
 
     fun select(type: CartType) {

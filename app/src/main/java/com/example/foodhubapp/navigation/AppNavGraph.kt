@@ -29,6 +29,7 @@ import com.example.foodhubapp.feature.customer.home.ui.HomeRoute
 import com.example.foodhubapp.feature.customer.menu.ui.FoodDetailRoute
 import com.example.foodhubapp.feature.customer.menu.ui.MenuRoute
 import com.example.foodhubapp.feature.customer.onboarding.ui.OnboardingScreen
+import com.example.foodhubapp.feature.customer.onboarding.data.OnboardingStore
 import com.example.foodhubapp.feature.shared.notification.ui.NotificationRoute
 import com.example.foodhubapp.feature.customer.order.ui.OrderListRoute
 import com.example.foodhubapp.feature.customer.profile.ui.ProfileRoute
@@ -54,6 +55,7 @@ fun AppNavGraph(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val tokenStore = remember(context) { TokenStore(context.applicationContext) }
+    val onboardingStore = remember(context) { OnboardingStore(context.applicationContext) }
     val paymentReturn = deepLinkUri?.toVnPayReturnOrNull()
 
     NavHost(
@@ -99,7 +101,8 @@ fun AppNavGraph(
                 onSplashFinished = { isAuthenticated ->
                     coroutineScope.launch {
                         val nextRoute = when {
-                            !isAuthenticated -> AppRoutes.Onboarding
+                            !isAuthenticated && !onboardingStore.hasCompleted() -> AppRoutes.Onboarding
+                            !isAuthenticated -> AppRoutes.Home
                             tokenStore.getUser()?.role.equals("ADMIN", ignoreCase = true) -> AppRoutes.Admin
                             else -> AppRoutes.Home
                         }
@@ -118,13 +121,18 @@ fun AppNavGraph(
         composable(AppRoutes.Onboarding) {
             OnboardingScreen(
                 onStartClick = {
+                    onboardingStore.complete()
                     navController.navigate(AppRoutes.Register)
                 },
                 onLoginClick = {
+                    onboardingStore.complete()
                     navController.navigate(AppRoutes.Login)
                 },
                 onSkipClick = {
-                    navController.navigate(AppRoutes.Home)
+                    onboardingStore.complete()
+                    navController.navigate(AppRoutes.Home) {
+                        popUpTo(AppRoutes.Onboarding) { inclusive = true }
+                    }
                 }
             )
         }

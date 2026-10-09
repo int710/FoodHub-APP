@@ -142,7 +142,7 @@ fun AdminApp(onLogout: () -> Unit) {
             else -> AdminTab.entries.firstOrNull { it.route == route }?.label ?: "FoodHub Admin"
         }
 
-        LaunchedEffect(orderSocket) { orderSocket.connect(orderViewModel::refresh) }
+        LaunchedEffect(orderSocket) { orderSocket.connect(orderViewModel::onRealtimeEvent) }
         DisposableEffect(orderSocket) { onDispose(orderSocket::disconnect) }
 
         LaunchedEffect(menuState.message) {
@@ -163,6 +163,15 @@ fun AdminApp(onLogout: () -> Unit) {
         }
         LaunchedEffect(orderState.error) {
             orderState.error?.let { snackbarHostState.showSnackbar(it) }
+        }
+        LaunchedEffect(conversationState.message) {
+            conversationState.message?.let {
+                snackbarHostState.showSnackbar(it)
+                conversationViewModel.consumeMessage()
+            }
+        }
+        LaunchedEffect(conversationState.error) {
+            conversationState.error?.let { snackbarHostState.showSnackbar(it) }
         }
 
         orderState.zaloPayment?.let { payment ->

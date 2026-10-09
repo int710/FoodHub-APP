@@ -7,13 +7,16 @@ import com.example.foodhubapp.core.datastore.TokenStore
 import io.socket.client.IO
 import io.socket.client.Socket
 import java.net.URI
+import org.json.JSONObject
+
+data class AdminOrderSocketEvent(val name: String, val orderId: String, val status: String?)
 
 class AdminOrderSocketClient(context: Context) {
     private val tokenStore = TokenStore(context.applicationContext)
     private val handler = Handler(Looper.getMainLooper())
     private var socket: Socket? = null
 
-    suspend fun connect(onOrderChanged: () -> Unit) {
+    suspend fun connect(onOrderChanged: (AdminOrderSocketEvent) -> Unit) {
         val token = tokenStore.getAccessToken()?.takeIf(String::isNotBlank) ?: return
         val options = IO.Options.builder()
             .setAuth(mapOf("token" to token))
@@ -21,7 +24,18 @@ class AdminOrderSocketClient(context: Context) {
             .build()
         socket = IO.socket(URI.create(SOCKET_URL), options).apply {
             listOf("order:new", "order:status:update", "order:item:update").forEach { event ->
-                on(event) { handler.post(onOrderChanged) }
+                on(event) { args ->
+                    val payload = args.firstOrNull() as? JSONObject
+                    handler.post {
+                        onOrderChanged(
+                            AdminOrderSocketEvent(
+                                name = event,
+                                orderId = payload?.optString("orderId").orEmpty(),
+                                status = payload?.optString("status")?.takeIf(String::isNotBlank),
+                            ),
+                        )
+                    }
+                }
             }
             connect()
         }

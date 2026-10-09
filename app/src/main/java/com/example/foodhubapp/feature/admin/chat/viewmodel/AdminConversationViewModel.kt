@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.feature.admin.chat.data.AdminConversationRepository
+import com.example.foodhubapp.feature.admin.chat.AdminConversationSocketClient
 import com.example.foodhubapp.feature.admin.chat.model.AdminConversation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,14 +16,19 @@ data class AdminConversationUiState(
     val conversations: List<AdminConversation> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
+    val message: String? = null,
 )
 
 class AdminConversationViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AdminConversationRepository(application.applicationContext)
+    private val socketClient = AdminConversationSocketClient(application.applicationContext)
     private val state = MutableStateFlow(AdminConversationUiState())
     val uiState = state.asStateFlow()
 
-    init { refresh() }
+    init {
+        refresh()
+        viewModelScope.launch { socketClient.connect(::onRealtimeConversationChanged) }
+    }
 
     fun refresh() {
         state.update { it.copy(isLoading = true, error = null) }
@@ -43,5 +49,28 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
                 .onSuccess { refresh() }
                 .onFailure { error -> state.update { it.copy(error = error.message) } }
         }
+    }
+
+    private fun onRealtimeConversationChanged(isNew: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.getOpenConversations() }
+                .onSuccess { conversations ->
+                    state.update {
+                        it.copy(
+                            conversations = conversations,
+                            isLoading = false,
+                            message = if (isNew) "Có tin nhắn mới từ khách hàng." else "Hội thoại vừa được cập nhật.",
+                        )
+                    }
+                }
+                .onFailure { error -> state.update { it.copy(error = error.message) } }
+        }
+    }
+
+    fun consumeMessage() { state.update { it.copy(message = null) } }
+
+    override fun onCleared() {
+        socketClient.disconnect()
+        super.onCleared()
     }
 }

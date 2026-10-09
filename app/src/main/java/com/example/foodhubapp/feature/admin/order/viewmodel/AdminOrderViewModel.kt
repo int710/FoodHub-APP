@@ -7,6 +7,7 @@ import com.example.foodhubapp.feature.admin.model.AdminItemStatus
 import com.example.foodhubapp.feature.admin.model.AdminOrder
 import com.example.foodhubapp.feature.admin.model.AdminZaloPayment
 import com.example.foodhubapp.feature.admin.order.data.AdminOrderRepository
+import com.example.foodhubapp.feature.admin.order.data.AdminOrderSocketEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,19 @@ class AdminOrderViewModel(application: Application) : AndroidViewModel(applicati
             } catch (error: Exception) {
                 state.update { it.copy(isLoading = false, error = error.message ?: "Không thể tải đơn hàng") }
             }
+        }
+    }
+
+    fun onRealtimeEvent(event: AdminOrderSocketEvent) {
+        val notice = when (event.name) {
+            "order:new" -> "Có đơn hàng mới. Danh sách đã được cập nhật."
+            "order:item:update" -> "Trạng thái món vừa thay đổi."
+            else -> "Đơn hàng vừa chuyển sang ${event.status.orEmpty().replace('_', ' ')}."
+        }
+        viewModelScope.launch {
+            runCatching { repository.getOrders() }
+                .onSuccess { orders -> state.update { it.copy(orders = orders, isLoading = false, message = notice) } }
+                .onFailure { error -> state.update { it.copy(error = error.message ?: "Không thể đồng bộ đơn hàng") } }
         }
     }
 

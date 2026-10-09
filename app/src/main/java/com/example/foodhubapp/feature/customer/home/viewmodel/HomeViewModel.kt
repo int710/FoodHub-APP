@@ -25,6 +25,7 @@ data class HomeUiState(
     val query: String = "",
     val cartItemCount: Int = 0,
     val userName: String? = null,
+    val isLoggedIn: Boolean = false,
     val error: String? = null
 ) {
     val visibleFoods: List<MenuFood>
@@ -59,7 +60,7 @@ class HomeViewModel @JvmOverloads constructor(
 
     init {
         viewModelScope.launch {
-            tokenStore.user.collect { user -> state.update { it.copy(userName = user?.fullName) } }
+            tokenStore.user.collect { user -> state.update { it.copy(userName = user?.fullName, isLoggedIn = user != null) } }
         }
         load()
     }

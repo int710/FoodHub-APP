@@ -1,6 +1,8 @@
 package com.example.foodhubapp.feature.customer.table.data
 
 import android.content.Context
+import com.example.foodhubapp.feature.customer.cart.data.CartType
+import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -89,7 +91,8 @@ class TableScanRepository(
         .readTimeout(20, TimeUnit.SECONDS)
         .build(),
 ) {
-    private val sessionStore = TableSessionStore(context.applicationContext)
+    private val appContext = context.applicationContext
+    private val sessionStore = TableSessionStore(appContext)
 
     suspend fun scan(rawQrValue: String): TableSession = withContext(Dispatchers.IO) {
         val qrToken = extractQrToken(rawQrValue)
@@ -135,6 +138,7 @@ class TableScanRepository(
                     ?.let { System.currentTimeMillis() + it * 1_000L },
             )
             sessionStore.save(tableSession)
+            OrderingContextStore(appContext).select(CartType.DINE_IN)
             tableSession
         }
     }
