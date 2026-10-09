@@ -53,6 +53,7 @@ class OrderRepositoryTest {
         assertEquals("Bearer order-token", request.getHeader("Authorization"))
         assertTrue(page.hasMore)
         assertEquals(OrderStatus.PENDING_PAYMENT, page.orders.single().status)
+        assertTrue(page.orders.single().canCancel)
         assertEquals("Bàn 05", page.orders.single().tableName)
         assertEquals("Truffle Smash Burger", page.orders.single().items.single().name)
         assertEquals("Sốt cay nhẹ", page.orders.single().items.single().description)
@@ -65,6 +66,7 @@ class OrderRepositoryTest {
         repository.cancel("order/1", "Đổi món")
         val cancel = server.takeRequest()
         assertEquals("PATCH", cancel.method)
+        assertEquals("Bearer order-token", cancel.getHeader("Authorization"))
         assertEquals("/api/v1/order/order%2F1/cancel", cancel.path)
         assertEquals("Đổi món", JSONObject(cancel.body.readUtf8()).getString("reason"))
 

@@ -9,6 +9,7 @@ import notificationsServices from "~/services/notifications.services"
 import tableServices from '~/services/tables.services'
 
 const orderDetailInclude = {
+  reviews: { select: { menuItemId: true, rating: true } },
   table: {
     select: { id: true, name: true, floor: true }
   },
@@ -501,10 +502,10 @@ class OrdersServices {
       })
     }
 
-    // Restore the original role-based cancellation policy.
+    // Customers may cancel either waiting state before payment/confirmation wins.
     const allowedStatuses: OrderStatus[] = actorRole === Role.CUSTOMER
-      ? [OrderStatus.PENDING_CONFIRMATION]
-      : [OrderStatus.PENDING_CONFIRMATION, OrderStatus.CONFIRMED]
+      ? [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION]
+      : [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION, OrderStatus.CONFIRMED]
     const canCancel = allowedStatuses.includes(order.status)
 
     if (!canCancel) {

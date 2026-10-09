@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test:reviews": "npm run build && node --test --test-isolation=none test/reviews.test.cjs",
     "test:orders": "npm run build && node --test --test-isolation=none test/order-payment-policy.test.cjs",
     "test:chat": "npm run build && node --test --test-isolation=none test/chat-session.test.cjs",
     "dev": "npx nodemon",

@@ -49,11 +49,12 @@ data class CustomerOrder(
     val cancelReason: String?,
     val paymentMethod: String?,
     val paymentStatus: String?,
-    val items: List<OrderItem>
+    val items: List<OrderItem>,
+    val reviewedMenuItemIds: Set<String> = emptySet(),
 ) {
     val canCancel: Boolean
         get() = paymentStatus?.uppercase() in setOf("PENDING", "UNPAID", "FAILED") &&
-            status == OrderStatus.PENDING_CONFIRMATION
+            status in setOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)
 }
 
 data class OrderPage(
@@ -110,6 +111,8 @@ class RemoteOrderRepository(
 
     override suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String) =
         withContext(Dispatchers.IO) {
+            require(orderId.isNotBlank() && menuItemId.isNotBlank())
+            require(rating in 1..5 && comment.trim().length <= 1000)
             apiClient.post(
                 "/reviews/feedback",
                 JSONObject().put("orderId", orderId).put("menuItemId", menuItemId)
@@ -172,7 +175,9 @@ private fun parseOrder(json: JSONObject): CustomerOrder {
         paymentMethod = payment?.optionalString("method") ?: json.optionalString("paymentMethod"),
         paymentStatus = if (json.optionalString("paidAt") != null) "PAID"
             else payment?.optionalString("status") ?: json.optionalString("paymentStatus"),
-        items = items
+        items = items,
+        reviewedMenuItemIds = json.optJSONArray("reviews")?.objects()
+            ?.mapNotNull { it.optionalString("menuItemId") }?.toSet().orEmpty(),
     )
 }
 

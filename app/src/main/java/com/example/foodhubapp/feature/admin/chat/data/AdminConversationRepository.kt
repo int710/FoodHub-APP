@@ -20,7 +20,8 @@ class AdminConversationRepository(
 
     suspend fun getOpenConversations(): List<AdminConversation> = withContext(Dispatchers.IO) {
         val response = apiClient.getJson("/conversations", headers())
-        (response.optJSONArray("data") ?: JSONArray()).objects().map(JSONObject::toAdminConversation)
+        (response.optJSONArray("data") ?: JSONArray()).objects()
+            .map(JSONObject::toAdminConversation)
     }
 
     suspend fun close(id: String) = withContext(Dispatchers.IO) {
@@ -45,7 +46,8 @@ internal fun JSONObject.toAdminConversation() = AdminConversation(
 )
 
 private fun formatConversationTime(value: String): String = runCatching {
-    DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault()).format(Instant.parse(value))
+    DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
+        .format(Instant.parse(value))
 }.getOrDefault(value.take(5))
 
 private fun JSONArray.objects() = (0 until length()).mapNotNull(::optJSONObject)

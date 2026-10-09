@@ -11,17 +11,23 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class OrderUiStateTest {
-    @Test fun onlyUnpaidPendingConfirmationOrdersCanBeCancelled() {
-        for (payment in listOf("PENDING", "UNPAID", "FAILED")) {
-            assertTrue(order("unpaid", OrderStatus.PENDING_CONFIRMATION).copy(paymentStatus = payment).canCancel)
+    @Test fun unpaidWaitingOrdersCanBeCancelledForEveryOrderType() {
+        for (type in OrderType.entries) {
+            for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)) {
+                for (payment in listOf("PENDING", "UNPAID", "FAILED")) {
+                    assertTrue(order("unpaid", status).copy(type = type, paymentStatus = payment).canCancel)
+                }
+            }
         }
     }
 
     @Test fun paidUnknownAndCookingOrdersCannotBeCancelled() {
         for (payment in listOf("PAID", "REFUNDED", null)) {
-            assertFalse(order("paid", OrderStatus.PENDING_CONFIRMATION).copy(paymentStatus = payment).canCancel)
+            for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)) {
+                assertFalse(order("paid", status).copy(paymentStatus = payment).canCancel)
+            }
         }
-        for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_FAILED,
+        for (status in listOf(OrderStatus.CONFIRMED, OrderStatus.PAYMENT_FAILED,
             OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.SERVED,
             OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.UNKNOWN)) {
             assertFalse(order("closed", status).copy(paymentStatus = "UNPAID").canCancel)

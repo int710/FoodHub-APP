@@ -119,8 +119,9 @@ class RemoteFoodRepository(
 
     override suspend fun getReviews(id: String): List<FoodReview> = withContext(Dispatchers.IO) {
         val encodedId = URLEncoder.encode(id, "UTF-8")
-        val payload = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
-            .optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
+        val response = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
+        val payload = response.optJSONArray("data")
+            ?: response.optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
         payload.objects().map { review ->
             FoodReview(
                 id = review.optString("id", review.optString("_id")),

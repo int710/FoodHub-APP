@@ -134,10 +134,10 @@ fun OrderListRoute(
     reviewTarget?.let { (order, item) ->
         ReviewDialog(
             itemName = item.name,
-            onDismiss = { reviewTarget = null },
+            busy = state.busyOrderId != null,
+            onDismiss = { if (state.busyOrderId == null) reviewTarget = null },
             onSubmit = { rating, comment ->
-                viewModel.review(order, item, rating, comment)
-                reviewTarget = null
+                viewModel.review(order, item, rating, comment) { reviewTarget = null }
             },
         )
     }
@@ -413,13 +413,13 @@ private fun OrderCard(
                     }
                 }
             }
-            if (order.status == OrderStatus.COMPLETED && order.items.isNotEmpty()) {
+            if (order.status in setOf(OrderStatus.SERVED, OrderStatus.COMPLETED) && order.items.isNotEmpty()) {
                 order.items.distinctBy { it.menuItemId }.filter { it.menuItemId.isNotBlank() }.forEach { item ->
                     OutlinedButton(
                         onClick = { onReview(item) },
-                        enabled = !busy,
+                        enabled = !busy && item.menuItemId !in order.reviewedMenuItemIds,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Đánh giá ${item.name}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    ) { Text(if (item.menuItemId in order.reviewedMenuItemIds) "Đã đánh giá ${item.name}" else "Đánh giá ${item.name}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
             }
         }
@@ -427,7 +427,7 @@ private fun OrderCard(
 }
 
 @Composable
-private fun ReviewDialog(itemName: String, onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
+private fun ReviewDialog(itemName: String, busy: Boolean, onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
     var rating by rememberSaveable { mutableStateOf(5) }
     var comment by rememberSaveable { mutableStateOf("") }
     AlertDialog(
@@ -439,17 +439,17 @@ private fun ReviewDialog(itemName: String, onDismiss: () -> Unit, onSubmit: (Int
                     (1..5).forEach { value ->
                         Text(
                             if (value <= rating) "★" else "☆",
-                            Modifier.clickable { rating = value }.padding(4.dp),
+                            Modifier.clickable(enabled = !busy) { rating = value }.padding(4.dp),
                             color = Brand,
                             fontSize = 30.sp,
                         )
                     }
                 }
-                OutlinedTextField(comment, { comment = it.take(1000) }, label = { Text("Nhận xét") }, minLines = 3)
+                OutlinedTextField(comment, { comment = it.take(1000) }, enabled = !busy, label = { Text("Nhận xét") }, minLines = 3)
             }
         },
-        confirmButton = { Button(onClick = { onSubmit(rating, comment) }) { Text("Gửi đánh giá") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
+        confirmButton = { Button(enabled = !busy, onClick = { onSubmit(rating, comment) }) { Text(if (busy) "Đang gửi…" else "Gửi đánh giá") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Hủy") } },
     )
 }
 

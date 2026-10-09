@@ -37,9 +37,11 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation(libs.converter.gson)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.navigation.compose)

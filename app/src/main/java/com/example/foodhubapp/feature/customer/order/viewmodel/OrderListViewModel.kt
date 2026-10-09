@@ -137,7 +137,7 @@ class OrderListViewModel @JvmOverloads constructor(
         load()
     }
 
-    fun cancel(order: CustomerOrder, reason: String) {
+    fun cancel(order: CustomerOrder, reason: String, onSuccess: () -> Unit = {}) {
         val cleanReason = reason.trim()
         if (cleanReason.isEmpty() || cleanReason.length > 255 || state.value.busyOrderId != null) return
         state.update { it.copy(busyOrderId = order.id, message = null) }
@@ -152,6 +152,7 @@ class OrderListViewModel @JvmOverloads constructor(
                         message = "Đã hủy đơn ${order.orderCode}."
                     )
                 }
+                onSuccess()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -179,13 +180,22 @@ class OrderListViewModel @JvmOverloads constructor(
         }
     }
 
-    fun review(order: CustomerOrder, item: OrderItem, rating: Int, comment: String) {
-        if (state.value.busyOrderId != null || rating !in 1..5 || item.menuItemId.isBlank()) return
+    fun review(order: CustomerOrder, item: OrderItem, rating: Int, comment: String, onSuccess: () -> Unit = {}) {
+        if (state.value.busyOrderId != null || rating !in 1..5 || item.menuItemId.isBlank() ||
+            comment.trim().length > 1000 || order.status !in setOf(OrderStatus.SERVED, OrderStatus.COMPLETED) ||
+            order.items.none { it.menuItemId == item.menuItemId } ||
+            item.menuItemId in order.reviewedMenuItemIds) return
         state.update { it.copy(busyOrderId = order.id, message = null) }
         viewModelScope.launch {
             try {
                 repository.submitReview(order.id, item.menuItemId, rating, comment)
-                state.update { it.copy(message = "Cảm ơn bạn đã đánh giá ${item.name}.") }
+                state.update { current -> current.copy(
+                    orders = current.orders.map {
+                        if (it.id == order.id) it.copy(reviewedMenuItemIds = it.reviewedMenuItemIds + item.menuItemId) else it
+                    },
+                    message = "Cảm ơn bạn đã đánh giá ${item.name}."
+                ) }
+                onSuccess()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
