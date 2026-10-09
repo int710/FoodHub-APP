@@ -45,19 +45,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.splash.viewmodel.FoodHubSplashUiState
 import com.example.foodhubapp.feature.splash.viewmodel.FoodHubSplashViewModel
-import com.example.foodhubapp.ui.theme.AppBackground
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
-import com.example.foodhubapp.ui.theme.HeadingFont
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.OutlineVariant
-import com.example.foodhubapp.ui.theme.Primary
-import com.example.foodhubapp.ui.theme.PrimaryContainer
-import com.example.foodhubapp.ui.theme.Secondary
-import com.example.foodhubapp.ui.theme.SurfaceContainerLow
-import com.example.foodhubapp.ui.theme.SurfaceVariant
-import com.example.foodhubapp.ui.theme.Tertiary
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.OutlineVariant
+import com.example.foodhubapp.theme.Primary
+import com.example.foodhubapp.theme.PrimaryContainer
+import com.example.foodhubapp.theme.Secondary
+import com.example.foodhubapp.theme.SurfaceContainerLow
+import com.example.foodhubapp.theme.SurfaceVariant
+import com.example.foodhubapp.theme.Tertiary
 import kotlinx.coroutines.delay
 
 @Composable

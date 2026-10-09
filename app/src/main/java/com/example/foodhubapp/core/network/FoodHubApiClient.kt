@@ -4,7 +4,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.MultipartBody
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
@@ -70,21 +72,60 @@ class FoodHubApiClient(
     fun patch(path: String, body: JSONObject, headers: Map<String, String> = emptyMap()): JSONObject =
         request("PATCH", path, body, headers)
 
+    fun put(path: String, body: JSONObject, headers: Map<String, String> = emptyMap()): JSONObject =
+        request("PUT", path, body, headers)
+
     /** DELETE không gửi body; endpoint cart dùng hàm này cho xóa dòng và clear. */
     fun delete(path: String, headers: Map<String, String> = emptyMap()): JSONObject =
         request("DELETE", path, null, headers)
 
+    fun uploadImage(
+        path: String,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+        headers: Map<String, String> = emptyMap(),
+    ): JSONObject {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("image", fileName, bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        val request = Request.Builder().url("$baseUrl$path").header("Accept", "application/json")
+            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .post(body).build()
+        return httpClient.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw FoodHubApiException(response.code, parseApiError(response.code, responseBody))
+            }
+            JSONObject(responseBody)
+        }
+    }
+
     /** Điểm chung xử lý header, JSON, HTTP status và lỗi cho mọi method. */
     private fun request(method: String, path: String, body: JSONObject?, headers: Map<String, String>): JSONObject {
         val requestBody = body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder()
+        fun buildRequest(activeHeaders: Map<String, String>) = Request.Builder()
             .url("$baseUrl$path")
             .header("Accept", "application/json")
-            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .apply { activeHeaders.forEach { (name, value) -> header(name, value) } }
             .method(method, requestBody)
             .build()
 
-        return httpClient.newCall(request).execute().use { response ->
+        var activeHeaders = headers
+        var response = httpClient.newCall(buildRequest(activeHeaders)).execute()
+        if (response.code == 401 && headers.containsKey("Authorization") && !path.startsWith("/user/")) {
+            val unauthorizedBody = response.body?.string().orEmpty()
+            response.close()
+            val accessToken = FoodHubSessionRefresh.refresh(httpClient, baseUrl)
+            if (!accessToken.isNullOrBlank()) {
+                activeHeaders = headers + ("Authorization" to "Bearer $accessToken")
+                response = httpClient.newCall(buildRequest(activeHeaders)).execute()
+            } else {
+                throw FoodHubApiException(401, parseApiError(401, unauthorizedBody))
+            }
+        }
+
+        return response.use {
             val responseCode = response.code
             val responseBody = response.body?.string().orEmpty()
             if (responseCode !in 200..299) {

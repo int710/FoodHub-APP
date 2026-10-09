@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.menu.viewmodel.FoodDetailViewModel
-import com.example.foodhubapp.ui.theme.AppBackground
-import com.example.foodhubapp.ui.theme.Brand
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.Brand
 
 /**
  * Cầu nối giữa FoodDetailViewModel và FoodDetailScreen: thu StateFlow, hiển thị
@@ -36,7 +36,7 @@ fun FoodDetailRoute(
     }
     val food = state.food
     if (food != null) {
-        FoodDetailScreen(food, onBackClick, viewModel::addToCart, onCartClick = onCartClick, isAdding = state.isAdding,
+        FoodDetailScreen(food, onBackClick, viewModel::addToCart, reviews = state.reviews, onCartClick = onCartClick, isAdding = state.isAdding,
             snackbarHost = { SnackbarHost(snackbar) })
     } else {
         Scaffold(containerColor = AppBackground) { padding ->

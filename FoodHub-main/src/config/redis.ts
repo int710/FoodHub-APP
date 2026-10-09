@@ -73,6 +73,18 @@ class RedisClient {
     return this.client.sadd(key, ...members)
   }
 
+  async srem(key: string, ...members: (string | number)[]): Promise<number> {
+    return this.client.srem(key, ...members)
+  }
+
+  async scard(key: string): Promise<number> {
+    return this.client.scard(key)
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return this.client.smembers(key)
+  }
+
   async del(...keys: string[]): Promise<number> {
     return this.client.del(...keys)
   }

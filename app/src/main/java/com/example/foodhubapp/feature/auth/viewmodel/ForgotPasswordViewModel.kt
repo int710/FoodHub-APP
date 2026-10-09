@@ -19,6 +19,9 @@ data class ForgotPasswordUiState(
     val isRequestSent: Boolean = false,
     val errorMessage: String? = null
 ) {
+
+
+    //Nút gửi link
     val canSend: Boolean
         get() = !isLoading && Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
 }

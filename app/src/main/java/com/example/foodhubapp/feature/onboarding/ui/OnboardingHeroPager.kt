@@ -38,15 +38,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.onboarding.model.OnboardingHeroPage
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.Brand
-import com.example.foodhubapp.ui.theme.BrandDark
-import com.example.foodhubapp.ui.theme.BrandSoft
-import com.example.foodhubapp.ui.theme.MutedDot
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.SurfaceContainerLow
-import com.example.foodhubapp.ui.theme.WarmAccent
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandDark
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.MutedDot
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.SurfaceContainerLow
+import com.example.foodhubapp.theme.WarmAccent
 
 @Composable
 internal fun OnboardingHeroPager(

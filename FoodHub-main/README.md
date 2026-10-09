@@ -82,7 +82,7 @@ Tạo file `.env` ở thư mục gốc:
 PORT=4000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
-FE_URL=http://localhost:5173
+APP_DEEP_LINK_URL=foodhub://
 
 DATABASE_URL_POSTGRESQL=postgresql://user:password@localhost:5432/foodhub
 REDIS_URL=redis://localhost:6379
@@ -368,6 +368,7 @@ Conversation được gom theo:
 
 - Không commit file `.env` hoặc secret lên repository.
 - VNPay hiện cấu hình Sandbox trong `src/config/vnpay.ts`.
+- `APP_DEEP_LINK_URL=foodhub://` dùng cho link xác minh email, đặt lại mật khẩu và kết quả VNPay quay về ứng dụng Android.
 - Table token có thời hạn mặc định 8 giờ và cần được gửi bằng `X-Table-Token` cho API dine-in.
 - Access token chỉ dùng cho API/user socket; table token chỉ dùng cho session QR.
 - Khi đổi QR bàn, token cũ không nên tiếp tục được sử dụng ở client.

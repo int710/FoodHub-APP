@@ -36,7 +36,7 @@ class LoginViewModel(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     /**
-     * Cập nhật giá trị tài khoản (số điện thoại hoặc email) khi người dùng nhập.
+     * Cập nhật email đăng nhập khi người dùng nhập.
      *
      * @param value Giá trị chuỗi tài khoản mới.
      */
@@ -61,13 +61,6 @@ class LoginViewModel(
     }
 
     /**
-     * Thay đổi trạng thái tùy chọn "Nhớ mật khẩu" (Remember Me).
-     */
-    fun toggleRememberMe() {
-        _uiState.update { it.copy(rememberMe = !it.rememberMe) }
-    }
-
-    /**
      * Thực hiện quy trình đăng nhập tài khoản.
      * Kiểm tra tính hợp lệ của đầu vào, gọi API qua [AuthRepository] và cập nhật trạng thái UI tương ứng.
      */
@@ -79,7 +72,7 @@ class LoginViewModel(
         // Kiểm tra dữ liệu đầu vào không được để trống
         if (state.account.isBlank() || state.password.isBlank()) {
             _uiState.update {
-                it.copy(errorMessage = "Vui lòng nhập số điện thoại/email và mật khẩu")
+                it.copy(errorMessage = "Vui lòng nhập email và mật khẩu")
             }
             return
         }
@@ -96,10 +89,14 @@ class LoginViewModel(
                     account = state.account.trim(),
                     password = state.password
                 )
-            ).onSuccess {
+            ).onSuccess { response ->
                 // Đăng nhập thành công, cập nhật trạng thái đã đăng nhập
                 _uiState.update {
-                    it.copy(isLoading = false, isLoggedIn = true)
+                    it.copy(
+                        isLoading = false,
+                        isLoggedIn = true,
+                        userRole = response.user?.role
+                    )
                 }
             }.onFailure { error ->
                 // Đăng nhập thất bại, hiển thị thông báo lỗi

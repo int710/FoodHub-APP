@@ -142,6 +142,7 @@ class MenuServices {
       throw new ErrorWithStatus({ httpStatusCode: HTTP_STATUS.BAD_REQUEST, message: MENU_MESSAGE.CATEGORY_IS_INVALID })
     }
     const item = await prisma.menuItem.create({ data: data })
+    await this.invalidateMenuCache()
     return item
   }
 
@@ -211,6 +212,7 @@ class MenuServices {
 
     if (activeOrderCount > 0) {
       await prisma.menuItem.update({ where: { id }, data: { isAvailable: false } })
+      await this.invalidateItemCache(id)
       return {
         deleted: false,
         hidden: true,

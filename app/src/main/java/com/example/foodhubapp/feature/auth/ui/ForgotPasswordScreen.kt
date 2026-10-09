@@ -1,5 +1,6 @@
 package com.example.foodhubapp.feature.auth.ui
 
+import android.annotation.SuppressLint
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,20 +36,30 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.auth.viewmodel.ForgotPasswordUiState
 import com.example.foodhubapp.feature.auth.viewmodel.ForgotPasswordViewModel
-import com.example.foodhubapp.ui.theme.*
-import kotlinx.coroutines.launch
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.BrandSoft
+import com.example.foodhubapp.theme.CaptionBrown
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.HeadingFont
+import com.example.foodhubapp.theme.InputBackgroundSoft
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.PrimaryContainer
+import com.example.foodhubapp.theme.SuccessSoft
+import com.example.foodhubapp.theme.Warning
 
 @Composable
 fun ForgotPasswordRoute(
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    onResetTokenClick: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     viewModel: ForgotPasswordViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     ForgotPasswordScreen(
         uiState = state,
         onEmailChange = viewModel::updateEmail,
@@ -56,11 +67,7 @@ fun ForgotPasswordRoute(
         onLoginClick = onLoginClick,
         onRegisterClick = onRegisterClick,
         onSendLinkClick = viewModel::sendResetLink,
-        onCallClick = {
-            // The design's hotline is not a verified support number yet.
-            scope.launch { snackbar.showSnackbar("Hotline hỗ trợ chưa được cấu hình.") }
-        },
-        snackbarHostState = snackbar,
+        onResetTokenClick = onResetTokenClick,
         modifier = modifier)
 }
 
@@ -72,16 +79,14 @@ fun ForgotPasswordScreen(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onSendLinkClick: () -> Unit,
-    onCallClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+    onResetTokenClick: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier
             .fillMaxSize()
             .imePadding(),
         containerColor = AppBackground,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(color = AppBackground, shadowElevation = 1.dp) {
                 Row(
@@ -221,9 +226,7 @@ fun ForgotPasswordScreen(
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                 textStyle = TextStyle(
-                                    fontFamily = BodyFont,
-                                    fontSize = 14.sp,
-                                    color = Neutral),
+                                    fontFamily = BodyFont, fontSize = 14.sp, color = Neutral),
                                 cursorBrush = SolidColor(Brand),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -278,8 +281,7 @@ fun ForgotPasswordScreen(
                         }
                         if (uiState.errorMessage != null) {
                             RecoveryText(
-                                uiState.errorMessage,
-                                color = MaterialTheme.colorScheme.error)
+                                uiState.errorMessage, color = MaterialTheme.colorScheme.error)
                         }
                         Button(
                             onClick = onSendLinkClick,
@@ -293,9 +295,7 @@ fun ForgotPasswordScreen(
                                 disabledContainerColor = Brand.copy(alpha = 0.3f))) {
                             if (uiState.isLoading) {
                                 CircularProgressIndicator(
-                                    Modifier.size(18.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp)
+                                    Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                                 Spacer(Modifier.width(8.dp))
                             }
                             RecoveryText(
@@ -309,6 +309,9 @@ fun ForgotPasswordScreen(
                                 Spacer(Modifier.width(8.dp))
                                 RecoveryIcon(R.drawable.ic_forgot_arrow, 12)
                             }
+                        }
+                        TextButton(onClick = onResetTokenClick) {
+                            Text("Tôi đã có token đặt lại mật khẩu")
                         }
                         Row(
                             Modifier.fillMaxWidth(),
@@ -327,36 +330,6 @@ fun ForgotPasswordScreen(
                                 .size(6.dp)
                                 .background(Warning, CircleShape))
                         }
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(InputBackgroundSoft, RoundedCornerShape(16.dp))
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(
-                        Modifier
-                            .size(32.dp)
-                            .background(Color.White, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center) {
-                        RecoveryIcon(
-                            R.drawable.ic_forgot_support, 15)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        RecoveryText(
-                            "Không nhận được email?", color = Neutral, weight = FontWeight.Bold)
-                        RecoveryText("Hotline 1900 8888 (24/7) hoặc chat hỗ trợ", size = 11)
-                    }
-                    TextButton(
-                        onClick = onCallClick,
-                        colors = ButtonDefaults.textButtonColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp)) {
-                        RecoveryText(
-                            "Gọi ngay", color = Brand, weight = FontWeight.Bold, size = 11)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -419,6 +392,6 @@ private fun ForgotPasswordPreview() {
             onLoginClick = {},
             onRegisterClick = {},
             onSendLinkClick = {},
-            onCallClick = {})
+            )
     }
 }

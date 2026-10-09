@@ -14,7 +14,7 @@ import com.example.foodhubapp.feature.order.data.OrderStatus
 import com.example.foodhubapp.feature.order.data.OrderType
 import com.example.foodhubapp.feature.order.ui.OrderListScreen
 import com.example.foodhubapp.feature.order.viewmodel.OrderListUiState
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -9,7 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.foodhubapp.navigation.AppNavGraph
 import com.example.foodhubapp.navigation.AppRoutes
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

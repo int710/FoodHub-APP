@@ -12,7 +12,7 @@ import com.example.foodhubapp.core.session.SessionManager
 import com.example.foodhubapp.feature.auth.model.UserDto
 import com.example.foodhubapp.navigation.AppNavGraph
 import com.example.foodhubapp.navigation.AppRoutes
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.FoodHubAppTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After

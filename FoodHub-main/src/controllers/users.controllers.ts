@@ -12,7 +12,8 @@ import {
   RefreshTokenReq,
   RegisterRequestBody,
   ResetPasswordReq,
-  VerifyEmailReq
+  VerifyEmailReq,
+  UpdateProfileReq
 } from '~/models/schemas/users.schema'
 import userServices from '~/services/users.services'
 
@@ -66,6 +67,15 @@ export const getMeController = async (req: Request, res: Response, next: NextFun
   const { user_id } = req.decoded_authorization as TokenPayload
   const user = await userServices.getProfile(user_id)
   return res.json(ApiResponse(USER_MESSAGE.GET_MY_PROFILE_SUCCESS, user))
+}
+
+export const updateMeController = async (
+  req: Request<ParamsDictionary, any, UpdateProfileReq>,
+  res: Response
+) => {
+  const { user_id } = req.decoded_authorization as TokenPayload
+  const user = await userServices.updateProfile(user_id, req.body)
+  return res.json(ApiResponse('Cập nhật hồ sơ thành công', user))
 }
 
 export const verifyEmailController = async (

@@ -8,7 +8,6 @@ import com.example.foodhubapp.feature.auth.model.PasswordStrength
  * @property account Tên tài khoản (số điện thoại hoặc email) mà người dùng nhập.
  * @property password Mật khẩu người dùng nhập.
  * @property isPasswordVisible Trạng thái hiển thị hay ẩn mật khẩu trên giao diện.
- * @property rememberMe Tùy chọn ghi nhớ phiên đăng nhập.
  * @property isLoading Trạng thái đang tải (gọi API đăng nhập).
  * @property errorMessage Thông báo lỗi (nếu có) khi xác thực hoặc gọi API thất bại.
  * @property isLoggedIn Trạng thái xác định xem người dùng đã đăng nhập thành công hay chưa.
@@ -17,10 +16,10 @@ data class LoginUiState(
     val account: String = "",
     val password: String = "",
     val isPasswordVisible: Boolean = false,
-    val rememberMe: Boolean = true,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    val userRole: String? = null
 )
 
 /**
@@ -30,7 +29,6 @@ data class LoginUiState(
  * @property phoneNumber Số điện thoại đăng ký.
  * @property email Địa chỉ email của người dùng (tùy chọn).
  * @property password Mật khẩu tài khoản.
- * @property referralCode Mã giới thiệu (tùy chọn).
  * @property isPasswordVisible Trạng thái hiển thị hoặc ẩn mật khẩu trên giao diện.
  * @property acceptedTerms Trạng thái người dùng đã đồng ý với các điều khoản dịch vụ hay chưa.
  * @property isLoading Trạng thái đang tải (gọi API đăng ký).
@@ -42,9 +40,8 @@ data class RegisterUiState(
     val phoneNumber: String = "",
     val email: String = "",
     val password: String = "",
-    val referralCode: String = "",
     val isPasswordVisible: Boolean = false,
-    val acceptedTerms: Boolean = true,
+    val acceptedTerms: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isRegistered: Boolean = false,

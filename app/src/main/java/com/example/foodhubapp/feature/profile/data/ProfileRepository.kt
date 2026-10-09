@@ -17,6 +17,8 @@ private const val PROFILE_ENDPOINT = "/user/me"
  */
 interface ProfileRepository {
     suspend fun getProfileData(): Result<ProfileUiModel>
+    suspend fun logout(): Result<Unit>
+    suspend fun updateProfile(name: String, phone: String?): Result<ProfileUiModel>
 }
 
 /**
@@ -27,6 +29,27 @@ class RemoteProfileRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
     private val tokenStore: TokenStore
 ) : ProfileRepository {
+
+    override suspend fun updateProfile(name: String, phone: String?): Result<ProfileUiModel> = withContext(Dispatchers.IO) {
+        runCatching {
+            val token = tokenStore.getAccessToken() ?: error("Bạn cần đăng nhập lại")
+            val response = apiClient.patch(
+                "/user/me",
+                JSONObject().put("name", name.trim()).put("phone", phone?.trim()?.takeIf(String::isNotBlank) ?: JSONObject.NULL),
+                mapOf("Authorization" to "Bearer $token"),
+            )
+            (response.optJSONObject("data") ?: response).toProfileUiModel()
+        }
+    }
+
+    override suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            tokenStore.getRefreshToken()?.takeIf(String::isNotBlank)?.let { refreshToken ->
+                apiClient.post("/user/logout", JSONObject().put("refresh_token", refreshToken))
+            }
+            tokenStore.clearTokens()
+        }
+    }
 
     /**
      * Tải dữ liệu hồ sơ cá nhân từ API.
@@ -72,11 +95,10 @@ private fun JSONObject.toProfileUiModel(): ProfileUiModel {
             role = userJson.optString("role")
                 .ifBlank { null }
                 ?: previewProfile.user.role,
-            phoneMasked = maskPhone(
-                userJson.optString("phone")
-                    .ifBlank { null }
-                    ?: previewProfile.user.phoneMasked
-            ),
+            phone = userJson.optString("phone").ifBlank { null },
+            phoneMasked = userJson.optString("phone").ifBlank { null }
+                ?.let(::maskPhone)
+                ?: "",
             dateOfBirth = userJson.optString("dateOfBirth")
                 .ifBlank { null }
                 ?.take(10),

@@ -1,6 +1,5 @@
 package com.example.foodhubapp.feature.auth.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import com.example.foodhubapp.ui.theme.CardStroke
+import com.example.foodhubapp.theme.CardStroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,17 +42,15 @@ import com.example.foodhubapp.feature.auth.model.AuthMode
 import com.example.foodhubapp.feature.auth.model.PasswordStrength
 import com.example.foodhubapp.feature.auth.viewmodel.RegisterUiState
 import com.example.foodhubapp.feature.auth.viewmodel.RegisterViewModel
-import com.example.foodhubapp.ui.theme.AppBackground
-import com.example.foodhubapp.ui.theme.BodyFont
-import com.example.foodhubapp.ui.theme.Brand
-import com.example.foodhubapp.ui.theme.CaptionBrown
-import com.example.foodhubapp.ui.theme.FoodHubAppTheme
-import com.example.foodhubapp.ui.theme.InputBackground
-import com.example.foodhubapp.ui.theme.Neutral
-import com.example.foodhubapp.ui.theme.OnSurfaceVariant
-import com.example.foodhubapp.ui.theme.SuccessDark
-import com.example.foodhubapp.ui.theme.Warning
-import com.example.foodhubapp.ui.theme.WarningDark
+import com.example.foodhubapp.theme.AppBackground
+import com.example.foodhubapp.theme.BodyFont
+import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.InputBackground
+import com.example.foodhubapp.theme.Neutral
+import com.example.foodhubapp.theme.OnSurfaceVariant
+import com.example.foodhubapp.theme.SuccessDark
+import com.example.foodhubapp.theme.Warning
 
 @Composable
 fun RegisterRoute(
@@ -77,7 +74,6 @@ fun RegisterRoute(
         onPhoneNumberChange = viewModel::onPhoneNumberChange,
         onEmailChange = viewModel::onEmailChange,
         onPasswordChange = viewModel::onPasswordChange,
-        onReferralCodeChange = viewModel::onReferralCodeChange,
         onTogglePassword = viewModel::togglePasswordVisibility,
         onToggleTerms = viewModel::toggleTerms,
         onBackClick = onBackClick,
@@ -94,7 +90,6 @@ fun RegisterScreen(
     onPhoneNumberChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onReferralCodeChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
     onToggleTerms: () -> Unit,
     onBackClick: () -> Unit,
@@ -130,34 +125,11 @@ fun RegisterScreen(
                 onPhoneNumberChange = onPhoneNumberChange,
                 onEmailChange = onEmailChange,
                 onPasswordChange = onPasswordChange,
-                onReferralCodeChange = onReferralCodeChange,
                 onTogglePassword = onTogglePassword,
                 onToggleTerms = onToggleTerms,
                 onRegisterClick = onRegisterClick
             )
             Spacer(modifier = Modifier.height(16.dp))
-            RewardsBanner()
-            Spacer(modifier = Modifier.height(16.dp))
-            DividerLabel(text = "Hoặc đăng ký bằng")
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SocialButton(
-                    text = "Google",
-                    iconRes = R.drawable.ic_auth_google,
-                    onClick = {},
-                    modifier = Modifier.weight(1f)
-                )
-                SocialButton(
-                    text = "Apple ID",
-                    iconRes = R.drawable.ic_auth_apple,
-                    onClick = {},
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
             AuthSwitchText(
                 normalText = "Đã có tài khoản?",
                 actionText = "Đăng nhập ngay",
@@ -174,7 +146,6 @@ private fun RegisterFormCard(
     onPhoneNumberChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onReferralCodeChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
     onToggleTerms: () -> Unit,
     onRegisterClick: () -> Unit
@@ -226,7 +197,7 @@ private fun RegisterFormCard(
                 value = uiState.email,
                 onValueChange = onEmailChange,
                 iconRes = R.drawable.ic_auth_email,
-                placeholder = "Email nhận hóa đơn VAT",
+                placeholder = "Email đăng nhập",
                 backgroundColor = InputBackground
             )
             AuthTextField(
@@ -246,27 +217,6 @@ private fun RegisterFormCard(
                 },
                 helper = {
                     PasswordStrengthMeter(strength = uiState.passwordStrength)
-                }
-            )
-            AuthTextField(
-                label = "Mã giới thiệu / Quán quen (Tùy chọn)",
-                value = uiState.referralCode,
-                onValueChange = onReferralCodeChange,
-                iconRes = R.drawable.ic_auth_tag,
-                placeholder = "Mã giới thiệu / Số bàn quán quen",
-                backgroundColor = InputBackground,
-                trailing = {
-                    Surface(color = Warning, shape = RoundedCornerShape(4.dp)) {
-                        Text(
-                            text = "+30 Điểm",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = WarningDark,
-                            fontFamily = BodyFont,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 10.sp,
-                            lineHeight = 14.sp
-                        )
-                    }
                 }
             )
             Row(
@@ -311,9 +261,8 @@ private fun RegisterFormCard(
                 )
             }
             PrimaryAuthButton(
-                text = if (uiState.isLoading) "Đang đăng ký..." else "Đăng Ký & Nhận Ưu Đãi",
+                text = if (uiState.isLoading) "Đang đăng ký..." else "Đăng ký",
                 onClick = onRegisterClick,
-                badgeText = "Tặng 50K",
                 height = 56,
                 enabled = !uiState.isLoading
             )
@@ -395,7 +344,6 @@ private fun RegisterScreenPreview() {
             onPhoneNumberChange = {},
             onEmailChange = {},
             onPasswordChange = {},
-            onReferralCodeChange = {},
             onTogglePassword = {},
             onToggleTerms = {},
             onBackClick = {},

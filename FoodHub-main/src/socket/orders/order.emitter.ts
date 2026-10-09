@@ -26,3 +26,11 @@ export const emitOrderItemStatusUpdate = (payload: OrderItemStatusUpdatePayload)
     console.error('[Socket Emitter Error] Failed to emit order item status update:', error);
   }
 };
+
+export const emitNewOrder = (payload: unknown): void => {
+  try {
+    getSocketIO().to(ORDER_ROOMS.HOST_ORDERS).emit(ORDER_SOCKET_EVENTS.NEW, payload)
+  } catch (error) {
+    console.error('[Socket Emitter Error] Failed to emit new order:', error)
+  }
+}
