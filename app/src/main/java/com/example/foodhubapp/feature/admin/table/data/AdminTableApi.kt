@@ -37,6 +37,12 @@ interface AdminTableApi {
         @Body body: JsonObject = JsonObject()
     ): Call<JsonObject>
 
+    @DELETE("table/{id}")
+    fun deleteTable(
+        @HeaderMap headers: Map<String, String> = emptyMap(),
+        @Path("id", encoded = true) id: String
+    ): Call<JsonObject>
+
     @POST("table/{id}/regenerate-qr")
     fun regenerateQrContent(
         @HeaderMap headers: Map<String, String> = emptyMap(),

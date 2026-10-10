@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Chair
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.MoreVert
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +94,8 @@ fun AdminTablesScreen() {
     var qrState by remember { mutableStateOf<QrDialogState?>(null) }
     var busyTableId by remember { mutableStateOf<String?>(null) }
     var regenerateTarget by remember { mutableStateOf<AdminRestaurantTable?>(null) }
+    var deleteTarget by remember { mutableStateOf<AdminRestaurantTable?>(null) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     fun reload() {
         scope.launch {
@@ -183,6 +187,10 @@ fun AdminTablesScreen() {
                             onQr = { openQr(table) },
                             onToggle = { toggleTable(table) },
                             onRegenerateQr = { regenerateTarget = table },
+                            onDelete = {
+                                deleteError = null
+                                deleteTarget = table
+                            },
                         )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
@@ -251,6 +259,52 @@ fun AdminTablesScreen() {
             dismissButton = { TextButton(onClick = { regenerateTarget = null }) { Text("Hủy") } },
         )
     }
+
+    deleteTarget?.let { table ->
+        val isDeleting = busyTableId == table.id
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) deleteTarget = null },
+            title = { Text("Xóa ${table.name}?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Bàn sẽ bị xóa khỏi sơ đồ và mã QR hiện tại không còn sử dụng được. Lịch sử đơn hàng vẫn được giữ lại.")
+                    deleteError?.let { message ->
+                        Text(message, color = AdminRed, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        busyTableId = table.id
+                        deleteError = null
+                        scope.launch {
+                            runCatching { repository.deleteTable(table.id) }
+                                .onSuccess {
+                                    tables.removeAll { it.id == table.id }
+                                    deleteTarget = null
+                                }
+                                .onFailure {
+                                    deleteError = it.message ?: "Không thể xóa bàn"
+                                }
+                            busyTableId = null
+                        }
+                    },
+                    enabled = !isDeleting,
+                    colors = ButtonDefaults.buttonColors(containerColor = AdminRed),
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    } else {
+                        Text("Xóa bàn")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }, enabled = !isDeleting) { Text("Hủy") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -260,6 +314,7 @@ private fun AdminTableRow(
     onQr: () -> Unit,
     onToggle: () -> Unit,
     onRegenerateQr: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(8.dp)) {
@@ -300,6 +355,12 @@ private fun AdminTableRow(
                             text = { Text("Tạo lại QR") },
                             leadingIcon = { Icon(Icons.Default.RestartAlt, null) },
                             onClick = { menuOpen = false; onRegenerateQr() },
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Xóa bàn", color = AdminRed) },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = AdminRed) },
+                            onClick = { menuOpen = false; onDelete() },
                         )
                     }
                 }

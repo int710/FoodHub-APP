@@ -98,6 +98,16 @@ class AdminTableRepository internal constructor(
         data.optBoolean("isActive")
     }
 
+    suspend fun deleteTable(tableId: String) = withContext(Dispatchers.IO) {
+        apiClient.execute(
+            apiClient.adminTableApi.deleteTable(
+                id = tableId,
+                headers = authHeaders()
+            )
+        )
+        Unit
+    }
+
     private suspend fun authHeaders(): Map<String, String> {
         val token = accessToken()?.takeIf(String::isNotBlank)
             ?: throw AdminTableApiException("Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại.")
