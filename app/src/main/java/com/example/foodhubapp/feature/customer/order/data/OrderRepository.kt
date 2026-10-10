@@ -87,16 +87,22 @@ interface OrderRepository {
 /** API của màn Đơn hàng. Mọi thao tác CUSTOMER đều dùng Bearer token hiện tại. */
 class RemoteOrderRepository(
     private val apiClient: FoodHubApiClient = FoodHubApiClient(),
-    private val accessToken: suspend () -> String? = { null }
+    private val accessToken: suspend () -> String? = { null },
+    private val tableToken: () -> String? = { null },
 ) : OrderRepository {
     override suspend fun getHistory(page: Int, limit: Int, type: OrderType?): OrderPage = withContext(Dispatchers.IO) {
         require(page >= 1)
         require(limit in 1..100)
+        val access = accessToken()?.takeIf(String::isNotBlank)
+        val table = tableToken()?.takeIf(String::isNotBlank)
+        if (access == null && table == null) throw LoginRequiredException()
         val query = buildString {
-            append("/order/history?page=$page&limit=$limit")
+            append(if (access != null) "/order/history" else "/order/table-history")
+            append("?page=$page&limit=$limit")
             type?.let { append("&type=${it.name}") }
         }
-        parseOrderPage(apiClient.getJson(query, authHeaders()), page, limit)
+        val headers = if (access != null) mapOf("Authorization" to "Bearer $access") else mapOf("X-Table-Token" to table!!)
+        parseOrderPage(apiClient.getJson(query, headers), page, limit)
     }
 
     override suspend fun cancel(orderId: String, reason: String) = withContext(Dispatchers.IO) {

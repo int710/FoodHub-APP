@@ -43,7 +43,11 @@ internal fun JSONObject.toAdminConversation() = AdminConversation(
     time = formatConversationTime(optString("lastMessageAt", optString("updatedAt"))),
     unread = if (optString("lastMessageSenderId") != optString("assignedHostId")) 1 else 0,
     isOnline = true,
+    orderCode = optionalString("orderCode"),
 )
+
+private fun JSONObject.optionalString(key: String): String? =
+    if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
 
 private fun formatConversationTime(value: String): String = runCatching {
     DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())

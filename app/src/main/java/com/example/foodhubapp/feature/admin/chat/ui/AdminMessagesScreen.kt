@@ -6,6 +6,7 @@ import com.example.foodhubapp.feature.admin.components.AdminAvatar
 import com.example.foodhubapp.feature.admin.components.AdminSearchField
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +18,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +48,8 @@ import com.example.foodhubapp.feature.admin.navigation.AdminGreenSoft
 import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
+import com.example.foodhubapp.feature.admin.navigation.AdminBorder
+import com.example.foodhubapp.feature.admin.navigation.AdminText
 
 @Composable
 fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (String) -> Unit) {
@@ -57,14 +65,29 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
         ) {
             Box(Modifier.size(8.dp).background(AdminGreen, CircleShape))
             Spacer(Modifier.width(8.dp))
-            Text("Đang trực tuyến • Sẵn sàng nhận tin", color = AdminGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text("Trung tâm hỗ trợ đang trực tuyến", color = AdminGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.weight(1f))
+            Text("${conversations.size} hội thoại", color = AdminGreen, fontSize = 11.sp)
         }
         AdminSearchField(query, { query = it }, "Tìm khách hàng hoặc nội dung", Modifier.padding(16.dp))
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(!unreadOnly, { unreadOnly = false }, { Text("Tất cả") })
             FilterChip(unreadOnly, { unreadOnly = true }, { Text("Chưa đọc") })
         }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (filtered.isEmpty()) {
+                item {
+                    Column(
+                        Modifier.fillMaxWidth().padding(vertical = 64.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(Icons.Default.ChatBubbleOutline, null, Modifier.size(42.dp), tint = AdminMuted)
+                        Spacer(Modifier.height(10.dp))
+                        Text("Không có hội thoại phù hợp", color = AdminText, fontWeight = FontWeight.SemiBold)
+                        Text("Tin nhắn mới sẽ tự động xuất hiện tại đây.", color = AdminMuted, fontSize = 12.sp)
+                    }
+                }
+            }
             items(filtered, key = { it.id }) { conversation ->
                 AdminConversationRow(conversation, { onOpenChat(conversation.id) })
             }
@@ -74,8 +97,15 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
 
 @Composable
 internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        color = AdminSurface,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, if (conversation.unread > 0) AdminPrimary.copy(alpha = .35f) else AdminBorder),
+        shadowElevation = if (conversation.unread > 0) 2.dp else 0.dp,
+    ) {
     Row(
-        Modifier.fillMaxWidth().background(AdminSurface, RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(13.dp),
+        Modifier.fillMaxWidth().padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box {
@@ -89,7 +119,8 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
                 Text(conversation.customer, fontWeight = if (conversation.unread > 0) FontWeight.Bold else FontWeight.Medium)
                 Text(conversation.time, color = AdminMuted, fontSize = 11.sp)
             }
-            Text(conversation.lastMessage, color = AdminMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            conversation.orderCode?.let { Text("Đơn #$it", color = AdminPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+            Text(conversation.lastMessage, color = if (conversation.unread > 0) AdminText else AdminMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (conversation.unread > 0) {
             Spacer(Modifier.width(8.dp))
@@ -97,6 +128,7 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
                 Text(conversation.unread.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
+    }
     }
 }
 

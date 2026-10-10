@@ -1,30 +1,39 @@
-@file:Suppress("SameParameterValue")
-
 package com.example.foodhubapp.feature.admin.chat.ui
 
-import com.example.foodhubapp.feature.admin.components.AdminAvatar
-
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,32 +44,39 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.admin.chat.AdminChatSocketClient
-import com.example.foodhubapp.feature.shared.chat.ChatConnectionState
-import com.example.foodhubapp.feature.shared.chat.ChatMessage
 import com.example.foodhubapp.feature.admin.chat.model.AdminConversation
-import com.example.foodhubapp.feature.admin.chat.model.AdminUiMessage
+import com.example.foodhubapp.feature.admin.components.AdminAvatar
+import com.example.foodhubapp.feature.admin.navigation.AdminBackground
+import com.example.foodhubapp.feature.admin.navigation.AdminBorder
 import com.example.foodhubapp.feature.admin.navigation.AdminGreen
+import com.example.foodhubapp.feature.admin.navigation.AdminGreenSoft
 import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
+import com.example.foodhubapp.feature.admin.navigation.AdminPrimarySoft
 import com.example.foodhubapp.feature.admin.navigation.AdminRed
+import com.example.foodhubapp.feature.admin.navigation.AdminRedSoft
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
 import com.example.foodhubapp.feature.admin.navigation.AdminText
-import androidx.compose.runtime.rememberCoroutineScope
+import com.example.foodhubapp.feature.shared.chat.ChatConnectionState
+import com.example.foodhubapp.feature.shared.chat.ChatMessage
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit = {}) {
     val context = LocalContext.current
     val client = remember { AdminChatSocketClient(context) }
-    val scope = rememberCoroutineScope()
     val messages = remember { mutableStateListOf<ChatMessage>() }
+    val listState = rememberLazyListState()
     var draft by remember { mutableStateOf("") }
     var connectionState by remember { mutableStateOf(ChatConnectionState.CONNECTING) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -70,15 +86,18 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
         client.connect(
             conversationId = conversation.id,
             onState = { connectionState = it; if (it == ChatConnectionState.CONNECTED) error = null },
-            onHistory = { history -> messages.clear(); messages.addAll(history) },
+            onHistory = { history -> messages.clear(); messages.addAll(history.distinctBy(ChatMessage::id)) },
             onMessage = { message -> if (messages.none { it.id == message.id }) messages.add(message) },
             onError = { error = it },
         )
     }
     DisposableEffect(client) { onDispose { client.disconnect() } }
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
 
-    fun send() {
-        val content = draft.trim()
+    fun send(text: String = draft) {
+        val content = text.trim()
         if (content.isBlank() || isSending || connectionState != ChatConnectionState.CONNECTED) return
         isSending = true
         client.send(conversation.id, content) { success, message ->
@@ -87,73 +106,142 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().background(AdminSurface).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            AdminAvatar(conversation.customer)
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text(conversation.customer, fontWeight = FontWeight.Bold)
-                Text(
-                    if (connectionState == ChatConnectionState.CONNECTED) "Đã kết nối" else "Đang kết nối...",
-                    color = if (connectionState == ChatConnectionState.CONNECTED) AdminGreen else AdminMuted,
-                    fontSize = 12.sp,
-                )
+    Column(Modifier.fillMaxSize().background(AdminBackground).imePadding()) {
+        Surface(color = AdminSurface, shadowElevation = 2.dp) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                AdminAvatar(conversation.customer)
+                Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                    Text(conversation.customer, color = AdminText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).background(connectionColor(connectionState), CircleShape))
+                        Spacer(Modifier.width(6.dp))
+                        Text(connectionText(connectionState), color = connectionColor(connectionState), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                conversation.orderCode?.let {
+                    Surface(color = AdminPrimarySoft, shape = RoundedCornerShape(8.dp)) {
+                        Text("#$it", Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = AdminPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                TextButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Đóng", fontSize = 12.sp)
+                }
             }
-            Spacer(Modifier.weight(1f))
-            conversation.orderCode?.let { Text(it, color = AdminPrimary, fontWeight = FontWeight.Bold) }
-            TextButton(onClick = onClose) { Text("Đóng hội thoại") }
         }
+
+        error?.let {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                color = AdminRedSoft,
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Text(it, Modifier.padding(12.dp), color = AdminRed, fontSize = 12.sp)
+            }
+        }
+
         LazyColumn(
+            state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            error?.let { item { Text(it, color = AdminRed, fontSize = 12.sp) } }
-            items(messages, key = { it.id }) { message ->
-                AdminMessageBubble(
-                    AdminUiMessage(
-                        id = message.id,
-                        content = message.content,
-                        time = message.createdAt.take(16),
-                        fromAdmin = !message.isCustomer,
+            item {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Surface(color = Color(0xFFEDEFF4), shape = RoundedCornerShape(20.dp)) {
+                        Text("Hỗ trợ trực tuyến", Modifier.padding(horizontal = 12.dp, vertical = 5.dp), color = AdminMuted, fontSize = 10.sp)
+                    }
+                }
+            }
+            if (messages.isEmpty() && connectionState == ChatConnectionState.CONNECTED) {
+                item {
+                    Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.ChatBubbleOutline, null, Modifier.size(38.dp), tint = AdminMuted)
+                        Text("Chưa có tin nhắn", Modifier.padding(top = 10.dp), color = AdminText, fontWeight = FontWeight.SemiBold)
+                        Text("Hãy bắt đầu hỗ trợ khách hàng.", color = AdminMuted, fontSize = 12.sp)
+                    }
+                }
+            }
+            items(messages, key = ChatMessage::id) { message ->
+                AdminMessageBubble(message)
+            }
+        }
+
+        Surface(color = AdminSurface, shadowElevation = 6.dp) {
+            Column {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    items(listOf("Quán đã nhận yêu cầu", "Món sắp hoàn thành", "Nhân viên đang tới", "Cảm ơn bạn")) { reply ->
+                        AssistChip(
+                            onClick = { draft = reply },
+                            label = { Text(reply, fontSize = 11.sp) },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = AdminBackground, labelColor = AdminText),
+                            border = BorderStroke(1.dp, AdminBorder),
+                        )
+                    }
+                }
+                HorizontalDivider(color = AdminBorder)
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it.take(5_000) },
+                        enabled = connectionState == ChatConnectionState.CONNECTED,
+                        modifier = Modifier.weight(1f).heightIn(min = 52.dp, max = 130.dp),
+                        placeholder = { Text("Nhập phản hồi cho khách...", fontSize = 13.sp) },
+                        shape = RoundedCornerShape(18.dp),
+                        maxLines = 4,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AdminPrimary, unfocusedBorderColor = AdminBorder),
                     )
-                )
+                    FilledIconButton(
+                        onClick = { send() },
+                        enabled = !isSending && draft.isNotBlank() && connectionState == ChatConnectionState.CONNECTED,
+                        modifier = Modifier.size(50.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = AdminPrimary, disabledContainerColor = AdminBorder),
+                    ) { Icon(Icons.AutoMirrored.Filled.Send, "Gửi", tint = Color.White) }
+                }
             }
-        }
-        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf("Quán đã nhận yêu cầu", "Món sắp hoàn thành", "Cảm ơn bạn")) { reply ->
-                AssistChip(onClick = { draft = reply }, label = { Text(reply) })
-            }
-        }
-        Row(Modifier.fillMaxWidth().background(AdminSurface).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Nhập tin nhắn...") },
-                shape = RoundedCornerShape(24.dp),
-                maxLines = 3,
-            )
-            Spacer(Modifier.width(8.dp))
-            IconButton(
-                onClick = ::send,
-                enabled = !isSending && connectionState == ChatConnectionState.CONNECTED,
-                modifier = Modifier.background(AdminPrimary, CircleShape),
-            ) { Icon(Icons.AutoMirrored.Filled.Send, "Gửi", tint = Color.White) }
         }
     }
 }
 
 @Composable
-private fun AdminMessageBubble(message: AdminUiMessage) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.fromAdmin) Arrangement.End else Arrangement.Start) {
-        Column(
-            Modifier.fillMaxWidth(0.78f).background(if (message.fromAdmin) AdminPrimary else AdminSurface, RoundedCornerShape(12.dp)).padding(11.dp),
-            horizontalAlignment = if (message.fromAdmin) Alignment.End else Alignment.Start,
+private fun AdminMessageBubble(message: ChatMessage) {
+    val fromAdmin = !message.isCustomer
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (fromAdmin) Alignment.End else Alignment.Start) {
+        if (!fromAdmin) Text("${message.senderRole.replaceFirstChar(Char::uppercase)} · Khách hàng", color = AdminMuted, fontSize = 10.sp, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.78f),
+            color = if (fromAdmin) AdminPrimary else AdminSurface,
+            shape = if (fromAdmin) RoundedCornerShape(17.dp, 17.dp, 4.dp, 17.dp) else RoundedCornerShape(17.dp, 17.dp, 17.dp, 4.dp),
+            border = if (fromAdmin) null else BorderStroke(1.dp, AdminBorder),
+            shadowElevation = if (fromAdmin) 0.dp else 1.dp,
         ) {
-            Text(message.content, color = if (message.fromAdmin) Color.White else AdminText)
-            Text(message.time, color = if (message.fromAdmin) Color.White.copy(alpha = 0.75f) else AdminMuted, fontSize = 10.sp)
+            Text(message.content, Modifier.padding(horizontal = 14.dp, vertical = 11.dp), color = if (fromAdmin) Color.White else AdminText, fontSize = 13.sp, lineHeight = 19.sp)
         }
+        Text(
+            formatChatTime(message.createdAt),
+            color = AdminMuted,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp),
+        )
     }
 }
 
+private fun connectionText(state: ChatConnectionState) = when (state) {
+    ChatConnectionState.CONNECTED -> "Đang kết nối trực tiếp"
+    ChatConnectionState.CONNECTING -> "Đang kết nối..."
+    ChatConnectionState.DISCONNECTED -> "Đang kết nối lại..."
+    ChatConnectionState.ERROR -> "Mất kết nối"
+}
+
+private fun connectionColor(state: ChatConnectionState) = when (state) {
+    ChatConnectionState.CONNECTED -> AdminGreen
+    ChatConnectionState.ERROR -> AdminRed
+    else -> AdminMuted
+}
+
+private fun formatChatTime(raw: String): String = runCatching {
+    CHAT_TIME_FORMAT.format(Instant.parse(raw).atZone(ZoneId.systemDefault()))
+}.getOrDefault("Vừa xong")
+
+private val CHAT_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm · dd/MM")

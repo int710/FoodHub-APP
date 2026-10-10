@@ -17,6 +17,7 @@ import com.example.foodhubapp.feature.customer.order.data.PaymentLaunch
 import com.example.foodhubapp.feature.customer.order.data.CustomerOrderSocketClient
 import com.example.foodhubapp.feature.customer.order.data.CustomerOrderSocketEvent
 import com.example.foodhubapp.feature.customer.order.data.displayName
+import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -70,10 +71,10 @@ internal val cancelledStatuses = setOf(OrderStatus.CANCELLED, OrderStatus.PAYMEN
 class OrderListViewModel @JvmOverloads constructor(
     application: Application,
     private val repository: OrderRepository = RemoteOrderRepository(
-        accessToken = TokenStore(application.applicationContext)::getAccessToken
+        accessToken = TokenStore(application.applicationContext)::getAccessToken,
+        tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
     )
 ) : AndroidViewModel(application) {
-    private val tokenStore = TokenStore(application.applicationContext)
     private val state = MutableStateFlow(OrderListUiState())
     val uiState = state.asStateFlow()
     private var paymentPollingJob: Job? = null
@@ -96,10 +97,6 @@ class OrderListViewModel @JvmOverloads constructor(
             )
         }
         viewModelScope.launch {
-            if (tokenStore.getAccessToken().isNullOrBlank()) {
-                state.update { it.copy(isLoading = false, isRefreshing = false, requiresLogin = true) }
-                return@launch
-            }
             try {
                 val page = repository.getHistory(page = 1, type = state.value.selectedType)
                 state.update {
@@ -121,10 +118,6 @@ class OrderListViewModel @JvmOverloads constructor(
         if (!current.hasMore || current.isLoading || current.isRefreshing || current.isLoadingMore) return
         state.update { it.copy(isLoadingMore = true) }
         viewModelScope.launch {
-            if (tokenStore.getAccessToken().isNullOrBlank()) {
-                state.update { it.copy(isLoadingMore = false, requiresLogin = true) }
-                return@launch
-            }
             try {
                 val page = repository.getHistory(current.page + 1, type = current.selectedType)
                 state.update { old ->

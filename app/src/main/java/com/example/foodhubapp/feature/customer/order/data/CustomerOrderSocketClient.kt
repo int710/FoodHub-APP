@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
@@ -17,15 +18,18 @@ data class CustomerOrderSocketEvent(
 
 class CustomerOrderSocketClient(context: Context) {
     private val tokenStore = TokenStore(context.applicationContext)
+    private val tableSessionStore = TableSessionStore(context.applicationContext)
     private val handler = Handler(Looper.getMainLooper())
     private var socket: Socket? = null
     private var orderIds: Set<String> = emptySet()
 
     suspend fun connect(onChanged: (CustomerOrderSocketEvent) -> Unit) {
-        val token = tokenStore.getAccessToken()?.takeIf(String::isNotBlank) ?: return
+        val tableToken = tableSessionStore.current()?.tableToken?.takeIf(String::isNotBlank)
+        val token = tokenStore.getAccessToken()?.takeIf(String::isNotBlank)
+        if (tableToken == null && token == null) return
         disconnect()
         val options = IO.Options.builder()
-            .setAuth(mapOf("token" to token))
+            .setAuth(if (token != null) mapOf("token" to token) else mapOf("tableToken" to tableToken!!))
             .setReconnection(true)
             .build()
         socket = IO.socket(URI.create(SOCKET_URL), options).apply {

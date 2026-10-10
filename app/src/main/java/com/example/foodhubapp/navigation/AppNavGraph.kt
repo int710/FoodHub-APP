@@ -277,8 +277,12 @@ fun AppNavGraph(
         composable(AppRoutes.QrScan) {
             ScanScreen(
                 onContinue = {
-                    navController.navigate(AppRoutes.TableChat) {
-                        launchSingleTop = true
+                    val returnedHome = navController.popBackStack(AppRoutes.Home, inclusive = false)
+                    if (!returnedHome) {
+                        navController.navigate(AppRoutes.Home) {
+                            popUpTo(AppRoutes.QrScan) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 },
                 onBack = { navController.popBackStack() }

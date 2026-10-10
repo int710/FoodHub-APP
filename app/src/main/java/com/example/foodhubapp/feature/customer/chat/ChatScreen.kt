@@ -24,8 +24,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.HeadsetMic
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
@@ -172,7 +181,7 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF8F9FF)).safeDrawingPadding().imePadding()) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5F3)).safeDrawingPadding().imePadding()) {
         ChatHeader(
             tableName = tableSession?.tableName ?: "Hỗ trợ",
             connectionState = connectionState,
@@ -218,6 +227,7 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
         }
 
         Column(Modifier.fillMaxWidth().background(Color.White)) {
+            HorizontalDivider(color = Color(0xFFEAE5E1))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -251,12 +261,16 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
                     maxLines = 4,
                     shape = RoundedCornerShape(28.dp),
                 )
-                IconButton(
+                FilledIconButton(
                     onClick = { send(draft) },
                     enabled = connectionState == ChatConnectionState.CONNECTED && draft.isNotBlank() && !isSending,
                     modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = BurntOrange,
+                        disabledContainerColor = Color(0xFFE7E2DF),
+                    ),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi tin nhắn", tint = if (connectionState == ChatConnectionState.CONNECTED && draft.isNotBlank() && !isSending) BurntOrange else Color.Gray)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi tin nhắn", tint = Color.White)
                 }
             }
         }
@@ -323,14 +337,18 @@ private fun ChatHeader(
     onBack: () -> Unit,
     onCall: () -> Unit,
 ) {
+    Surface(color = Color.White, shadowElevation = 3.dp) {
     Row(
-        Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 8.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink)
         }
-        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+        Box(Modifier.size(38.dp).background(Color(0xFFFFE8DF), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.HeadsetMic, null, tint = BurntOrange, modifier = Modifier.size(21.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Text("Quản lý FoodHub", fontSize = 16.sp, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Label(
                 connectionLabel(connectionState),
@@ -346,9 +364,10 @@ private fun ChatHeader(
             Text(tableName, fontSize = 10.sp, color = Color(0xFF0B6E58), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(56.dp))
         }
         Spacer(Modifier.width(7.dp))
-        TextButton(onClick = onCall, enabled = connectionState == ChatConnectionState.CONNECTED) {
-            Text("Gọi", color = if (connectionState == ChatConnectionState.CONNECTED) BurntOrange else Color.Gray)
+        IconButton(onClick = onCall, enabled = connectionState == ChatConnectionState.CONNECTED) {
+            Icon(Icons.Default.Call, "Gọi nhân viên", tint = if (connectionState == ChatConnectionState.CONNECTED) BurntOrange else Color.Gray)
         }
+    }
     }
 }
 
@@ -364,10 +383,10 @@ private fun SessionSummary(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(42.dp).background(Color(0xFFFFEEE9), RoundedCornerShape(11.dp)),
+            Modifier.size(42.dp).background(Color(0xFFFFEEE9), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Label("▤", 21.sp, BurntOrange)
+            Icon(Icons.Default.TableRestaurant, null, tint = BurntOrange)
         }
         Column(Modifier.weight(1f).padding(start = 9.dp)) {
             Label(session?.tableName ?: "Chưa có phiên bàn", 15.sp, Ink, bold = true)
@@ -382,7 +401,11 @@ private fun SessionSummary(
             Modifier.background(Color(0xFFF5F5F7), RoundedCornerShape(20.dp))
                 .clickable(onClick = onDetails).padding(horizontal = 8.dp, vertical = 5.dp),
         ) {
-            Label("▤ Chi tiết", 10.sp, Color(0xFF765E53), bold = true)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, null, Modifier.size(14.dp), tint = Color(0xFF765E53))
+                Spacer(Modifier.width(4.dp))
+                Label("Chi tiết", 10.sp, Color(0xFF765E53), bold = true)
+            }
         }
     }
 }
@@ -417,7 +440,7 @@ private fun SystemMessage(tableName: String, state: ChatConnectionState) {
 private fun SentMessage(message: String, time: String) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
         Box(
-            Modifier.fillMaxWidth(.83f).background(BurntOrange, RoundedCornerShape(17.dp))
+            Modifier.fillMaxWidth(.83f).background(BurntOrange, RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Label(message, 14.sp, Color.White)
@@ -439,11 +462,11 @@ private fun StaffMessage(message: ChatMessage) {
                 modifier = Modifier.padding(start = 7.dp),
             )
         }
-        Box(
+        Surface(
             Modifier.fillMaxWidth(.84f).padding(start = 38.dp)
-                .background(Color.White, RoundedCornerShape(16.dp)).padding(12.dp),
+            , color = Color.White, shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp), shadowElevation = 1.dp,
         ) {
-            Label(message.content, 13.sp)
+            Label(message.content, 13.sp, modifier = Modifier.padding(12.dp))
         }
         Label(
             formatMessageTime(message.createdAt),

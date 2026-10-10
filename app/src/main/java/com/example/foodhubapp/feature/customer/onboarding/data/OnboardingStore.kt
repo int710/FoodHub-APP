@@ -8,9 +8,7 @@ class OnboardingStore(context: Context) {
 
     fun hasCompleted(): Boolean = preferences.getBoolean(KEY_COMPLETED, false)
 
-    fun complete() {
-        preferences.edit().putBoolean(KEY_COMPLETED, true).apply()
-    }
+    fun complete(): Boolean = preferences.edit().putBoolean(KEY_COMPLETED, true).commit()
 
     private companion object {
         const val KEY_COMPLETED = "completed"
