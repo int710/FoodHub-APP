@@ -61,6 +61,7 @@ data class AdminOrder(
     val status: AdminOrderStatus,
     val paymentMethod: AdminPaymentMethod,
     val paid: Boolean,
+    val createdAtEpochMillis: Long = 0L,
 )
 
 data class AdminMenuItem(

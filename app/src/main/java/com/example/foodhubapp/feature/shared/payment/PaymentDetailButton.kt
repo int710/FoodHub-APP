@@ -3,6 +3,7 @@ package com.example.foodhubapp.feature.shared.payment
 import com.example.foodhubapp.core.network.*
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.*
+import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.google.gson.JsonObject

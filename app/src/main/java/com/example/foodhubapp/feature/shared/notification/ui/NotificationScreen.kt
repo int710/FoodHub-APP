@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.feature.shared.notification.data.FoodHubNotification
 import com.example.foodhubapp.feature.shared.notification.viewmodel.NotificationUiState
 import com.example.foodhubapp.feature.shared.notification.viewmodel.NotificationViewModel
+import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog
 import com.example.foodhubapp.theme.AppBackground
 import com.example.foodhubapp.theme.Brand
 import com.example.foodhubapp.theme.BrandSoft
@@ -75,7 +76,7 @@ fun NotificationRoute(
         onMarkAllRead = viewModel::markAllAsRead,
     )
     if (state.requiresLogin) {
-        androidx.compose.material3.AlertDialog(
+        FoodHubAlertDialog(
             onDismissRequest = viewModel::dismissLogin,
             title = { Text("Đăng nhập") },
             text = { Text("Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại.") },

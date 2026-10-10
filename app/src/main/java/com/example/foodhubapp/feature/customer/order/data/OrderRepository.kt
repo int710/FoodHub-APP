@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.order.data
 
+import android.content.Context
+import android.net.Uri
 import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import kotlinx.coroutines.Dispatchers
@@ -81,14 +83,16 @@ interface OrderRepository {
     suspend fun createVnPayUrl(orderCode: String): String
     suspend fun createPaymentLaunch(orderCode: String, method: CheckoutPaymentMethod): PaymentLaunch
     suspend fun getPaymentStatus(orderCode: String, method: CheckoutPaymentMethod): PaymentStatusResult
-    suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String)
+    suspend fun uploadReviewImage(uri: Uri): String
+    suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String, images: List<String>)
 }
 
 /** Lịch sử dùng Bearer token hoặc phiên bàn; các thao tác cá nhân yêu cầu đăng nhập. */
 class RemoteOrderRepository(
     private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient,
     private val tableToken: () -> String? = { null },
-    private val accessToken: suspend () -> String? = { null }
+    private val accessToken: suspend () -> String? = { null },
+    private val appContext: Context? = null,
 ) : OrderRepository {
     override suspend fun getHistory(page: Int, limit: Int, type: OrderType?): OrderPage = withContext(Dispatchers.IO) {
         require(page >= 1)
@@ -185,15 +189,33 @@ class RemoteOrderRepository(
         )
     }
 
-    override suspend fun submitReview(orderId: String, menuItemId: String, rating: Int, comment: String) =
+    override suspend fun uploadReviewImage(uri: Uri): String {
+        val token = accessToken()?.takeIf(String::isNotBlank) ?: throw LoginRequiredException()
+        return uploadImageFromDevice(
+            context = requireNotNull(appContext) { "Thiếu Android Context để đọc ảnh" },
+            uri = uri,
+            accessToken = token,
+            filePrefix = "review",
+            apiClient = apiClient,
+        )
+    }
+
+    override suspend fun submitReview(
+        orderId: String,
+        menuItemId: String,
+        rating: Int,
+        comment: String,
+        images: List<String>,
+    ) =
         withContext(Dispatchers.IO) {
             require(orderId.isNotBlank() && menuItemId.isNotBlank())
-            require(rating in 1..5 && comment.trim().length <= 1000)
+            require(rating in 1..5 && comment.trim().length <= 1000 && images.size <= 5)
+            val imageArray = JsonArray().apply { images.forEach { add(it) } }
             apiClient.execute(
                 apiClient.reviewApi.submitReview(
                     headers = authHeaders(),
                     body = JsonObject().put("orderId", orderId).put("menuItemId", menuItemId)
-                            .put("rating", rating).put("comment", comment.trim()).put("images", JsonArray())
+                            .put("rating", rating).put("comment", comment.trim()).put("images", imageArray)
                 )
             )
             Unit

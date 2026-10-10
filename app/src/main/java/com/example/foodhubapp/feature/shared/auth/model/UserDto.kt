@@ -8,7 +8,11 @@ data class UserDto(
     val fullName: String,
     val phoneNumber: String?,
     val email: String?,
-    val role: String = "CUSTOMER"
+    val role: String = "CUSTOMER",
+    val dateOfBirth: String? = null,
+    val avatarUrl: String? = null,
+    val isActive: Boolean = true,
+    val isVerified: Boolean = false,
 ) {
     companion object {
         fun fromJson(json: JsonObject): UserDto {
@@ -17,7 +21,11 @@ data class UserDto(
                 fullName = json.optString("fullName", json.optString("name")),
                 phoneNumber = json.optString("phoneNumber", json.optString("phone")).ifBlank { null },
                 email = json.optString("email").ifBlank { null },
-                role = json.optString("role", "CUSTOMER")
+                role = json.optString("role", "CUSTOMER"),
+                dateOfBirth = json.optString("dateOfBirth").ifBlank { null }?.take(10),
+                avatarUrl = json.optString("avatar").ifBlank { null },
+                isActive = json.optBoolean("isActive", true),
+                isVerified = json.optBoolean("isVerified", false),
             )
         }
     }

@@ -40,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
+import com.example.foodhubapp.core.network.resolveMediaUrl
 import com.example.foodhubapp.R
 import com.example.foodhubapp.feature.customer.menu.data.FoodReview
 import com.example.foodhubapp.theme.AppBackground
@@ -498,7 +499,7 @@ private fun FoodDetailPreview() {
 @Composable
 fun FoodImage(url: String?, name: String, modifier: Modifier = Modifier) {
     SubcomposeAsyncImage(
-        model = url,
+        model = resolveMediaUrl(url),
         contentDescription = name,
         modifier = modifier.background(InputBackground),
         contentScale = ContentScale.Crop,

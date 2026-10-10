@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.SubcomposeAsyncImage
+import com.example.foodhubapp.core.network.resolveMediaUrl
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -69,7 +70,7 @@ internal fun AdminMenuRow(
             ) {
                 if (!item.imageUrl.isNullOrBlank()) {
                     SubcomposeAsyncImage(
-                        model = item.imageUrl,
+                        model = resolveMediaUrl(item.imageUrl),
                         contentDescription = item.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,

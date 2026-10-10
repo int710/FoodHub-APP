@@ -143,6 +143,7 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
         status = enumValueOrDefault(optString("status"), AdminOrderStatus.PENDING_CONFIRMATION),
         paymentMethod = enumValueOrDefault(payment?.optString("method").orEmpty(), AdminPaymentMethod.CASH),
         paid = payment?.optString("status") == "PAID" || !optionalString("paidAt").isNullOrBlank(),
+        createdAtEpochMillis = createdInstant?.toEpochMilli() ?: 0L,
     )
 }
 

@@ -79,6 +79,10 @@ class TokenStore(
                     .put("phoneNumber", user.phoneNumber ?: "")
                     .put("email", user.email ?: "")
                     .put("role", user.role)
+                    .put("dateOfBirth", user.dateOfBirth ?: "")
+                    .put("avatar", user.avatarUrl ?: "")
+                    .put("isActive", user.isActive)
+                    .put("isVerified", user.isVerified)
                     .toString()
             }
 
@@ -133,6 +137,10 @@ class TokenStore(
                 .put("phoneNumber", user.phoneNumber ?: "")
                 .put("email", user.email ?: "")
                 .put("role", user.role)
+                .put("dateOfBirth", user.dateOfBirth ?: "")
+                .put("avatar", user.avatarUrl ?: "")
+                .put("isActive", user.isActive)
+                .put("isVerified", user.isVerified)
                 .toString()
         }
     }

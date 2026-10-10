@@ -42,7 +42,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -70,6 +69,7 @@ import com.example.foodhubapp.feature.customer.table.PaleBlue
 import com.example.foodhubapp.feature.customer.table.data.TableSession
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import com.example.foodhubapp.feature.customer.table.data.TableScanRepository
+import com.example.foodhubapp.feature.shared.ui.FoodHubDialog
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -80,6 +80,7 @@ import java.time.format.DateTimeFormatter
 fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
     val context = LocalContext.current
     val tableSession = remember { TableSessionStore(context).current() }
+    val isTableChat = tableSession != null
     val tableRepository = remember { TableScanRepository(context) }
     val scope = rememberCoroutineScope()
     val chatClient = remember { ChatSocketClient(context) }
@@ -183,11 +184,11 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
 
     Column(Modifier.fillMaxSize().background(Color(0xFFF7F5F3)).safeDrawingPadding().imePadding()) {
         ChatHeader(
-            tableName = tableSession?.tableName ?: "Hỗ trợ",
+            tableName = tableSession?.tableName ?: "Hỗ trợ đơn hàng",
             connectionState = connectionState,
             onBack = onBack,
             onCall = {
-                send("Tôi cần nhân viên hỗ trợ tại bàn.") {
+                send(if (isTableChat) "Tôi cần nhân viên hỗ trợ tại bàn." else "Tôi cần hỗ trợ về đơn hàng.") {
                     showCallDialog = true
                 }
             },
@@ -205,7 +206,7 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { CenterPill("Hỗ trợ trực tiếp") }
-            item { SystemMessage(tableSession?.tableName ?: "bạn", connectionState) }
+            item { SystemMessage(tableSession?.tableName ?: "đơn hàng của bạn", connectionState) }
             items(chatMessages, key = ChatMessage::id) { message ->
                 if (message.isCustomer) {
                     SentMessage(message.content, formatMessageTime(message.createdAt))
@@ -233,9 +234,15 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                QuickReply("Xin thêm đá") { send("Xin thêm đá giúp mình nhé!") }
-                QuickReply("Lấy thêm tương ớt/cà") { send("Cho mình xin thêm tương ớt và tương cà nhé!") }
-                QuickReply("Cần thìa/dĩa thêm") { send("Cho mình xin thêm thìa và dĩa nhé!") }
+                if (isTableChat) {
+                    QuickReply("Xin thêm đá") { send("Xin thêm đá giúp mình nhé!") }
+                    QuickReply("Lấy thêm tương ớt/cà") { send("Cho mình xin thêm tương ớt và tương cà nhé!") }
+                    QuickReply("Cần thìa/dĩa thêm") { send("Cho mình xin thêm thìa và dĩa nhé!") }
+                } else {
+                    QuickReply("Trạng thái đơn") { send("Cho mình hỏi trạng thái đơn hàng hiện tại.") }
+                    QuickReply("Hỗ trợ thanh toán") { send("Mình cần hỗ trợ về thanh toán đơn hàng.") }
+                    QuickReply("Đổi cách nhận món") { send("Mình cần hỗ trợ về phương thức nhận món.") }
+                }
             }
             Row(
                 Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 4.dp),
@@ -277,54 +284,59 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
     }
 
     if (sessionEnded) {
-        AlertDialog(
+        FoodHubDialog(
             onDismissRequest = onSessionEnded,
-            title = { Text("Phiên bàn đã kết thúc") },
-            text = { Text("Bạn không còn quyền chat hoặc đặt món trong phiên này. Quét lại QR khi bắt đầu lượt dùng bàn mới.") },
-            confirmButton = { TextButton(onClick = onSessionEnded) { Text("Về trang chủ") } },
+            title = "Phiên bàn đã kết thúc",
+            eyebrow = "Phiên phục vụ",
+            content = { Text("Bạn không còn quyền chat hoặc đặt món trong phiên này. Quét lại QR khi bắt đầu lượt dùng bàn mới.") },
+            actions = { TextButton(onClick = onSessionEnded, modifier = Modifier.fillMaxWidth()) { Text("Về trang chủ") } },
         )
     }
 
     if (showCallDialog) {
-        AlertDialog(
+        FoodHubDialog(
             onDismissRequest = { showCallDialog = false },
-            title = { Label("Đã gọi nhân viên", 20.sp, bold = true) },
-            text = { Label("Yêu cầu hỗ trợ đã được gửi qua kênh chat của ${tableSession?.tableName ?: "bàn"}.") },
-            confirmButton = {
-                TextButton(onClick = { showCallDialog = false }) {
+            title = "Đã gửi yêu cầu",
+            eyebrow = "Hỗ trợ FoodHub",
+            content = { Label(if (isTableChat) "Yêu cầu hỗ trợ đã được gửi tới nhân viên phục vụ ${tableSession.tableName}." else "Yêu cầu hỗ trợ đơn hàng đã được gửi tới FoodHub.") },
+            actions = {
+                TextButton(onClick = { showCallDialog = false }, modifier = Modifier.fillMaxWidth()) {
                     Label("Đóng", color = BurntOrange)
                 }
             },
         )
     }
     if (showSessionDialog) {
-        AlertDialog(
+        FoodHubDialog(
             onDismissRequest = { showSessionDialog = false },
-            title = { Label(tableSession?.tableName ?: "Phiên bàn", 20.sp, bold = true) },
-            text = {
+            title = tableSession?.tableName ?: "Hỗ trợ đơn hàng",
+            eyebrow = if (tableSession != null) "Phiên tại bàn" else "Kênh hỗ trợ",
+            dismissEnabled = !isEndingSession,
+            content = {
                 Label(
                     listOfNotNull(tableSession?.floor, connectionLabel(connectionState)).joinToString(" • "),
                 )
             },
-            confirmButton = {
-                TextButton(onClick = { showSessionDialog = false }) {
+            actions = {
+                if (tableSession != null) {
+                    TextButton(
+                        enabled = !isEndingSession,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            isEndingSession = true
+                            scope.launch {
+                                runCatching { tableRepository.endSession() }
+                                    .onSuccess { onSessionEnded() }
+                                    .onFailure { errorMessage = it.message }
+                                isEndingSession = false
+                                showSessionDialog = false
+                            }
+                        },
+                    ) { Label(if (isEndingSession) "Đang kết thúc..." else "Kết thúc phiên bàn", color = Color(0xFFB3261E)) }
+                }
+                TextButton(onClick = { showSessionDialog = false }, modifier = Modifier.weight(1f)) {
                     Label("Đóng", color = BurntOrange)
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isEndingSession,
-                    onClick = {
-                        isEndingSession = true
-                        scope.launch {
-                            runCatching { tableRepository.endSession() }
-                                .onSuccess { onSessionEnded() }
-                                .onFailure { errorMessage = it.message }
-                            isEndingSession = false
-                            showSessionDialog = false
-                        }
-                    },
-                ) { Label(if (isEndingSession) "Đang kết thúc..." else "Kết thúc phiên bàn", color = Color(0xFFB3261E)) }
             },
         )
     }
@@ -389,7 +401,7 @@ private fun SessionSummary(
             Icon(Icons.Default.TableRestaurant, null, tint = BurntOrange)
         }
         Column(Modifier.weight(1f).padding(start = 9.dp)) {
-            Label(session?.tableName ?: "Chưa có phiên bàn", 15.sp, Ink, bold = true)
+            Label(session?.tableName ?: "Hỗ trợ đơn hàng", 15.sp, Ink, bold = true)
             Label(
                 connectionLabel(connectionState),
                 10.sp,

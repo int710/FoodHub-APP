@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.customer.order.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
@@ -38,6 +39,7 @@ data class OrderListUiState(
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
     val busyOrderId: String? = null,
+    val isUploadingReviewImage: Boolean = false,
     val error: String? = null,
     val message: String? = null,
     val requiresLogin: Boolean = false,
@@ -73,6 +75,7 @@ class OrderListViewModel @JvmOverloads constructor(
     private val repository: OrderRepository = RemoteOrderRepository(
         accessToken = TokenStore(application.applicationContext)::getAccessToken,
         tableToken = { TableSessionStore(application.applicationContext).current()?.tableToken },
+        appContext = application.applicationContext,
     )
 ) : AndroidViewModel(application) {
     private val state = MutableStateFlow(OrderListUiState())
@@ -267,15 +270,38 @@ class OrderListViewModel @JvmOverloads constructor(
         }
     }
 
-    fun review(order: CustomerOrder, item: OrderItem, rating: Int, comment: String, onSuccess: () -> Unit = {}) {
+    fun uploadReviewImage(uri: Uri, onSuccess: (String) -> Unit) {
+        if (state.value.isUploadingReviewImage) return
+        state.update { it.copy(isUploadingReviewImage = true, message = null) }
+        viewModelScope.launch {
+            try {
+                onSuccess(repository.uploadReviewImage(uri))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                handleError(error)
+            } finally {
+                state.update { it.copy(isUploadingReviewImage = false) }
+            }
+        }
+    }
+
+    fun review(
+        order: CustomerOrder,
+        item: OrderItem,
+        rating: Int,
+        comment: String,
+        images: List<String>,
+        onSuccess: () -> Unit = {},
+    ) {
         if (state.value.busyOrderId != null || rating !in 1..5 || item.menuItemId.isBlank() ||
-            comment.trim().length > 1000 || order.status !in setOf(OrderStatus.SERVED, OrderStatus.COMPLETED) ||
+            comment.trim().length > 1000 || images.size > 5 || order.status !in setOf(OrderStatus.SERVED, OrderStatus.COMPLETED) ||
             order.items.none { it.menuItemId == item.menuItemId } ||
             item.menuItemId in order.reviewedMenuItemIds) return
         state.update { it.copy(busyOrderId = order.id, message = null) }
         viewModelScope.launch {
             try {
-                repository.submitReview(order.id, item.menuItemId, rating, comment)
+                repository.submitReview(order.id, item.menuItemId, rating, comment, images)
                 state.update { current -> current.copy(
                     orders = current.orders.map {
                         if (it.id == order.id) it.copy(reviewedMenuItemIds = it.reviewedMenuItemIds + item.menuItemId) else it

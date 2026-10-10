@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.customer.profile.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
@@ -19,13 +20,16 @@ data class ProfileUiState(
     val user: UserDto? = null,
     val isLoggingOut: Boolean = false,
     val isLoggedOut: Boolean = false,
+    val isUploadingAvatar: Boolean = false,
+    val isUpdatingProfile: Boolean = false,
     val errorMessage: String? = null
 )
 
 class ProfileViewModel @JvmOverloads constructor(
     application: Application,
     private val profileRepository: ProfileRepository = RemoteProfileRepository(
-        tokenStore = TokenStore(application.applicationContext)
+        tokenStore = TokenStore(application.applicationContext),
+        appContext = application.applicationContext,
     )
 ) : AndroidViewModel(application) {
     private val tokenStore = TokenStore(application.applicationContext)
@@ -55,6 +59,10 @@ class ProfileViewModel @JvmOverloads constructor(
                         phoneNumber = profile.user.phone,
                         email = profile.user.email,
                         role = profile.user.role,
+                        dateOfBirth = profile.user.dateOfBirth,
+                        avatarUrl = profile.user.avatarUrl,
+                        isActive = profile.user.isActive,
+                        isVerified = profile.user.isVerified,
                     )
                     updatedUser?.let { tokenStore.saveUser(it) }
                     state.update { current ->
@@ -88,16 +96,27 @@ class ProfileViewModel @JvmOverloads constructor(
         }
     }
 
-    fun updateProfile(name: String, phone: String) {
-        if (name.isBlank()) return
+    fun updateProfile(
+        name: String,
+        phone: String,
+        dateOfBirth: String,
+        avatarUrl: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        if (name.isBlank() || state.value.isUpdatingProfile) return
+        state.update { it.copy(isUpdatingProfile = true, errorMessage = null) }
         viewModelScope.launch {
             val cachedUser = tokenStore.getUser()
-            profileRepository.updateProfile(name, phone)
+            profileRepository.updateProfile(name, phone, dateOfBirth, avatarUrl)
                 .onSuccess { profile ->
                     val updatedUser = (state.value.user ?: cachedUser)?.copy(
                         fullName = profile.user.name,
                         phoneNumber = profile.user.phone,
                         email = profile.user.email,
+                        dateOfBirth = profile.user.dateOfBirth,
+                        avatarUrl = profile.user.avatarUrl,
+                        isActive = profile.user.isActive,
+                        isVerified = profile.user.isVerified,
                     )
                     updatedUser?.let { tokenStore.saveUser(it) }
                     state.update { current ->
@@ -106,8 +125,21 @@ class ProfileViewModel @JvmOverloads constructor(
                             errorMessage = null,
                         )
                     }
+                    onSuccess()
                 }
                 .onFailure { error -> state.update { it.copy(errorMessage = error.message) } }
+            state.update { it.copy(isUpdatingProfile = false) }
+        }
+    }
+
+    fun uploadAvatar(uri: Uri, onSuccess: (String) -> Unit) {
+        if (state.value.isUploadingAvatar) return
+        state.update { it.copy(isUploadingAvatar = true, errorMessage = null) }
+        viewModelScope.launch {
+            profileRepository.uploadAvatar(uri)
+                .onSuccess(onSuccess)
+                .onFailure { error -> state.update { it.copy(errorMessage = error.message ?: "Không thể tải ảnh lên") } }
+            state.update { it.copy(isUploadingAvatar = false) }
         }
     }
 }

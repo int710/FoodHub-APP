@@ -26,22 +26,15 @@ class AdminMenuRepository private constructor(
     internal constructor(apiClient: FoodHubApiClient, accessToken: suspend () -> String?) : this(null, apiClient, accessToken)
 
     suspend fun uploadImage(uri: Uri): String = withContext(Dispatchers.IO) {
-        val resolver = requireNotNull(appContext).contentResolver
-        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: throw IllegalStateException("Không đọc được ảnh đã chọn")
-        require(bytes.size <= 5 * 1024 * 1024) { "Ảnh phải nhỏ hơn hoặc bằng 5 MB" }
-        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") }
-            ?: throw IllegalArgumentException("Tệp đã chọn không phải là ảnh")
-        val response = apiClient.uploadImage(
-            path = "/media/upload-image",
-            fileName = "menu-${System.currentTimeMillis()}.${mimeType.substringAfter('/')}",
-            mimeType = mimeType,
-            bytes = bytes,
-            headers = authHeaders(),
+        val token = accessToken()?.takeIf(String::isNotBlank)
+            ?: throw IllegalStateException("Vui lòng đăng nhập bằng tài khoản Admin")
+        uploadImageFromDevice(
+            context = requireNotNull(appContext),
+            uri = uri,
+            accessToken = token,
+            filePrefix = "menu",
+            apiClient = apiClient,
         )
-        response.optArray("data")?.optObject(0)?.optString("url")
-            ?.takeIf(String::isNotBlank)
-            ?: throw IllegalStateException("Máy chủ không trả về đường dẫn ảnh")
     }
 
     suspend fun getItems(): List<AdminMenuItem> = withContext(Dispatchers.IO) {

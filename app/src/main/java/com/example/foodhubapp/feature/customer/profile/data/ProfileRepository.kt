@@ -1,6 +1,8 @@
 package com.example.foodhubapp.feature.customer.profile.data
 
 import com.example.foodhubapp.core.network.*
+import android.content.Context
+import android.net.Uri
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.feature.customer.profile.model.ProfileUiModel
 import com.example.foodhubapp.feature.customer.profile.model.previewProfile
@@ -14,7 +16,13 @@ import com.google.gson.JsonObject
 interface ProfileRepository {
     suspend fun getProfileData(): Result<ProfileUiModel>
     suspend fun logout(): Result<Unit>
-    suspend fun updateProfile(name: String, phone: String?): Result<ProfileUiModel>
+    suspend fun uploadAvatar(uri: Uri): Result<String>
+    suspend fun updateProfile(
+        name: String,
+        phone: String?,
+        dateOfBirth: String?,
+        avatarUrl: String?,
+    ): Result<ProfileUiModel>
 }
 
 /**
@@ -23,16 +31,39 @@ interface ProfileRepository {
  */
 class RemoteProfileRepository(
     private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    private val appContext: Context,
 ) : ProfileRepository {
 
-    override suspend fun updateProfile(name: String, phone: String?): Result<ProfileUiModel> = withContext(Dispatchers.IO) {
+    override suspend fun uploadAvatar(uri: Uri): Result<String> = runCatching {
+        val token = tokenStore.getAccessToken()?.takeIf(String::isNotBlank)
+            ?: error("Bạn cần đăng nhập lại")
+        uploadImageFromDevice(
+            context = appContext,
+            uri = uri,
+            accessToken = token,
+            filePrefix = "avatar",
+            apiClient = apiClient,
+        )
+    }
+
+    override suspend fun updateProfile(
+        name: String,
+        phone: String?,
+        dateOfBirth: String?,
+        avatarUrl: String?,
+    ): Result<ProfileUiModel> = withContext(Dispatchers.IO) {
         runCatching {
             val token = tokenStore.getAccessToken() ?: error("Bạn cần đăng nhập lại")
+            val body = JsonObject()
+                .put("name", name.trim())
+                .put("phone", phone?.trim()?.takeIf(String::isNotBlank) ?: com.google.gson.JsonNull.INSTANCE)
+                .put("dateOfBirth", dateOfBirth?.trim()?.takeIf(String::isNotBlank) ?: com.google.gson.JsonNull.INSTANCE)
+                .put("avatar", avatarUrl?.trim()?.takeIf(String::isNotBlank) ?: com.google.gson.JsonNull.INSTANCE)
             val response = apiClient.execute(
                 apiClient.authApi.updateProfile(
                     headers = mapOf("Authorization" to "Bearer $token"),
-                    body = JsonObject().put("name", name.trim()).put("phone", phone?.trim()?.takeIf(String::isNotBlank) ?: com.google.gson.JsonNull.INSTANCE)
+                    body = body
                 )
             )
             (response.optObject("data") ?: response).toProfileUiModel()
@@ -104,6 +135,7 @@ private fun JsonObject.toProfileUiModel(): ProfileUiModel {
             dateOfBirth = userJson.optString("dateOfBirth")
                 .ifBlank { null }
                 ?.take(10),
+            avatarUrl = userJson.optString("avatar").ifBlank { null },
             isActive = userJson.optBoolean("isActive", previewProfile.user.isActive),
             isVerified = userJson.optBoolean("isVerified", previewProfile.user.isVerified),
             memberSince = userJson.optString("createdAt")

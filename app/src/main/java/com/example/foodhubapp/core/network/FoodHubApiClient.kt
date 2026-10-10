@@ -80,9 +80,15 @@ internal fun parseApiError(code: Int, body: String): String {
     }
     return runCatching {
         val root = parseJsonObject(body)
-        val errors = root.optObject("errors")
+        val errors = root.optObject("errors") ?: root.optObject("data")?.optObject("errors")
         if (errors != null && errors.size() > 0) {
-            errors.keySet().mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
+            errors.keySet().mapNotNull { key ->
+                val value = errors.opt(key)
+                when (value) {
+                    is JsonObject -> value.optString("msg").ifBlank { value.optString("message") }
+                    else -> value?.toString().orEmpty()
+                }.takeIf(String::isNotBlank)
+            }
                 .joinToString("\n")
         } else root.optString("message").ifBlank { "API lỗi $code" }
     }.getOrDefault("API lỗi $code")

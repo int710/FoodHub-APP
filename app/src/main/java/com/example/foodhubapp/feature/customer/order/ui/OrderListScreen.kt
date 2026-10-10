@@ -1,8 +1,14 @@
 package com.example.foodhubapp.feature.customer.order.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,10 +38,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.payment.VnPayReturn
 import com.example.foodhubapp.core.payment.ZaloPayLaunchDialog
 import com.example.foodhubapp.feature.customer.menu.ui.FoodImage
 import com.example.foodhubapp.feature.shared.notification.viewmodel.NotificationViewModel
+import com.example.foodhubapp.feature.shared.ui.FoodHubDialog
 import com.example.foodhubapp.feature.customer.order.data.CustomerOrder
 import com.example.foodhubapp.feature.customer.order.data.CheckoutPaymentMethod
 import com.example.foodhubapp.feature.customer.order.data.OrderItem
@@ -81,9 +89,11 @@ fun OrderListRoute(
 ) {
     val context = LocalContext.current
     val tableSessionStore = remember(context) { TableSessionStore(context.applicationContext) }
+    val tokenStore = remember(context) { TokenStore(context.applicationContext) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val notificationState by notificationViewModel.uiState.collectAsStateWithLifecycle()
     var hasTableSession by remember { mutableStateOf(tableSessionStore.current() != null) }
+    var isLoggedIn by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -94,6 +104,7 @@ fun OrderListRoute(
         viewModel.load(refresh = true)
         notificationViewModel.refresh()
         hasTableSession = tableSessionStore.current() != null
+        scope.launch { isLoggedIn = !tokenStore.getAccessToken().isNullOrBlank() }
     }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.consumeMessage() }
@@ -142,7 +153,7 @@ fun OrderListRoute(
         onHomeClick = onHomeClick,
         onNotificationClick = onNotificationClick,
         onProfileClick = onProfileClick,
-        hasTableSession = hasTableSession,
+        canChat = hasTableSession || (isLoggedIn && state.orders.any { it.type != OrderType.DINE_IN }),
         onChatClick = onChatClick,
         notificationUnreadCount = notificationState.unreadCount,
         snackbarHost = { SnackbarHost(snackbar) }
@@ -163,20 +174,24 @@ fun OrderListRoute(
         ReviewDialog(
             itemName = item.name,
             busy = state.busyOrderId != null,
+            uploading = state.isUploadingReviewImage,
             onDismiss = { if (state.busyOrderId == null) reviewTarget = null },
-            onSubmit = { rating, comment ->
-                viewModel.review(order, item, rating, comment) { reviewTarget = null }
+            onUploadImage = viewModel::uploadReviewImage,
+            onSubmit = { rating, comment, images ->
+                viewModel.review(order, item, rating, comment, images) { reviewTarget = null }
             },
         )
     }
-    if (state.requiresLogin) AlertDialog(
+    if (state.requiresLogin) FoodHubDialog(
         onDismissRequest = viewModel::dismissLogin,
-        title = { Text("Đăng nhập") },
-        text = { Text("Bạn cần đăng nhập để xem đơn hàng của mình.") },
-        confirmButton = {
-            TextButton(onClick = { viewModel.dismissLogin(); onLoginClick() }) { Text("Đăng nhập") }
+        title = "Đăng nhập để tiếp tục",
+        eyebrow = "Tài khoản FoodHub",
+        content = { Text("Bạn cần đăng nhập để xem và theo dõi đơn hàng của mình.", color = OnSurfaceVariant) },
+        actions = {
+            OutlinedButton(onClick = viewModel::dismissLogin, Modifier.weight(1f)) { Text("Để sau") }
+            Spacer(Modifier.width(10.dp))
+            Button(onClick = { viewModel.dismissLogin(); onLoginClick() }, Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Brand)) { Text("Đăng nhập") }
         },
-        dismissButton = { TextButton(onClick = viewModel::dismissLogin) { Text("Để sau") } }
     )
 }
 
@@ -194,7 +209,7 @@ fun OrderListScreen(
     onHomeClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
-    hasTableSession: Boolean = false,
+    canChat: Boolean = false,
     onChatClick: () -> Unit = {},
     notificationUnreadCount: Int = 0,
     snackbarHost: @Composable () -> Unit = {}
@@ -208,7 +223,7 @@ fun OrderListScreen(
                 onHomeClick = onHomeClick,
                 onNotificationClick = onNotificationClick,
                 onProfileClick = onProfileClick,
-                hasTableSession = hasTableSession,
+                canChat = canChat,
                 onChatClick = onChatClick,
                 notificationUnreadCount = notificationUnreadCount,
             )
@@ -456,29 +471,90 @@ private fun OrderCard(
 }
 
 @Composable
-private fun ReviewDialog(itemName: String, busy: Boolean, onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
+private fun ReviewDialog(
+    itemName: String,
+    busy: Boolean,
+    uploading: Boolean,
+    onDismiss: () -> Unit,
+    onUploadImage: (Uri, (String) -> Unit) -> Unit,
+    onSubmit: (Int, String, List<String>) -> Unit,
+) {
     var rating by rememberSaveable { mutableStateOf(5) }
     var comment by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Đánh giá $itemName") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    var imageLink by rememberSaveable { mutableStateOf("") }
+    val imageUrls = remember { mutableStateListOf<String>() }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null && imageUrls.size < 5) {
+            onUploadImage(uri) { uploadedUrl -> if (uploadedUrl !in imageUrls) imageUrls.add(uploadedUrl) }
+        }
+    }
+    val isBusy = busy || uploading
+    FoodHubDialog(
+        onDismissRequest = { if (!isBusy) onDismiss() },
+        title = "Đánh giá $itemName",
+        eyebrow = "Trải nghiệm món ăn",
+        dismissEnabled = !isBusy,
+        content = {
+            Column(
+                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     (1..5).forEach { value ->
                         Text(
                             if (value <= rating) "★" else "☆",
-                            Modifier.clickable(enabled = !busy) { rating = value }.padding(4.dp),
+                            Modifier.clickable(enabled = !isBusy) { rating = value }.padding(4.dp),
                             color = Brand,
                             fontSize = 30.sp,
                         )
                     }
                 }
-                OutlinedTextField(comment, { comment = it.take(1000) }, enabled = !busy, label = { Text("Nhận xét") }, minLines = 3)
+                OutlinedTextField(comment, { comment = it.take(1000) }, enabled = !isBusy, label = { Text("Nhận xét") }, minLines = 3)
+                Text("Ảnh đánh giá (${imageUrls.size}/5)", fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        imageLink,
+                        { imageLink = it },
+                        Modifier.weight(1f),
+                        label = { Text("Link ảnh") },
+                        singleLine = true,
+                        enabled = !isBusy && imageUrls.size < 5,
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val link = imageLink.trim()
+                            if (link.startsWith("http") && link !in imageUrls && imageUrls.size < 5) imageUrls.add(link)
+                            imageLink = ""
+                        },
+                        enabled = !isBusy && imageUrls.size < 5 && imageLink.trim().startsWith("http"),
+                    ) { Text("Thêm") }
+                }
+                OutlinedButton(
+                    onClick = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = !isBusy && imageUrls.size < 5,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (uploading) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (uploading) "Đang tải ảnh..." else "Chọn ảnh từ điện thoại")
+                }
+                imageUrls.forEachIndexed { index, url ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${index + 1}. $url", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                        IconButton(onClick = { imageUrls.remove(url) }, enabled = !isBusy) {
+                            Icon(Icons.Default.Close, "Xóa ảnh")
+                        }
+                    }
+                }
             }
         },
-        confirmButton = { Button(enabled = !busy, onClick = { onSubmit(rating, comment) }) { Text(if (busy) "Đang gửi…" else "Gửi đánh giá") } },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Hủy") } },
+        actions = {
+            OutlinedButton(enabled = !isBusy, onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Hủy") }
+            Spacer(Modifier.width(10.dp))
+            Button(enabled = !isBusy, onClick = { onSubmit(rating, comment, imageUrls.toList()) }, modifier = Modifier.weight(1f)) { Text(if (busy) "Đang gửi…" else "Gửi đánh giá") }
+        },
     )
 }
 
@@ -527,13 +603,30 @@ private fun OrderItemRow(item: OrderItem) {
 private fun OrderProgress(status: OrderStatus) {
     val steps = listOf(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.SERVED)
     val current = steps.indexOf(status).coerceAtLeast(0)
-    Column(Modifier.fillMaxWidth().background(SuccessSoft, RoundedCornerShape(6.dp)).padding(9.dp)) {
-        Text(status.label(), color = SuccessDark, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-        Spacer(Modifier.height(7.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            steps.forEachIndexed { index, _ ->
-                Box(Modifier.size(8.dp).background(if (index <= current) Success else MutedDot, CircleShape))
-                if (index < steps.lastIndex) Box(Modifier.weight(1f).height(2.dp).background(if (index < current) Success else MutedDot))
+    val labels = listOf("Tiếp nhận", "Bếp làm món", "Sẵn sàng", "Giao món")
+    Column(Modifier.fillMaxWidth().background(Color(0xFFF8FAF9), RoundedCornerShape(12.dp)).padding(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("TIẾN TRÌNH XỬ LÝ", color = OnSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+            Spacer(Modifier.weight(1f))
+            Text(status.label(), color = SuccessDark, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            labels.forEachIndexed { index, label ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(8.dp))
+                            .background(if (index <= current) Brand else Color(0xFFE5E3E1))
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        label,
+                        color = if (index <= current) Brand else Color(0xFFAAA5A2),
+                        fontWeight = if (index == current) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
@@ -566,11 +659,12 @@ private fun StatusBadge(status: OrderStatus) {
 @Composable
 private fun CancelOrderDialog(orderCode: String, busy: Boolean, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var reason by rememberSaveable(orderCode) { mutableStateOf("") }
-    AlertDialog(
+    FoodHubDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(8.dp),
-        title = { Text("Hủy đơn #${orderCode.removePrefix("#")}") },
-        text = {
+        title = "Hủy đơn #${orderCode.removePrefix("#")}",
+        eyebrow = "Xác nhận thao tác",
+        dismissEnabled = !busy,
+        content = {
             OutlinedTextField(
                 value = reason,
                 onValueChange = { reason = it.take(255) },
@@ -581,12 +675,13 @@ private fun CancelOrderDialog(orderCode: String, busy: Boolean, onDismiss: () ->
                 modifier = Modifier.fillMaxWidth()
             )
         },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(reason.trim()) }, enabled = reason.isNotBlank() && !busy) {
-                Text("Xác nhận hủy", color = Brand)
+        actions = {
+            OutlinedButton(onClick = onDismiss, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Quay lại") }
+            Spacer(Modifier.width(10.dp))
+            Button(onClick = { onConfirm(reason.trim()) }, enabled = reason.isNotBlank() && !busy, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Brand)) {
+                Text("Xác nhận hủy")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Quay lại") } }
     )
 }
 
@@ -623,7 +718,7 @@ private fun OrderBottomBar(
     onHomeClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
-    hasTableSession: Boolean,
+    canChat: Boolean,
     onChatClick: () -> Unit,
     notificationUnreadCount: Int,
 ) {
@@ -631,7 +726,7 @@ private fun OrderBottomBar(
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
             OrderBottomDestination(Icons.Default.Home, "Trang chủ", false, onHomeClick)
             OrderBottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", true, {})
-            if (hasTableSession) {
+            if (canChat) {
                 OrderBottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
             }
             OrderBottomDestination(

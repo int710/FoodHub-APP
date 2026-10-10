@@ -36,6 +36,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import coil.compose.SubcomposeAsyncImage
 import com.example.foodhubapp.R
+import com.example.foodhubapp.core.network.resolveMediaUrl
+import com.example.foodhubapp.feature.shared.ui.FoodHubDialog
 import com.example.foodhubapp.feature.customer.home.viewmodel.HomeUiState
 import com.example.foodhubapp.feature.customer.home.viewmodel.HomeViewModel
 import com.example.foodhubapp.feature.customer.menu.data.MenuFood
@@ -158,10 +160,11 @@ fun HomeScreen(
         containerColor = AppBackground,
         topBar = { HomeHeader(state.cartItemCount, onCartClick, onProfileClick, onQrClick, tableSession, selectedOrderType) },
         bottomBar = {
+            val canChat = tableSession != null || (state.isLoggedIn && selectedOrderType != CartType.DINE_IN)
             HomeBottomBar(
                 onOrdersClick = onOrdersClick,
                 onProfileClick = onProfileClick,
-                hasTableSession = tableSession != null,
+                canChat = canChat,
                 onChatClick = onChatClick,
                 onNotificationsClick = onNotificationsClick,
                 notificationUnreadCount = notificationUnreadCount,
@@ -215,7 +218,11 @@ fun HomeScreen(
                         }
                     }
                     item {
-                        ServiceBar(tableSession != null, onChatClick)
+                        ServiceBar(
+                            canChat = tableSession != null || (state.isLoggedIn && selectedOrderType != CartType.DINE_IN),
+                            isDineIn = selectedOrderType == CartType.DINE_IN,
+                            onClick = onChatClick,
+                        )
                     }
                 }
             }
@@ -329,10 +336,11 @@ private fun OrderingContext(
         }
     }
     if (showDialog) {
-        AlertDialog(
+        FoodHubDialog(
             onDismissRequest = { showDialog = false },
-            title = { Column { Text("KHỞI TẠO ĐẶT MÓN", color = Brand, fontSize = 11.sp); Text("Bạn muốn nhận món theo cách nào?", fontWeight = FontWeight.Bold) } },
-            text = {
+            title = "Bạn muốn nhận món theo cách nào?",
+            eyebrow = "Khởi tạo đặt món",
+            content = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OrderModeChoice("Ăn tại bàn (Quét mã QR)", tableSession?.let { "Đang kết nối: ${it.tableName}${it.floor?.let { floor -> " ($floor)" }.orEmpty()}" } ?: "Quét QR trên bàn để bắt đầu", selectedType == CartType.DINE_IN) {
                         showDialog = false; onSelect(CartType.DINE_IN)
@@ -345,8 +353,7 @@ private fun OrderingContext(
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Đóng") } },
+            actions = { TextButton(onClick = { showDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("Đóng") } },
         )
     }
 }
@@ -617,7 +624,7 @@ private fun AvailabilityImage(food: MenuFood, @DrawableRes fallback: Int, modifi
 @Composable
 private fun HomeFoodImage(url: String?, @DrawableRes fallback: Int, modifier: Modifier) {
     SubcomposeAsyncImage(
-        model = url,
+        model = resolveMediaUrl(url),
         contentDescription = null,
         modifier = modifier.background(InputBackground),
         contentScale = ContentScale.Crop,
@@ -627,7 +634,7 @@ private fun HomeFoodImage(url: String?, @DrawableRes fallback: Int, modifier: Mo
 }
 
 @Composable
-private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
+private fun ServiceBar(canChat: Boolean, isDineIn: Boolean, onClick: () -> Unit) {
     Surface(shape = RoundedCornerShape(12.dp), color = InputBackground) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(WarmAccent, CircleShape), contentAlignment = Alignment.Center) {
@@ -635,19 +642,23 @@ private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text("Cần trợ giúp tại bàn?", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(if (isDineIn) "Cần trợ giúp tại bàn?" else "Cần hỗ trợ đơn hàng?", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Text(
-                    if (hasTableSession) "Nhắn tin trực tiếp với nhân viên" else "Tính năng sẽ mở khi có phiên QR bàn",
+                    when {
+                        canChat -> "Nhắn tin trực tiếp với nhân viên"
+                        isDineIn -> "Quét QR bàn để mở kênh hỗ trợ"
+                        else -> "Đăng nhập để trò chuyện với nhà hàng"
+                    },
                     color = OnSurfaceVariant,
                     fontSize = 10.sp,
                 )
             }
             Button(
                 onClick = onClick,
-                enabled = hasTableSession,
+                enabled = canChat,
                 colors = ButtonDefaults.buttonColors(containerColor = Warning, contentColor = WarningDark),
             ) {
-                Text("Gọi phục vụ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(if (isDineIn) "Gọi phục vụ" else "Nhắn tin", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -657,7 +668,7 @@ private fun ServiceBar(hasTableSession: Boolean, onClick: () -> Unit) {
 private fun HomeBottomBar(
     onOrdersClick: () -> Unit,
     onProfileClick: () -> Unit,
-    hasTableSession: Boolean,
+    canChat: Boolean,
     onChatClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     notificationUnreadCount: Int,
@@ -666,7 +677,7 @@ private fun HomeBottomBar(
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
             BottomDestination(Icons.Default.Home, "Trang chủ", true, {})
             BottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", false, onOrdersClick)
-            if (hasTableSession) {
+            if (canChat) {
                 BottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
             }
             BottomDestination(

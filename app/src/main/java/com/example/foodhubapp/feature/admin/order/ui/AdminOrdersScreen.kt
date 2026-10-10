@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.model.AdminOrder
 import com.example.foodhubapp.feature.admin.model.AdminOrderStatus
+import com.example.foodhubapp.feature.admin.model.AdminOrderType
+import com.example.foodhubapp.feature.shared.ui.FoodHubDialog
 
 @Composable
 fun AdminOrdersScreen(
@@ -52,10 +53,14 @@ fun AdminOrdersScreen(
     }
     var query by remember { mutableStateOf("") }
     var selectedStatus by remember { mutableStateOf<AdminOrderStatus?>(null) }
+    var selectedType by remember { mutableStateOf<AdminOrderType?>(null) }
+    var paidOnly by remember { mutableStateOf<Boolean?>(null) }
     var pendingAction by remember { mutableStateOf<Pair<AdminOrder, Boolean>?>(null) }
     var rejectReason by remember { mutableStateOf("") }
     val filtered = orders.filter { order ->
         (selectedStatus == null || order.status == selectedStatus) &&
+            (selectedType == null || order.type == selectedType) &&
+            (paidOnly == null || order.paid == paidOnly) &&
             (query.isBlank() || order.code.contains(query, true) || order.destination.contains(query, true))
     }
 
@@ -70,6 +75,17 @@ fun AdminOrdersScreen(
             items(listOf(AdminOrderStatus.PENDING_CONFIRMATION, AdminOrderStatus.CONFIRMED, AdminOrderStatus.PREPARING, AdminOrderStatus.READY, AdminOrderStatus.COMPLETED)) { status ->
                 FilterChip(selectedStatus == status, { selectedStatus = status }, { Text(status.label) })
             }
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item { FilterChip(selectedType == null, { selectedType = null }, { Text("Mọi loại") }) }
+            items(AdminOrderType.entries) { type ->
+                FilterChip(selectedType == type, { selectedType = type }, { Text(type.label) })
+            }
+            item { FilterChip(paidOnly == true, { paidOnly = if (paidOnly == true) null else true }, { Text("Đã thu") }) }
+            item { FilterChip(paidOnly == false, { paidOnly = if (paidOnly == false) null else false }, { Text("Chưa thu") }) }
         }
         Text("${filtered.size} đơn hàng", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), color = AdminMuted, fontSize = 13.sp)
         LazyColumn(
@@ -91,10 +107,11 @@ fun AdminOrdersScreen(
     }
 
     pendingAction?.let { (order, approve) ->
-        AlertDialog(
+        FoodHubDialog(
             onDismissRequest = { pendingAction = null },
-            title = { Text(if (approve) "Xác nhận đơn ${order.code}?" else "Từ chối đơn ${order.code}?") },
-            text = {
+            title = if (approve) "Xác nhận đơn ${order.code}?" else "Từ chối đơn ${order.code}?",
+            eyebrow = "Xử lý đơn hàng",
+            content = {
                 if (approve) Text(
                     if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid)
                         "Xác nhận tiếp nhận đơn. Tiền mặt sẽ được ghi nhận sau khi món đã phục vụ cho khách."
@@ -107,14 +124,14 @@ fun AdminOrdersScreen(
                     minLines = 2,
                 )
             },
-            confirmButton = {
+            actions = {
+                OutlinedButton({ pendingAction = null }, Modifier.weight(1f)) { Text("Đóng") }
                 Button(onClick = {
                     if (approve) onConfirm(order) else onReject(order, rejectReason.trim())
                     pendingAction = null
                     rejectReason = ""
-                }, enabled = approve || rejectReason.isNotBlank()) { Text(if (approve) "Xác nhận" else "Từ chối") }
+                }, modifier = Modifier.weight(1f), enabled = approve || rejectReason.isNotBlank()) { Text(if (approve) "Xác nhận" else "Từ chối") }
             },
-            dismissButton = { TextButton({ pendingAction = null }) { Text("Đóng") } },
         )
     }
 }

@@ -5,6 +5,7 @@ package com.example.foodhubapp.feature.admin.menu.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -68,12 +69,12 @@ internal fun AdminMenuEditorDialog(
     val parsedPrice = price.toLongOrNull()
     val parsedSortOrder = sortOrder.toIntOrNull()
     val isValid = name.trim().length >= 2 && categoryId.isNotBlank() && parsedPrice != null && parsedPrice > 0 && parsedSortOrder != null
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { onUploadImage(it) { uploadedUrl -> imageUrl = uploadedUrl } }
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving && !isUploading) onDismiss() },
         title = { Text(if (item == null) "Thêm món ăn" else "Chỉnh sửa món ăn") },
         text = {
             Column(
@@ -116,7 +117,7 @@ internal fun AdminMenuEditorDialog(
                 )
                 OutlinedTextField(imageUrl, { imageUrl = it }, label = { Text("URL ảnh") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedButton(
-                    onClick = { imagePicker.launch("image/*") },
+                    onClick = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     enabled = !isUploading,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -166,7 +167,7 @@ internal fun AdminMenuEditorDialog(
                 Text(if (item == null) "Thêm món" else "Lưu")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving && !isUploading) { Text("Hủy") } },
     )
 }
 
