@@ -241,7 +241,7 @@ fun CartScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Tổng cộng", color = OnSurfaceVariant)
+                        Text("Tổng phải trả", color = OnSurfaceVariant)
                         Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                     }
                     Button(
@@ -351,9 +351,13 @@ private fun CheckoutDialog(
                 Surface(color = Color.White, shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth()) {
-                            Text("Tạm tính (${cart.items.sumOf { it.quantity }} món)", Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 12.sp)
-                            Text(money(cart.totalAmount), fontSize = 12.sp)
+                            Text("Giá món (${cart.items.sumOf { it.quantity }} món)", Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 12.sp)
+                            Text(money(cart.subtotal), fontSize = 12.sp)
                         }
+                        if (cart.vatAmount > 0) CheckoutPriceRow("Thuế GTGT", cart.vatAmount)
+                        if (cart.deliveryFee > 0) CheckoutPriceRow("Phí giao hàng", cart.deliveryFee)
+                        if (cart.serviceFee > 0) CheckoutPriceRow("Phí dịch vụ", cart.serviceFee)
+                        if (cart.discountAmount > 0) CheckoutPriceRow("Giảm giá", -cart.discountAmount, Color(0xFF00875A))
                         HorizontalDivider(color = CardStroke)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Tổng thanh toán", Modifier.weight(1f), fontWeight = FontWeight.Bold)
@@ -376,6 +380,14 @@ private fun CheckoutDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CheckoutPriceRow(label: String, amount: Long, color: Color = OnSurfaceVariant) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 12.sp)
+        Text(money(amount), color = color, fontSize = 12.sp)
     }
 }
 

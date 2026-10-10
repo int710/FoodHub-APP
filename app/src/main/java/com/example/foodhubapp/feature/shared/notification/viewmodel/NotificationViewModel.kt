@@ -77,28 +77,34 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
             return
         }
         if (state.value.busyId != null) return
-        state.update { it.copy(busyId = notification.id, errorMessage = null) }
+        state.update {
+            it.copy(
+                notifications = if (it.unreadOnly) {
+                    it.notifications.filterNot { item -> item.id == notification.id }
+                } else {
+                    it.notifications.map { item ->
+                        if (item.id == notification.id) item.copy(readAt = "now") else item
+                    }
+                },
+                unreadCount = (it.unreadCount - 1).coerceAtLeast(0),
+                busyId = notification.id,
+                errorMessage = null,
+            )
+        }
+        onMarked()
         viewModelScope.launch {
             try {
                 repository.markAsRead(notification.id)
-                state.update {
-                    it.copy(
-                        notifications = if (it.unreadOnly) {
-                            it.notifications.filterNot { item -> item.id == notification.id }
-                        } else {
-                            it.notifications.map { item ->
-                                if (item.id == notification.id) item.copy(readAt = "now") else item
-                            }
-                        },
-                        unreadCount = (it.unreadCount - 1).coerceAtLeast(0),
-                        busyId = null,
-                    )
-                }
-                onMarked()
+                state.update { it.copy(busyId = null) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                handleError(error)
+                if (error is FoodHubApiException && error.statusCode == 401) {
+                    handleError(error)
+                } else {
+                    // Đã phản hồi thao tác ngay trên UI; lần refresh tiếp theo sẽ đồng bộ lại với server.
+                    state.update { it.copy(busyId = null) }
+                }
             }
         }
     }

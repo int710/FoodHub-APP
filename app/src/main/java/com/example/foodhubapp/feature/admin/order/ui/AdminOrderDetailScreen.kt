@@ -8,6 +8,7 @@ import com.example.foodhubapp.feature.admin.components.AdminSectionHeader
 import com.example.foodhubapp.feature.admin.components.vnd
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
@@ -50,6 +52,7 @@ import com.example.foodhubapp.feature.admin.model.AdminOrderStatus
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimarySoft
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
+import com.example.foodhubapp.feature.customer.menu.ui.FoodImage
 import kotlin.collections.forEach
 
 @Composable
@@ -83,14 +86,18 @@ fun AdminOrderDetailScreen(
         item { com.example.foodhubapp.feature.shared.payment.PaymentDetailButton(order.id) }
         item { AdminSectionHeader("Món đã đặt") }
         items(order.items, key = { it.id.ifBlank { it.name } }) { line ->
-            Column(Modifier.fillMaxWidth()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = AdminSurface),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, AdminPrimary.copy(alpha = .12f)),
+            ) {
+            Column(Modifier.fillMaxWidth().padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Box(Modifier.size(34.dp).background(AdminPrimarySoft, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                    Text("${line.quantity}x", color = AdminPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-                Spacer(Modifier.width(10.dp))
+                FoodImage(line.imageUrl, line.name, Modifier.size(68.dp).clip(RoundedCornerShape(13.dp)))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(line.name, fontWeight = FontWeight.SemiBold)
+                    Text("${line.quantity} phần × ${line.unitPrice.vnd()}", color = AdminMuted, fontSize = 12.sp)
                     if (line.options.isNotEmpty()) Text(line.options.joinToString(), color = AdminMuted, fontSize = 13.sp)
                     line.note?.let { Text("Ghi chú: $it", color = AdminPrimary, fontSize = 13.sp) }
                 }
@@ -112,14 +119,26 @@ fun AdminOrderDetailScreen(
                 }
             }
             }
+            }
         }
         item {
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Tổng cộng", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text(order.total.vnd(), color = AdminPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            val subtotal = order.subtotal.takeIf { it > 0 } ?: order.items.sumOf { it.unitPrice * it.quantity }
+            Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("CHI TIẾT THANH TOÁN", color = AdminMuted, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    AdminPriceRow("Giá món", subtotal)
+                    if (order.vatAmount > 0) AdminPriceRow("Thuế GTGT", order.vatAmount)
+                    if (order.deliveryFee > 0) AdminPriceRow("Phí giao hàng", order.deliveryFee)
+                    if (order.serviceFee > 0) AdminPriceRow("Phí dịch vụ", order.serviceFee)
+                    if (order.discountAmount > 0) AdminPriceRow("Giảm giá", -order.discountAmount, AdminGreen)
+                    HorizontalDivider()
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Tổng khách phải trả", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(order.total.vnd(), color = AdminPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text("${order.paymentMethod.label} • ${if (order.paid) "Đã thanh toán" else "Chưa thanh toán"}", color = if (order.paid) AdminGreen else AdminAmber, fontSize = 13.sp)
+                }
             }
-            Text("${order.paymentMethod.label} • ${if (order.paid) "Đã thanh toán" else "Chưa thanh toán"}", color = if (order.paid) AdminGreen else AdminAmber, fontSize = 13.sp)
         }
         if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) {
             item {
@@ -178,6 +197,14 @@ fun AdminOrderDetailScreen(
                 ) { Text(if (order.paid) "Hoàn tất đơn" else "Đơn chưa thanh toán") }
             }
         }
+    }
+}
+
+@Composable
+private fun AdminPriceRow(label: String, amount: Long, color: androidx.compose.ui.graphics.Color = AdminMuted) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = AdminMuted, fontSize = 13.sp)
+        Text(amount.vnd(), color = color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 

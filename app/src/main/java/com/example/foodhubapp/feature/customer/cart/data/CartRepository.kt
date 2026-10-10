@@ -43,7 +43,12 @@ data class CartItem(
 
 data class Cart(
     val items: List<CartItem>,
-    val totalAmount: Long
+    val totalAmount: Long,
+    val subtotal: Long = totalAmount,
+    val vatAmount: Long = 0L,
+    val deliveryFee: Long = 0L,
+    val serviceFee: Long = 0L,
+    val discountAmount: Long = 0L,
 )
 
 data class CheckoutRequest(
@@ -254,7 +259,16 @@ internal fun parseCart(response: JsonObject): Cart {
     // Ưu tiên tổng do backend trả về vì backend quyết định sale/thuế; phép cộng chỉ là fallback.
     val total = container?.firstMoney("totalAmount", "total", "subtotal", "subTotal")
         ?: items.sumOf { it.subTotal }
-    return Cart(items, total)
+    val subtotal = container?.firstMoney("subtotal", "subTotal") ?: items.sumOf { it.subTotal }
+    return Cart(
+        items = items,
+        totalAmount = total,
+        subtotal = subtotal,
+        vatAmount = container?.firstMoney("vatAmount", "taxAmount", "vat") ?: 0L,
+        deliveryFee = container?.firstMoney("deliveryFee", "shippingFee") ?: 0L,
+        serviceFee = container?.firstMoney("serviceFee") ?: 0L,
+        discountAmount = container?.firstMoney("discountAmount", "discount") ?: 0L,
+    )
 }
 
 private fun parseCartItem(json: JsonObject): CartItem {

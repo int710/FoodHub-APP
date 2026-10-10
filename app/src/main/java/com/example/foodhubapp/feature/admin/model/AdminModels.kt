@@ -47,6 +47,7 @@ data class AdminOrderLine(
     val note: String? = null,
     val status: AdminItemStatus = AdminItemStatus.WAITING,
     val id: String = "",
+    val imageUrl: String? = null,
 )
 
 data class AdminOrder(
@@ -62,6 +63,11 @@ data class AdminOrder(
     val paymentMethod: AdminPaymentMethod,
     val paid: Boolean,
     val createdAtEpochMillis: Long = 0L,
+    val subtotal: Long = 0L,
+    val vatAmount: Long = 0L,
+    val deliveryFee: Long = 0L,
+    val serviceFee: Long = 0L,
+    val discountAmount: Long = 0L,
 )
 
 data class AdminMenuItem(
@@ -123,4 +129,9 @@ data class AdminRestaurantTable(
     val floor: String?,
     val isActive: Boolean,
     val note: String? = null,
+    val status: String = if (isActive) "AVAILABLE" else "INACTIVE",
+    val qrToken: String? = null,
+    val currentOrderCode: String? = null,
+    val currentOrderTotal: Long? = null,
+    val currentOrderCreatedAt: String? = null,
 )

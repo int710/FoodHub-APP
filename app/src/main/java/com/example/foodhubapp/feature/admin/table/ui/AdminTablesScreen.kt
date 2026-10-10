@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.admin.table.ui
 
 import com.example.foodhubapp.feature.admin.model.AdminRestaurantTable
+import com.example.foodhubapp.feature.admin.components.vnd
 import com.example.foodhubapp.feature.admin.navigation.AdminBackground
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
@@ -12,6 +13,7 @@ import com.example.foodhubapp.feature.admin.navigation.AdminGreen
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,8 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -54,6 +57,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -166,20 +170,22 @@ fun AdminTablesScreen() {
                 isLoading && tables.isEmpty() -> AdminTableLoading()
                 errorMessage != null && tables.isEmpty() -> AdminTableError(errorMessage.orEmpty(), ::reload)
                 tables.isEmpty() -> AdminTableEmpty { showCreateDialog = true }
-                else -> LazyColumn(
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
+                else -> Column(Modifier.fillMaxSize()) {
                     errorMessage?.let { message ->
-                        item {
                             Text(
-                                message,
-                                Modifier.fillMaxWidth().background(AdminRedSoft, RoundedCornerShape(8.dp)).padding(12.dp),
+                                message, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .background(AdminRedSoft, RoundedCornerShape(12.dp)).padding(12.dp),
                                 color = AdminRed,
                                 fontSize = 13.sp,
                             )
-                        }
                     }
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(170.dp),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                     items(tables, key = { it.id }) { table ->
                         AdminTableRow(
                             table = table,
@@ -194,6 +200,7 @@ fun AdminTablesScreen() {
                         )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
+                    }
                 }
             }
         }
@@ -317,31 +324,58 @@ private fun AdminTableRow(
     onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(8.dp)) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(48.dp).background(if (table.isActive) AdminGreenSoft else AdminRedSoft, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Default.TableRestaurant, null, tint = if (table.isActive) AdminGreen else AdminRed)
+    val occupied = table.status == "OCCUPIED"
+    val (statusLabel, statusBackground, statusColor) = when (table.status) {
+        "OCCUPIED" -> Triple("Đang có khách", Color(0xFFFFF0DA), Color(0xFFB45A00))
+        "INACTIVE" -> Triple("Tạm ngưng", AdminRedSoft, AdminRed)
+        else -> Triple("Bàn trống", AdminGreenSoft, AdminGreen)
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = AdminSurface),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, if (occupied) Color(0xFFFF9A3D) else Color(0xFFE7E2DE)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(table.name, Modifier.weight(1f), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Text(
+                    statusLabel,
+                    Modifier.background(statusBackground, RoundedCornerShape(20.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = statusColor, fontWeight = FontWeight.Bold, fontSize = 9.sp,
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(table.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Box(Modifier.size(7.dp).background(if (table.isActive) AdminGreen else AdminRed, CircleShape))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(table.floor ?: "Chưa đặt khu vực", Modifier.weight(1f), color = AdminMuted, fontSize = 11.sp, maxLines = 1)
+                Icon(Icons.Default.Chair, null, Modifier.size(14.dp), tint = AdminMuted)
+                Spacer(Modifier.width(4.dp))
+                Text("${table.capacity} khách", color = AdminMuted, fontSize = 11.sp)
+            }
+            Surface(color = Color(0xFFF9F8F7), shape = RoundedCornerShape(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    if (occupied && table.currentOrderCode != null) {
+                        Text("ĐƠN HIỆN TẠI", color = statusColor, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(table.currentOrderCode, Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
+                            table.currentOrderTotal?.let { Text(it.vnd(), color = AdminRed, fontWeight = FontWeight.Bold, fontSize = 11.sp) }
+                        }
+                    } else {
+                        Text(if (table.status == "INACTIVE") "Bàn đang tạm ngưng nhận phiên" else "Sẵn sàng tạo phiên QR mới", color = AdminMuted, fontSize = 10.sp)
+                        table.qrToken?.let { token ->
+                            Text("Token: ${token.take(18)}${if (token.length > 18) "…" else ""}", color = AdminMuted, fontSize = 9.sp, maxLines = 1)
+                        }
+                    }
                 }
-                Text(listOfNotNull(table.floor, "${table.capacity} chỗ").joinToString(" • "), color = AdminMuted, fontSize = 13.sp)
-                table.note?.let { Text(it, color = AdminMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
             if (isBusy) {
-                CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                FilledTonalButton(onClick = onQr) {
-                    Icon(Icons.Default.QrCode2, null, Modifier.size(18.dp))
+                Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(23.dp), strokeWidth = 2.dp)
+                }
+            } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onQr, Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
+                    Icon(Icons.Default.QrCode2, null, Modifier.size(17.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("QR")
+                    Text("Xem mã QR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "Tùy chọn bàn") }

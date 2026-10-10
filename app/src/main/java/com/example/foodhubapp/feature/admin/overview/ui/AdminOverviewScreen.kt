@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,7 +31,9 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.foodhubapp.feature.admin.navigation.AdminAmber
 import com.example.foodhubapp.feature.admin.navigation.AdminBlue
 import com.example.foodhubapp.feature.admin.chat.model.AdminConversation
@@ -113,24 +118,38 @@ fun AdminOverviewScreen(
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Bộ lọc thống kê", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = androidx.compose.ui.graphics.Color.White,
+                shadowElevation = 1.dp,
+            ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Bộ lọc", Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("${filteredOrders.size} đơn", color = AdminMuted, fontSize = 11.sp)
+                    if (period != AdminDashboardPeriod.TODAY || selectedType != null || paymentFilter != AdminPaymentFilter.ALL) {
+                        TextButton(onClick = {
+                            period = AdminDashboardPeriod.TODAY
+                            selectedType = null
+                            paymentFilter = AdminPaymentFilter.ALL
+                        }) { Text("Đặt lại", fontSize = 11.sp) }
+                    }
+                }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(AdminDashboardPeriod.entries) { option ->
                         FilterChip(period == option, { period = option }, { Text(option.label) })
                     }
                 }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     item { FilterChip(selectedType == null, { selectedType = null }, { Text("Mọi loại đơn") }) }
                     items(AdminOrderType.entries) { type ->
                         FilterChip(selectedType == type, { selectedType = type }, { Text(type.label) })
                     }
-                }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(AdminPaymentFilter.entries) { option ->
+                    items(AdminPaymentFilter.entries.filter { it != AdminPaymentFilter.ALL }) { option ->
                         FilterChip(paymentFilter == option, { paymentFilter = option }, { Text(option.label) })
                     }
                 }
+            }
             }
         }
         item {

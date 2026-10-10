@@ -137,6 +137,7 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
                 options = snapshot?.optArray("variantOptions")?.strings().orEmpty(),
                 note = item.optionalString("note"),
                 status = enumValueOrDefault(item.optString("status"), AdminItemStatus.WAITING),
+                imageUrl = snapshot?.optionalString("image") ?: item.optObject("menuItem")?.optionalString("image"),
             )
         },
         total = money("totalAmount"),
@@ -144,6 +145,11 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
         paymentMethod = enumValueOrDefault(payment?.optString("method").orEmpty(), AdminPaymentMethod.CASH),
         paid = payment?.optString("status") == "PAID" || !optionalString("paidAt").isNullOrBlank(),
         createdAtEpochMillis = createdInstant?.toEpochMilli() ?: 0L,
+        subtotal = money("subtotal"),
+        vatAmount = money("vatAmount"),
+        deliveryFee = money("deliveryFee"),
+        serviceFee = money("serviceFee"),
+        discountAmount = money("discountAmount"),
     )
 }
 

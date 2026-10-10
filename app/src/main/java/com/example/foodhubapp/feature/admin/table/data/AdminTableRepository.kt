@@ -125,6 +125,7 @@ class AdminTableRepository internal constructor(
 
     private fun JsonObject.toAdminTable(): AdminRestaurantTable? {
         val id = firstString("id", "_id", "tableId") ?: return null
+        val currentOrder = optObject("currentOrder")
         return AdminRestaurantTable(
             id = id,
             name = firstString("name", "tableName") ?: "Bàn",
@@ -132,6 +133,11 @@ class AdminTableRepository internal constructor(
             floor = firstString("floor"),
             isActive = if (has("isActive")) optBoolean("isActive") else true,
             note = firstString("note"),
+            status = firstString("status") ?: if (optBoolean("isActive", true)) "AVAILABLE" else "INACTIVE",
+            qrToken = firstString("qrToken"),
+            currentOrderCode = currentOrder?.firstString("orderCode"),
+            currentOrderTotal = currentOrder?.firstMoney("totalAmount"),
+            currentOrderCreatedAt = currentOrder?.firstString("createdAt"),
         )
     }
 
@@ -142,5 +148,9 @@ class AdminTableRepository internal constructor(
 
     private fun JsonObject.firstArray(vararg keys: String): JsonArray? =
         keys.firstNotNullOfOrNull { key -> optArray(key) }
+
+    private fun JsonObject.firstMoney(vararg keys: String): Long? = keys.firstNotNullOfOrNull { key ->
+        if (!has(key) || isNull(key)) null else opt(key)?.toString()?.toBigDecimalOrNull()?.toLong()
+    }
 
 }
