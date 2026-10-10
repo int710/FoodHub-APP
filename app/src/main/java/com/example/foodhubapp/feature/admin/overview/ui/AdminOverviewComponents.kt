@@ -42,10 +42,10 @@ import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
 
 @Composable
 internal fun AdminMetric(title: String, value: String, caption: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(8.dp)) {
+    Card(modifier, colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp).background(color.copy(alpha = 0.12f), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(34.dp).background(color.copy(alpha = 0.12f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
                     Icon(icon, null, Modifier.size(18.dp), tint = color)
                 }
                 Spacer(Modifier.weight(1f))
@@ -59,7 +59,7 @@ internal fun AdminMetric(title: String, value: String, caption: String, icon: Im
 
 @Composable
 internal fun AdminInsightCard(title: String, rows: List<Triple<String, String, Float>>) {
-    Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(10.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             rows.forEach { (label, value, progress) ->
@@ -83,7 +83,7 @@ internal fun AdminInsightCard(title: String, rows: List<Triple<String, String, F
 @Composable
 internal fun AdminAlert(title: String, message: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().background(AdminAmberSoft, RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(14.dp),
+        Modifier.fillMaxWidth().background(AdminAmberSoft, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Default.WarningAmber, null, tint = AdminAmber)

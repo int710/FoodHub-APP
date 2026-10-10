@@ -423,7 +423,7 @@ private fun CartItemRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(18.dp),
         color = CeramicSurface,
         border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)
     ) {

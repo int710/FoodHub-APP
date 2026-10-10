@@ -232,13 +232,13 @@ private fun HomeHeader(
     tableSession: TableSession?,
     selectedType: CartType,
 ) {
-    Surface(color = AppBackground.copy(alpha = .96f), shadowElevation = 2.dp) {
+    Surface(color = PrimaryContainer, contentColor = Color.White, shadowElevation = 4.dp) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("FoodHub", color = Brand, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("FoodHub", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 21.sp)
                 Text(
                     tableSession?.let { "${it.tableName}${it.floor?.let { floor -> " · $floor" }.orEmpty()}" }
                         ?: when (selectedType) {
@@ -246,7 +246,7 @@ private fun HomeHeader(
                             CartType.TAKEAWAY -> "Khách mang về"
                             CartType.DINE_IN -> "Dùng tại bàn"
                         },
-                    color = OnSurfaceVariant,
+                    color = Color.White.copy(alpha = .78f),
                     fontSize = 10.sp,
                     maxLines = 1,
                 )
@@ -279,7 +279,7 @@ private fun HomeHeader(
 
 @Composable
 private fun HeaderButton(description: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Surface(shape = CircleShape, color = InputBackground) {
+    Surface(shape = CircleShape, color = Color.White.copy(alpha = .15f), contentColor = Color.White) {
         IconButton(
             onClick = onClick,
             modifier = Modifier.size(44.dp).semantics { contentDescription = description }
@@ -307,7 +307,7 @@ private fun OrderingContext(
         CartType.TAKEAWAY -> if (isLoggedIn) "Nhận tại quầy" else "Khách vãng lai · Không cần đăng nhập"
         CartType.DELIVERY -> "Giao đến địa chỉ của bạn"
     }
-    Surface(shape = RoundedCornerShape(12.dp), color = Color.White, shadowElevation = 1.dp) {
+    Surface(shape = RoundedCornerShape(18.dp), color = Color.White, shadowElevation = 2.dp) {
         Row(Modifier.fillMaxWidth().clickable { showDialog = true }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(SuccessSoft, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(
@@ -361,7 +361,7 @@ private fun OrderModeChoice(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(18.dp),
         color = if (selected) BrandSoft.copy(alpha = .45f) else Color.White,
         border = androidx.compose.foundation.BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Brand else Color(0xFFE4E0DE)),
     ) {
@@ -400,7 +400,7 @@ private fun SearchRow(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
@@ -412,7 +412,7 @@ private fun SearchRow(
             FilledIconButton(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.size(52.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = if (maxPrice == null) PrimaryContainer else Brand
                 )
@@ -441,7 +441,7 @@ private fun SearchRow(
 private fun DiscoveryBanner(onMenuClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(24.dp),
         color = PrimaryContainer,
         shadowElevation = 4.dp
     ) {
@@ -543,7 +543,7 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
         items(foods, key = { "popular:${it.id}" }) { food ->
             Surface(
                 modifier = Modifier.width(174.dp).clickable(enabled = food.available) { onFoodClick(food.id) },
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = Color.White,
                 shadowElevation = 1.dp
             ) {
@@ -572,7 +572,7 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
 private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoodClick: (String) -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = food.available) { onFoodClick(food.id) },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(18.dp),
         color = Color.White,
         shadowElevation = 1.dp
     ) {

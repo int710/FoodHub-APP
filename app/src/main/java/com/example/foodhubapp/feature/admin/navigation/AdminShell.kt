@@ -37,6 +37,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -68,15 +70,20 @@ import com.example.foodhubapp.feature.shared.notification.ui.NotificationScreen
 import com.example.foodhubapp.feature.shared.notification.viewmodel.NotificationViewModel
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.payment.ZaloPayLaunchDialog
+import com.example.foodhubapp.feature.admin.components.AdminAvatar
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-internal val AdminPrimary = Color(0xFFA73400)
-internal val AdminPrimarySoft = Color(0xFFFFDBD0)
-internal val AdminBackground = Color(0xFFF8F9FF)
+internal val AdminPrimary = Color(0xFF0BAA62)
+internal val AdminPrimarySoft = Color(0xFFDDF8EA)
+internal val AdminBackground = Color(0xFFF7FAF8)
 internal val AdminSurface = Color.White
-internal val AdminBorder = Color(0xFFE5E8F0)
-internal val AdminText = Color(0xFF181C22)
-internal val AdminMuted = Color(0xFF5B4138)
-internal val AdminGreen = Color(0xFF006947)
+internal val AdminBorder = Color(0xFFDCE8E1)
+internal val AdminText = Color(0xFF16251E)
+internal val AdminMuted = Color(0xFF607069)
+internal val AdminGreen = Color(0xFF087A55)
 internal val AdminGreenSoft = Color(0xFFD9FBEA)
 internal val AdminAmber = Color(0xFF6A4800)
 internal val AdminAmberSoft = Color(0xFFFFDEAC)
@@ -191,6 +198,8 @@ fun AdminApp(onLogout: () -> Unit) {
             topBar = {
                 AdminTopBar(
                     title = title,
+                    userName = adminUser?.fullName.orEmpty(),
+                    showGreeting = isTopLevel,
                     showBack = !isTopLevel,
                     unreadNotifications = notificationState.unreadCount,
                     onBack = navController::popBackStack,
@@ -317,9 +326,10 @@ fun AdminApp(onLogout: () -> Unit) {
                         onRefresh = notificationViewModel::refresh,
                         onUnreadOnlyChange = notificationViewModel::setUnreadOnly,
                         onNotificationClick = { notification ->
-                            if (!notification.isRead) notificationViewModel.markAsRead(notification)
-                            notification.orderId?.let { orderId ->
-                                navController.navigate("admin/order/$orderId")
+                            notificationViewModel.markAsRead(notification) {
+                                notification.orderId?.let { orderId ->
+                                    navController.navigate("admin/order/$orderId")
+                                }
                             }
                         },
                         onMarkAllRead = notificationViewModel::markAllAsRead,
@@ -335,14 +345,36 @@ fun AdminApp(onLogout: () -> Unit) {
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 private fun AdminTopBar(
     title: String,
+    userName: String,
+    showGreeting: Boolean,
     showBack: Boolean,
     unreadNotifications: Int,
     onBack: () -> Unit,
     onNotifications: () -> Unit,
     onProfile: () -> Unit,
 ) {
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalDateTime.now()
+            delay(30_000L)
+        }
+    }
+    val greeting = when (now.hour) {
+        in 5..10 -> "Chào buổi sáng"
+        in 11..13 -> "Chào buổi trưa"
+        in 14..17 -> "Chào buổi chiều"
+        else -> "Chào buổi tối"
+    }
+    val displayName = userName.trim().substringBefore(' ').takeIf(String::isNotBlank) ?: "FoodHub"
+    val timeLabel = now.format(DateTimeFormatter.ofPattern("HH:mm · EEEE, dd/MM", Locale.forLanguageTag("vi-VN")))
     TopAppBar(
-        title = { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+        title = {
+            androidx.compose.foundation.layout.Column {
+                Text(if (showGreeting) "$greeting, $displayName" else title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(if (showGreeting) timeLabel else "FoodHub Admin", fontSize = 11.sp, color = AdminMuted, fontWeight = FontWeight.Normal)
+            }
+        },
         navigationIcon = {
             if (showBack) {
                 IconButton(onClick = onBack) {
@@ -360,13 +392,7 @@ private fun AdminTopBar(
                     }
                 } else Icon(Icons.Default.Notifications, "Thông báo")
             }
-            Box(
-                Modifier.padding(end = 12.dp).size(36.dp).background(AdminPrimary, CircleShape)
-                    .clickable(onClick = onProfile),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("AD", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
+            Box(Modifier.padding(end = 12.dp).clickable(onClick = onProfile)) { AdminAvatar(userName.ifBlank { "Admin" }) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = AdminSurface),
     )

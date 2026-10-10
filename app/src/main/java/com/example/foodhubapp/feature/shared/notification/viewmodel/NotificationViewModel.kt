@@ -71,8 +71,12 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
         refresh()
     }
 
-    fun markAsRead(notification: FoodHubNotification) {
-        if (notification.isRead || state.value.busyId != null) return
+    fun markAsRead(notification: FoodHubNotification, onMarked: () -> Unit = {}) {
+        if (notification.isRead) {
+            onMarked()
+            return
+        }
+        if (state.value.busyId != null) return
         state.update { it.copy(busyId = notification.id, errorMessage = null) }
         viewModelScope.launch {
             try {
@@ -90,6 +94,7 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                         busyId = null,
                     )
                 }
+                onMarked()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

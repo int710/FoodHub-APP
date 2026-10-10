@@ -101,9 +101,7 @@ fun AppNavGraph(
                 onSplashFinished = { isAuthenticated ->
                     coroutineScope.launch {
                         val nextRoute = when {
-                            !isAuthenticated && !onboardingStore.hasCompleted() -> AppRoutes.Onboarding
-                            !isAuthenticated -> AppRoutes.Home
-                            tokenStore.getUser()?.role.equals("ADMIN", ignoreCase = true) -> AppRoutes.Admin
+                            isAuthenticated && tokenStore.getUser()?.role.equals("ADMIN", ignoreCase = true) -> AppRoutes.Admin
                             else -> AppRoutes.Home
                         }
 

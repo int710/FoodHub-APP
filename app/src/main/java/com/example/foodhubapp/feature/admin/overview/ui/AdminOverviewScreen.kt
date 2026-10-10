@@ -83,7 +83,7 @@ fun AdminOverviewScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item {
-            Text("Chào buổi trưa, FoodHub", fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("Tổng quan vận hành", fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CalendarToday, null, Modifier.size(15.dp), tint = AdminMuted)
                 Spacer(Modifier.width(6.dp))

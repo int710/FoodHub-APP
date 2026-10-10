@@ -60,7 +60,7 @@ internal fun AdminSearchField(value: String, onValueChange: (String) -> Unit, pl
         leadingIcon = { Icon(Icons.Default.Search, null) },
         placeholder = { Text(placeholder) },
         singleLine = true,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
     )
 }
 

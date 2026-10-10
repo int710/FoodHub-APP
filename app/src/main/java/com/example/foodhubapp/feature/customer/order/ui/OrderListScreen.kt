@@ -340,7 +340,7 @@ private fun OrderFilterChip(label: String, icon: ImageVector, selected: Boolean,
         onClick = onClick,
         label = { Text(label, fontSize = 12.sp) },
         leadingIcon = { Icon(icon, null, Modifier.size(16.dp)) },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = FilterChipDefaults.filterChipColors(
             containerColor = Color.White,
             labelColor = OnSurfaceVariant,

@@ -70,8 +70,7 @@ fun NotificationRoute(
         onRefresh = viewModel::refresh,
         onUnreadOnlyChange = viewModel::setUnreadOnly,
         onNotificationClick = { notification ->
-            if (!notification.isRead) viewModel.markAsRead(notification)
-            onOpenOrder(notification.orderId)
+            viewModel.markAsRead(notification) { onOpenOrder(notification.orderId) }
         },
         onMarkAllRead = viewModel::markAllAsRead,
     )
@@ -162,7 +161,7 @@ fun NotificationScreen(
 private fun NotificationRow(notification: FoodHubNotification, isBusy: Boolean, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .background(if (notification.isRead) Color.White else BrandSoft, RoundedCornerShape(8.dp))
+            .background(if (notification.isRead) Color.White else BrandSoft, RoundedCornerShape(18.dp))
             .clickable(enabled = !isBusy, onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.Top,
