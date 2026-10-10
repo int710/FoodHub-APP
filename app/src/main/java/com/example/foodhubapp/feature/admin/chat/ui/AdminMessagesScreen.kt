@@ -29,6 +29,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,10 +45,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.admin.chat.model.AdminConversation
+import com.example.foodhubapp.feature.admin.chat.model.isTableSession
 import com.example.foodhubapp.feature.admin.navigation.AdminGreen
 import com.example.foodhubapp.feature.admin.navigation.AdminGreenSoft
 import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
+import com.example.foodhubapp.feature.admin.navigation.AdminPrimarySoft
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
 import com.example.foodhubapp.feature.admin.navigation.AdminBorder
 import com.example.foodhubapp.feature.admin.navigation.AdminText
@@ -55,10 +59,16 @@ import com.example.foodhubapp.feature.admin.navigation.AdminText
 fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var unreadOnly by remember { mutableStateOf(false) }
+    var tableOnly by remember { mutableStateOf(false) }
     val filtered = conversations.filter {
-        (!unreadOnly || it.unread > 0) && (query.isBlank() || it.customer.contains(query, true) || it.lastMessage.contains(query, true))
+        (!unreadOnly || it.unread > 0) && (!tableOnly || it.isTableSession) &&
+            (query.isBlank() || it.customer.contains(query, true) || it.lastMessage.contains(query, true))
     }
     Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Text("Hộp thư hỗ trợ", color = AdminText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Mỗi tài khoản và mỗi phiên QR là một hội thoại riêng.", color = AdminMuted, fontSize = 12.sp)
+        }
         Row(
             Modifier.fillMaxWidth().background(AdminGreenSoft).padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -71,8 +81,9 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
         }
         AdminSearchField(query, { query = it }, "Tìm khách hàng hoặc nội dung", Modifier.padding(16.dp))
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(!unreadOnly, { unreadOnly = false }, { Text("Tất cả") })
-            FilterChip(unreadOnly, { unreadOnly = true }, { Text("Chưa đọc") })
+            FilterChip(!unreadOnly && !tableOnly, { unreadOnly = false; tableOnly = false }, { Text("Tất cả") })
+            FilterChip(tableOnly, { tableOnly = !tableOnly; if (tableOnly) unreadOnly = false }, { Text("Phiên bàn") })
+            FilterChip(unreadOnly, { unreadOnly = !unreadOnly; if (unreadOnly) tableOnly = false }, { Text("Chưa đọc") })
         }
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (filtered.isEmpty()) {
@@ -110,6 +121,19 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
     ) {
         Box {
             AdminAvatar(conversation.customer)
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd).size(19.dp),
+                color = if (conversation.isTableSession) AdminPrimarySoft else AdminGreenSoft,
+                shape = CircleShape,
+                border = BorderStroke(2.dp, AdminSurface),
+            ) {
+                Icon(
+                    if (conversation.isTableSession) Icons.Default.TableRestaurant else Icons.Default.PersonOutline,
+                    null,
+                    Modifier.padding(3.dp),
+                    tint = if (conversation.isTableSession) AdminPrimary else AdminGreen,
+                )
+            }
             if (conversation.isOnline) Box(Modifier.align(Alignment.BottomEnd).size(11.dp).background(
                 AdminGreen, CircleShape))
         }
@@ -119,7 +143,10 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
                 Text(conversation.customer, fontWeight = if (conversation.unread > 0) FontWeight.Bold else FontWeight.Medium)
                 Text(conversation.time, color = AdminMuted, fontSize = 11.sp)
             }
-            conversation.orderCode?.let { Text("Đơn #$it", color = AdminPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(conversation.contextLabel, color = if (conversation.isTableSession) AdminPrimary else AdminGreen, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                conversation.orderCode?.let { Text("#$it", color = AdminMuted, fontSize = 10.sp) }
+            }
             Text(conversation.lastMessage, color = if (conversation.unread > 0) AdminText else AdminMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (conversation.unread > 0) {

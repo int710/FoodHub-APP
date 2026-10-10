@@ -30,5 +30,11 @@ data class ConversationDto(
     val lastMessageSenderId: String?,
 
     @SerializedName("assignedHostId", alternate = ["assignHostId"])
-    val assignedHostId: String?
+    val assignedHostId: String?,
+
+    @SerializedName("conversationType")
+    val conversationType: String?,
+
+    @SerializedName("contextLabel")
+    val contextLabel: String?,
 )

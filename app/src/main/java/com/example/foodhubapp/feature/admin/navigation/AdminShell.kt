@@ -309,10 +309,7 @@ fun AdminApp(onLogout: () -> Unit) {
                     if (conversation != null) {
                         AdminChatDetailScreen(
                             conversation = conversation,
-                            onClose = {
-                                conversationViewModel.close(conversation.id)
-                                navController.popBackStack()
-                            },
+                            onClose = { navController.popBackStack() },
                         )
                     }
                 }

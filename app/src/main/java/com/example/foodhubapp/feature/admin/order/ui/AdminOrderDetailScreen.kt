@@ -140,13 +140,15 @@ fun AdminOrderDetailScreen(
                 }
             }
         }
-        if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) {
+        if (order.paymentMethod in setOf(AdminPaymentMethod.CASH, AdminPaymentMethod.ZALOPAY) && !order.paid) {
             item {
                 OutlinedButton(
                     onClick = { onConvertToZaloPay(order) },
                     enabled = busyId == null,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("Tạo QR ZaloPay cho khách") }
+                ) {
+                    Text(if (order.paymentMethod == AdminPaymentMethod.ZALOPAY) "Mở lại QR ZaloPay" else "Tạo QR ZaloPay cho khách")
+                }
             }
         }
         item { AdminSectionHeader("Tiến độ đơn hàng") }

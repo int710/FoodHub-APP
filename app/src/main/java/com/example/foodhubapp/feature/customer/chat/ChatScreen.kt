@@ -60,7 +60,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.customer.table.BurntOrange
-import com.example.foodhubapp.feature.customer.table.GlyphCircle
 import com.example.foodhubapp.feature.customer.table.Green
 import com.example.foodhubapp.feature.customer.table.Ink
 import com.example.foodhubapp.feature.customer.table.Label
@@ -440,7 +439,12 @@ private fun SystemMessage(tableName: String, state: ChatConnectionState) {
         Modifier.fillMaxWidth().padding(horizontal = 14.dp)
             .background(Color(0xFFF0F3FF), RoundedCornerShape(17.dp)).padding(12.dp),
     ) {
-        GlyphCircle("▣", 25.dp, Color(0xFFFFE9AE), Color(0xFF896000), 15.sp)
+        Box(
+            Modifier.size(28.dp).background(Color(0xFFFFE9AE), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = Color(0xFF896000))
+        }
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Label("HỆ THỐNG FOODHUB", 10.sp, Color(0xFF9B6514), bold = true)
             Label(if (state == ChatConnectionState.CONNECTED) "Kênh hỗ trợ của $tableName đã kết nối với quản lý FoodHub." else "Đang chờ kết nối với quản lý FoodHub.", 12.sp)
@@ -465,7 +469,12 @@ private fun SentMessage(message: String, time: String) {
 private fun StaffMessage(message: ChatMessage) {
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            GlyphCircle("♙", 30.dp, Color(0xFFD2E7DA), Color(0xFF537257), 16.sp)
+            Box(
+                Modifier.size(32.dp).background(Color(0xFFD2E7DA), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.HeadsetMic, null, Modifier.size(18.dp), tint = Color(0xFF537257))
+            }
             Label(
                 if (message.senderRole.equals("admin", true)) "Quản lý FoodHub" else "Nhân viên phục vụ",
                 11.sp,
@@ -512,10 +521,10 @@ private fun QuickReply(text: String, onClick: () -> Unit) {
 }
 
 private fun connectionLabel(state: ChatConnectionState): String = when (state) {
-    ChatConnectionState.CONNECTING -> "● Đang kết nối..."
-    ChatConnectionState.CONNECTED -> "● Đã kết nối trực tiếp"
-    ChatConnectionState.DISCONNECTED -> "● Mất kết nối, đang thử lại"
-    ChatConnectionState.ERROR -> "● Không thể kết nối"
+    ChatConnectionState.CONNECTING -> "Đang kết nối..."
+    ChatConnectionState.CONNECTED -> "Đã kết nối trực tiếp"
+    ChatConnectionState.DISCONNECTED -> "Mất kết nối, đang thử lại"
+    ChatConnectionState.ERROR -> "Không thể kết nối"
 }
 
 private fun formatMessageTime(value: String): String {

@@ -25,6 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilledIconButton
@@ -53,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.admin.chat.AdminChatSocketClient
 import com.example.foodhubapp.feature.admin.chat.model.AdminConversation
+import com.example.foodhubapp.feature.admin.chat.model.isTableSession
 import com.example.foodhubapp.feature.admin.components.AdminAvatar
 import com.example.foodhubapp.feature.admin.navigation.AdminBackground
 import com.example.foodhubapp.feature.admin.navigation.AdminBorder
@@ -109,24 +113,34 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
     Column(Modifier.fillMaxSize().background(AdminBackground).imePadding()) {
         Surface(color = AdminSurface, shadowElevation = 2.dp) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.IconButton(onClick = onClose) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại", tint = AdminText)
+                }
                 AdminAvatar(conversation.customer)
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
                     Text(conversation.customer, color = AdminText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(7.dp).background(connectionColor(connectionState), CircleShape))
                         Spacer(Modifier.width(6.dp))
-                        Text(connectionText(connectionState), color = connectionColor(connectionState), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        Text("${conversation.contextLabel} · ${connectionText(connectionState)}", color = connectionColor(connectionState), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Surface(color = if (conversation.isTableSession) AdminPrimarySoft else AdminGreenSoft, shape = RoundedCornerShape(9.dp)) {
+                    Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (conversation.isTableSession) Icons.Default.TableRestaurant else Icons.Default.PersonOutline,
+                            null,
+                            Modifier.size(14.dp),
+                            tint = if (conversation.isTableSession) AdminPrimary else AdminGreen,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (conversation.isTableSession) "Bàn" else "Tài khoản", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 conversation.orderCode?.let {
                     Surface(color = AdminPrimarySoft, shape = RoundedCornerShape(8.dp)) {
                         Text("#$it", Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = AdminPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
-                }
-                TextButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Đóng", fontSize = 12.sp)
                 }
             }
         }

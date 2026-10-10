@@ -56,6 +56,8 @@ internal fun JsonObject.toAdminConversation() = AdminConversation(
     unread = if (optString("lastMessageSenderId") != optString("assignedHostId")) 1 else 0,
     isOnline = true,
     orderCode = optString("orderCode").takeIf(String::isNotBlank),
+    conversationType = optString("conversationType", "USER"),
+    contextLabel = optString("contextLabel", "Tài khoản khách hàng"),
 )
 
 private fun formatConversationTime(value: String): String = runCatching {

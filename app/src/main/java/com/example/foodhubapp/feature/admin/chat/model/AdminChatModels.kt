@@ -8,7 +8,12 @@ data class AdminConversation(
     val unread: Int,
     val isOnline: Boolean,
     val orderCode: String? = null,
+    val conversationType: String = "USER",
+    val contextLabel: String = "Tài khoản khách hàng",
 )
+
+val AdminConversation.isTableSession: Boolean
+    get() = conversationType.equals("TABLE", ignoreCase = true)
 
 data class AdminUiMessage(
     val id: String,
