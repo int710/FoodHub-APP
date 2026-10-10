@@ -1,10 +1,11 @@
 package com.example.foodhubapp.feature.shared.payment
 
+import com.example.foodhubapp.core.network.*
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import org.json.JSONObject
+import com.google.gson.JsonObject
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -16,7 +17,7 @@ fun PaymentDetailButton(orderId: String) {
     var retry by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var detail by remember { mutableStateOf<JSONObject?>(null) }
+    var detail by remember { mutableStateOf<JsonObject?>(null) }
     TextButton({ open = true }) { Text("Chi tiết thanh toán") }
     if (open) {
         LaunchedEffect(orderId, retry) {

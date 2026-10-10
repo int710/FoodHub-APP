@@ -1,5 +1,6 @@
 package com.example.foodhubapp
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
@@ -7,7 +8,6 @@ import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
 
@@ -34,7 +34,7 @@ class ReviewRepositoryTest {
         assertEquals("POST", request.method)
         assertEquals("/api/v1/reviews/feedback", request.path)
         assertEquals("Bearer token", request.getHeader("Authorization"))
-        val body = JSONObject(request.body.readUtf8())
+        val body = parseJsonObject(request.body.readUtf8())
         assertEquals("order1", body.getString("orderId"))
         assertEquals("food1", body.getString("menuItemId"))
         assertEquals(5, body.getInt("rating"))

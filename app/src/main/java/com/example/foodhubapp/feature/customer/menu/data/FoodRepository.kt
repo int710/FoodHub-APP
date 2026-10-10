@@ -1,6 +1,6 @@
 package com.example.foodhubapp.feature.customer.menu.data
 
-import com.example.foodhubapp.core.network.FoodHubApiClient
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.customer.menu.ui.FoodOption
@@ -8,8 +8,8 @@ import com.example.foodhubapp.feature.customer.menu.ui.FoodOptionGroup
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.net.URLEncoder
@@ -74,7 +74,7 @@ interface FoodRepository {
  * Lớp thực thi kết nối API thực tế [FoodRepository] qua [FoodHubApiClient].
  */
 class RemoteFoodRepository(
-    private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient,
     private val cartType: () -> CartType = { CartType.TAKEAWAY },
     private val tableToken: () -> String? = { null },
     private val accessToken: suspend () -> String? = { null },
@@ -84,12 +84,12 @@ class RemoteFoodRepository(
      * Tải danh sách toàn bộ danh mục và món ăn từ API /menu/all.
      */
     override suspend fun getMenu(): List<MenuCategory> = withContext(Dispatchers.IO) {
-        val data = apiClient.getJson("/menu/all").getJSONArray("data")
+        val data = apiClient.execute(apiClient.menuApi.getMenu()).getArray("data")
         data.objects().map { category ->
             MenuCategory(
                 id = category.getString("id"),
                 name = category.getString("name"),
-                items = category.getJSONArray("items").objects().map { item ->
+                items = category.getArray("items").objects().map { item ->
                     MenuFood(
                         id = item.getString("id"),
                         name = item.getString("name"),
@@ -113,19 +113,27 @@ class RemoteFoodRepository(
         require(id.isNotBlank()) { "ID món ăn không được để trống" }
         // Mã hóa URL đường dẫn ID để tránh ký tự đặc biệt
         val encodedId = URLEncoder.encode(id, "UTF-8")
-        val responseJson = apiClient.getJson("/menu/item/$encodedId").getJSONObject("data")
+        val responseJson = apiClient.execute(
+            apiClient.menuApi.getFood(
+                id = encodedId
+            )
+        ).getObject("data")
         parseFoodDetail(responseJson)
     }
 
     override suspend fun getReviews(id: String): List<FoodReview> = withContext(Dispatchers.IO) {
         val encodedId = URLEncoder.encode(id, "UTF-8")
-        val response = apiClient.getJson("/reviews/items/$encodedId?page=1&limit=20")
-        val payload = response.optJSONArray("data")
-            ?: response.optJSONObject("data")?.optJSONArray("data") ?: JSONArray()
+        val response = apiClient.execute(
+            apiClient.reviewApi.getReviews(
+                id = encodedId
+            )
+        )
+        val payload = response.optArray("data")
+            ?: response.optObject("data")?.optArray("data") ?: JsonArray()
         payload.objects().map { review ->
             FoodReview(
                 id = review.optString("id", review.optString("_id")),
-                customerName = review.optJSONObject("customer")?.optString("name")
+                customerName = review.optObject("customer")?.optString("name")
                     ?.takeIf(String::isNotBlank) ?: "Khách hàng",
                 rating = review.optInt("rating", 0),
                 comment = review.optionalString("comment").orEmpty(),
@@ -156,28 +164,30 @@ class RemoteFoodRepository(
         }
 
         // Tạo JSON body gửi lên API /cart/TAKEAWAY/items/add
-        val bodyJson = JSONObject()
+        val bodyJson = JsonObject()
             .put("menuItemId", selection.menuItemId)
             .put("quantity", selection.quantity)
-            .put("variantOptionIds", JSONArray(selection.variantOptionIds))
+            .put("variantOptionIds", jsonArray(selection.variantOptionIds))
             .put("note", selection.note)
 
-        apiClient.post(
-            path = "/cart/${type.name}/items/add",
-            body = bodyJson,
-            headers = headers,
+        apiClient.execute(
+            apiClient.cartApi.addItem(
+                type = type.name,
+                headers = headers,
+                body = bodyJson
+            )
         )
         Unit
     }
 }
 
 /**
- * Hàm hỗ trợ phân tích dữ liệu [JSONObject] trả về từ server thành đối tượng [FoodDetail].
+ * Hàm hỗ trợ phân tích dữ liệu [JsonObject] trả về từ server thành đối tượng [FoodDetail].
  * Xử lý nhóm tùy chọn (Size, Topping) và tính toán giá khuyến mãi Flash Sale nếu có.
  */
-fun parseFoodDetail(data: JSONObject, now: Long = System.currentTimeMillis()): FoodDetail {
+fun parseFoodDetail(data: JsonObject, now: Long = System.currentTimeMillis()): FoodDetail {
     // 1. Parse danh sách các nhóm tùy chọn (Variant Groups: Size, Topping)
-    val groups = data.optJSONArray("variantGroups")?.objects().orEmpty().map { group ->
+    val groups = data.optArray("variantGroups")?.objects().orEmpty().map { group ->
         val type = group.getString("type")
         require(type == "SINGLE" || type == "MULTIPLE") { "Loại tùy chọn món không được hỗ trợ." }
 
@@ -186,7 +196,7 @@ fun parseFoodDetail(data: JSONObject, now: Long = System.currentTimeMillis()): F
             name = group.getString("name"),
             multiple = type == "MULTIPLE",
             required = group.getBoolean("isRequired"),
-            options = group.getJSONArray("options").objects()
+            options = group.getArray("options").objects()
                 .filter { it.optBoolean("isActive", true) } // Chỉ lấy các tùy chọn đang hoạt động
                 .map { FoodOption(it.getString("id"), it.getString("name"), it.money("priceAdd")) }
         )
@@ -195,7 +205,7 @@ fun parseFoodDetail(data: JSONObject, now: Long = System.currentTimeMillis()): F
     val basePrice = data.money("basePrice")
     
     // 2. Kiểm tra chương trình Flash Sale (nếu có và còn thời hạn hoạt động)
-    val sale = data.optJSONObject("flashSale")
+    val sale = data.optObject("flashSale")
     val discount = sale?.optString("discountPercent")?.toBigDecimalOrNull()
 
     val salePrice = if (
@@ -243,15 +253,15 @@ private fun timestamp(value: String): Long? {
     return null
 }
 
-/** Extension biến [JSONArray] thành [List<JSONObject>] để dễ duyệt danh sách. */
-private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
+/** Extension biến [JsonArray] thành [List<JsonObject>] để dễ duyệt danh sách. */
+private fun JsonArray.objects(): List<JsonObject> = (0 until size()).map { getObject(it) }
 
-/** Extension lấy chuỗi [String?] an toàn từ [JSONObject]. */
-private fun JSONObject.optionalString(key: String): String? =
+/** Extension lấy chuỗi [String?] an toàn từ [JsonObject]. */
+private fun JsonObject.optionalString(key: String): String? =
     if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
 
 /** Extension chuyển đổi giá tiền từ JSON sang kiểu số nguyên [Long] dùng [BigDecimal] để đảm bảo độ chính xác. */
-private fun JSONObject.money(key: String): Long = BigDecimal(get(key).toString()).longValueExact()
+private fun JsonObject.money(key: String): Long = BigDecimal(getString(key)).longValueExact()
 
 /** Extension lấy giá tiền [Long?] không bắt buộc. */
-private fun JSONObject.optionalMoney(key: String): Long? = if (isNull(key)) null else money(key)
+private fun JsonObject.optionalMoney(key: String): Long? = if (isNull(key)) null else money(key)

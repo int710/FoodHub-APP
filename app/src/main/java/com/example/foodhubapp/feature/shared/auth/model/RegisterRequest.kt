@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.shared.auth.model
 
-import org.json.JSONObject
+import com.example.foodhubapp.core.network.*
+import com.google.gson.JsonObject
 
 data class RegisterRequest(
     val fullName: String,
@@ -9,8 +10,8 @@ data class RegisterRequest(
     val password: String,
     val confirmPassword: String
 ) {
-    fun toJson(): JSONObject {
-        return JSONObject()
+    fun toJson(): JsonObject {
+        return JsonObject()
             .put("name", fullName)
             .put("phone", phoneNumber)
             .put("email", email)

@@ -1,16 +1,12 @@
 package com.example.foodhubapp.feature.customer.profile.data
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.datastore.TokenStore
-import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.customer.profile.model.ProfileUiModel
 import com.example.foodhubapp.feature.customer.profile.model.previewProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-
-// Đường dẫn API lấy thông tin profile người dùng trên server
-private const val PROFILE_ENDPOINT = "/user/me"
-
+import com.google.gson.JsonObject
 
 /**
  * Giao diện  định nghĩa các hàm thao tác dữ liệu liên quan đến Profile.
@@ -26,26 +22,31 @@ interface ProfileRepository {
  * Kết hợp sử dụng [TokenStore] để lấy Access Token xác thực người dùng.
  */
 class RemoteProfileRepository(
-    private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient,
     private val tokenStore: TokenStore
 ) : ProfileRepository {
 
     override suspend fun updateProfile(name: String, phone: String?): Result<ProfileUiModel> = withContext(Dispatchers.IO) {
         runCatching {
             val token = tokenStore.getAccessToken() ?: error("Bạn cần đăng nhập lại")
-            val response = apiClient.patch(
-                "/user/me",
-                JSONObject().put("name", name.trim()).put("phone", phone?.trim()?.takeIf(String::isNotBlank) ?: JSONObject.NULL),
-                mapOf("Authorization" to "Bearer $token"),
+            val response = apiClient.execute(
+                apiClient.authApi.updateProfile(
+                    headers = mapOf("Authorization" to "Bearer $token"),
+                    body = JsonObject().put("name", name.trim()).put("phone", phone?.trim()?.takeIf(String::isNotBlank) ?: com.google.gson.JsonNull.INSTANCE)
+                )
             )
-            (response.optJSONObject("data") ?: response).toProfileUiModel()
+            (response.optObject("data") ?: response).toProfileUiModel()
         }
     }
 
     override suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             tokenStore.getRefreshToken()?.takeIf(String::isNotBlank)?.let { refreshToken ->
-                apiClient.post("/user/logout", JSONObject().put("refresh_token", refreshToken))
+                apiClient.execute(
+                    apiClient.authApi.logout(
+                        body = JsonObject().put("refresh_token", refreshToken)
+                    )
+                )
             }
             tokenStore.clearTokens()
         }
@@ -62,13 +63,14 @@ class RemoteProfileRepository(
                 ?: throw IllegalStateException("Bạn cần đăng nhập lại")
 
             // 2. Gọi API lấy dữ liệu JSON kèm theo Token xác thực
-            val json = apiClient.getJson(
-                path = PROFILE_ENDPOINT,
-                accessToken = accessToken
+            val json = apiClient.execute(
+                apiClient.authApi.getProfile(
+                    headers = mapOf("Authorization" to "Bearer $accessToken")
+                )
             )
             
             // 3. Trích xuất cục "data" từ JSON trả về (nếu có), nếu không dùng chính json gốc
-            val data = json.optJSONObject("data") ?: json
+            val data = json.optObject("data") ?: json
 
             // 4. Chuyển đổi dữ liệu JSON thô thành đối tượng ProfileUiModel của ứng dụng
             data.toProfileUiModel()
@@ -77,12 +79,12 @@ class RemoteProfileRepository(
 }
 
 /**
- * Hàm mở rộng (Extension function) giúp chuyển đổi một [JSONObject] từ server
+ * Hàm mở rộng (Extension function) giúp chuyển đổi một [JsonObject] từ server
  * thành đối tượng giao diện [ProfileUiModel].
  */
-private fun JSONObject.toProfileUiModel(): ProfileUiModel {
+private fun JsonObject.toProfileUiModel(): ProfileUiModel {
     // API user/me hiện chỉ trả thông tin user, chưa trả rewards/tier/quick access.
-    val userJson = optJSONObject("user") ?: this
+    val userJson = optObject("user") ?: this
 
     return previewProfile.copy(
         user = previewProfile.user.copy(

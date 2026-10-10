@@ -1,5 +1,6 @@
 package com.example.foodhubapp
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.admin.menu.data.AdminMenuRepository
 import com.example.foodhubapp.feature.admin.model.AdminVariantInput
@@ -11,7 +12,6 @@ import com.example.foodhubapp.feature.shared.payment.PaymentRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
 
@@ -34,14 +34,14 @@ class EndpointIntegrationTest {
         assertEquals("PATCH", request.method)
         assertEquals("/api/v1/menu/item-variants/group1", request.path)
         assertEquals("Bearer admin-token", request.getHeader("Authorization"))
-        val body = JSONObject(request.body.readUtf8())
+        val body = parseJsonObject(request.body.readUtf8())
         assertEquals("MULTIPLE", body.getString("type"))
         assertEquals(3, body.getInt("sortOrder"))
-        val options = body.getJSONArray("options")
-        assertEquals("opt1", options.getJSONObject(0).getString("id"))
-        assertEquals("Vừa", options.getJSONObject(0).getString("name"))
-        assertEquals(20000L, options.getJSONObject(0).getLong("priceAdd"))
-        assertFalse(options.getJSONObject(1).has("id"))
+        val options = body.getArray("options")
+        assertEquals("opt1", options.getObject(0).getString("id"))
+        assertEquals("Vừa", options.getObject(0).getString("name"))
+        assertEquals(20000L, options.getObject(0).getLong("priceAdd"))
+        assertFalse(options.getObject(1).has("id"))
     }
 
     @Test fun kitchenParsesItemsAndUpdatesItemRatherThanOrderId() = runBlocking {
@@ -60,7 +60,7 @@ class EndpointIntegrationTest {
         repository.updateItem(item.id, AdminItemStatus.PREPARING)
         val patch = server.takeRequest()
         assertEquals("/api/v1/order/kitchen/line1/status", patch.path)
-        assertEquals("PREPARING", JSONObject(patch.body.readUtf8()).getString("status"))
+        assertEquals("PREPARING", parseJsonObject(patch.body.readUtf8()).getString("status"))
     }
 
     @Test fun tableDetailUsesFreshBackendData() = runBlocking {

@@ -1,21 +1,23 @@
-package com.example.foodhubapp.feature.admin.chat.data
+package com.example.foodhubapp.feature.customer.menu.data
 
 import com.google.gson.JsonObject
 import retrofit2.Call
 import retrofit2.http.*
 
 /** Endpoint contracts; repositories perform blocking calls on Dispatchers.IO. */
-interface ConversationApi {
+interface MenuApi {
 
-    @GET("conversations")
-    fun getConversations(
+    @GET("menu/categories")
+    fun getCategories(): Call<JsonObject>
+
+    @GET("menu/all")
+    fun getMenu(
         @HeaderMap headers: Map<String, String> = emptyMap()
     ): Call<JsonObject>
 
-    @PATCH("conversations/{id}/close")
-    fun closeConversation(
+    @GET("menu/item/{id}")
+    fun getFood(
         @HeaderMap headers: Map<String, String> = emptyMap(),
-        @Path("id", encoded = true) id: String,
-        @Body body: JsonObject = JsonObject()
+        @Path("id", encoded = true) id: String
     ): Call<JsonObject>
 }

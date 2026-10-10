@@ -1,6 +1,6 @@
 package com.example.foodhubapp.feature.customer.menu.data
 
-import com.example.foodhubapp.core.network.FoodHubApiClient
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.feature.customer.menu.model.HomeMenuData
 import com.example.foodhubapp.feature.customer.menu.model.MenuCategoryUiModel
 import com.example.foodhubapp.feature.customer.menu.model.MenuItemDetailUiModel
@@ -9,8 +9,8 @@ import com.example.foodhubapp.feature.customer.menu.model.VariantGroupUiModel
 import com.example.foodhubapp.feature.customer.menu.model.VariantOptionUiModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 
 /**
  * Kết quả đồng bộ thực đơn từ server.
@@ -52,16 +52,16 @@ interface MenuRepository {
  * và phân tích cú pháp (parse) JSON trả về từ server thành các UI Model tương ứng.
  */
 class RemoteMenuRepository(
-    private val apiClient: FoodHubApiClient = FoodHubApiClient()
+    private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient
 ) : MenuRepository {
 
     override suspend fun syncMenu(): MenuSyncResult = withContext(Dispatchers.IO) {
-        val categories = apiClient.get("/menu/categories")
-        val menu = apiClient.get("/menu/all")
+        val categories = apiClient.execute(apiClient.menuApi.getCategories())
+        val menu = apiClient.execute(apiClient.menuApi.getMenu())
 
         MenuSyncResult(
-            categoriesCount = categories.dataCount,
-            menuItemsCount = menu.dataCount
+            categoriesCount = categories.dataCount(),
+            menuItemsCount = menu.dataCount()
         )
     }
 
@@ -70,12 +70,12 @@ class RemoteMenuRepository(
      */
     override suspend fun getMenu(): Result<List<MenuCategoryUiModel>> = withContext(Dispatchers.IO) {
         runCatching {
-            val json = apiClient.getJson("/menu/all")
-            val data = json.optJSONArray("data") ?: JSONArray()
+            val json = apiClient.execute(apiClient.menuApi.getMenu())
+            val data = json.optArray("data") ?: JsonArray()
 
             // API trả data là mảng category; mỗi category chứa mảng items.
-            List(data.length()) { index ->
-                data.getJSONObject(index).toMenuCategoryUiModel()
+            List(data.size()) { index ->
+                data.getObject(index).toMenuCategoryUiModel()
             }
         }
     }
@@ -118,8 +118,8 @@ class RemoteMenuRepository(
      */
     override suspend fun getItemDetail(id: String): Result<MenuItemDetailUiModel> = withContext(Dispatchers.IO) {
         runCatching {
-            val json = apiClient.getJson("/menu/item/$id")
-            val data = json.optJSONObject("data")
+            val json = apiClient.execute(apiClient.menuApi.getFood(id = id))
+            val data = json.optObject("data")
                 ?: throw IllegalStateException("API không trả dữ liệu chi tiết món")
 
             data.toMenuItemDetailUiModel()
@@ -128,10 +128,10 @@ class RemoteMenuRepository(
 }
 
 /**
- * Hàm mở rộng (Extension function) parse [JSONObject] thành [MenuCategoryUiModel].
+ * Hàm mở rộng (Extension function) parse [JsonObject] thành [MenuCategoryUiModel].
  */
-private fun JSONObject.toMenuCategoryUiModel(): MenuCategoryUiModel {
-    val itemsJson = optJSONArray("items") ?: JSONArray()
+private fun JsonObject.toMenuCategoryUiModel(): MenuCategoryUiModel {
+    val itemsJson = optArray("items") ?: JsonArray()
 
     // Field icon từ backend là String?, không phải drawable resource.
     return MenuCategoryUiModel(
@@ -139,16 +139,16 @@ private fun JSONObject.toMenuCategoryUiModel(): MenuCategoryUiModel {
         name = optString("name"),
         icon = optNullableString("icon"),
         sortOrder = optInt("sortOrder", 0),
-        items = List(itemsJson.length()) { index ->
-            itemsJson.getJSONObject(index).toMenuItemUiModel()
+        items = List(itemsJson.size()) { index ->
+            itemsJson.getObject(index).toMenuItemUiModel()
         }
     )
 }
 
 /**
- * Hàm mở rộng parse [JSONObject] thành [MenuItemUiModel].
+ * Hàm mở rộng parse [JsonObject] thành [MenuItemUiModel].
  */
-private fun JSONObject.toMenuItemUiModel(): MenuItemUiModel {
+private fun JsonObject.toMenuItemUiModel(): MenuItemUiModel {
     // Model ngắn gọn cho list/home; /menu/all hiện chưa trả description.
     return MenuItemUiModel(
         id = optString("id"),
@@ -166,10 +166,10 @@ private fun JSONObject.toMenuItemUiModel(): MenuItemUiModel {
 }
 
 /**
- * Hàm mở rộng parse [JSONObject] thành [MenuItemDetailUiModel].
+ * Hàm mở rộng parse [JsonObject] thành [MenuItemDetailUiModel].
  */
-private fun JSONObject.toMenuItemDetailUiModel(): MenuItemDetailUiModel {
-    val variantGroupsJson = optJSONArray("variantGroups") ?: JSONArray()
+private fun JsonObject.toMenuItemDetailUiModel(): MenuItemDetailUiModel {
+    val variantGroupsJson = optArray("variantGroups") ?: JsonArray()
 
     // Chi tiết món có thêm description, trạng thái món và các nhóm variant.
     return MenuItemDetailUiModel(
@@ -186,17 +186,17 @@ private fun JSONObject.toMenuItemDetailUiModel(): MenuItemDetailUiModel {
         isFeatured = optBoolean("isFeatured", false),
         totalOrder = optInt("totalOrder", 0),
         avgRating = optFlexibleDouble("avgRating"),
-        variantGroups = List(variantGroupsJson.length()) { index ->
-            variantGroupsJson.getJSONObject(index).toVariantGroupUiModel()
+        variantGroups = List(variantGroupsJson.size()) { index ->
+            variantGroupsJson.getObject(index).toVariantGroupUiModel()
         }
     )
 }
 
 /**
- * Hàm mở rộng parse [JSONObject] thành [VariantGroupUiModel].
+ * Hàm mở rộng parse [JsonObject] thành [VariantGroupUiModel].
  */
-private fun JSONObject.toVariantGroupUiModel(): VariantGroupUiModel {
-    val optionsJson = optJSONArray("options") ?: JSONArray()
+private fun JsonObject.toVariantGroupUiModel(): VariantGroupUiModel {
+    val optionsJson = optArray("options") ?: JsonArray()
 
     return VariantGroupUiModel(
         id = optString("id"),
@@ -204,16 +204,16 @@ private fun JSONObject.toVariantGroupUiModel(): VariantGroupUiModel {
         type = optString("type"),
         isRequired = optBoolean("isRequired", true),
         sortOrder = optInt("sortOrder", 0),
-        options = List(optionsJson.length()) { index ->
-            optionsJson.getJSONObject(index).toVariantOptionUiModel()
+        options = List(optionsJson.size()) { index ->
+            optionsJson.getObject(index).toVariantOptionUiModel()
         }
     )
 }
 
 /**
- * Hàm mở rộng parse [JSONObject] thành [VariantOptionUiModel].
+ * Hàm mở rộng parse [JsonObject] thành [VariantOptionUiModel].
  */
-private fun JSONObject.toVariantOptionUiModel(): VariantOptionUiModel {
+private fun JsonObject.toVariantOptionUiModel(): VariantOptionUiModel {
     return VariantOptionUiModel(
         id = optString("id"),
         name = optString("name"),
@@ -226,14 +226,14 @@ private fun JSONObject.toVariantOptionUiModel(): VariantOptionUiModel {
 /**
  * Trả về String? nếu giá trị là null hoặc rỗng.
  */
-private fun JSONObject.optNullableString(key: String): String? {
+private fun JsonObject.optNullableString(key: String): String? {
     return if (isNull(key)) null else optString(key).ifBlank { null }
 }
 
 /**
  * Lấy giá trị Double linh hoạt (mặc định 0.0 nếu không có).
  */
-private fun JSONObject.optFlexibleDouble(key: String): Double {
+private fun JsonObject.optFlexibleDouble(key: String): Double {
     return optFlexibleNullableDouble(key) ?: 0.0
 }
 
@@ -241,7 +241,7 @@ private fun JSONObject.optFlexibleDouble(key: String): Double {
  * Xử lý dữ liệu kiểu số thập phân (Decimal) từ Prisma:
  * Có lúc trả về kiểu Number, có lúc trả về String.
  */
-private fun JSONObject.optFlexibleNullableDouble(key: String): Double? {
+private fun JsonObject.optFlexibleNullableDouble(key: String): Double? {
     if (!has(key) || isNull(key)) return null
     val value = opt(key)
 
@@ -251,4 +251,11 @@ private fun JSONObject.optFlexibleNullableDouble(key: String): Double? {
         null -> null
         else -> null
     }
+}
+
+private fun JsonObject.dataCount(): Int = when (val data = opt("data")) {
+    is JsonArray -> data.size()
+    is JsonObject -> data.size()
+    null -> 0
+    else -> 1
 }
