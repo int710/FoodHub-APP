@@ -18,8 +18,12 @@ import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
+import com.example.foodhubapp.feature.customer.order.data.CheckoutPaymentMethod
+import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -45,6 +49,8 @@ data class CartUiState(
     val cartType: CartType = CartType.TAKEAWAY,
     val isCheckingOut: Boolean = false,
     val checkoutResult: CheckoutResult? = null,
+    val isCheckingPayment: Boolean = false,
+    val completedOrderCode: String? = null,
 )
 
 /**
@@ -62,6 +68,8 @@ class CartViewModel @JvmOverloads constructor(
     private val orderingContextStore = OrderingContextStore(application.applicationContext)
     private val state = MutableStateFlow(CartUiState(cartType = orderingContextStore.currentType()))
     val uiState = state.asStateFlow()
+    private val orderRepository = RemoteOrderRepository()
+    private var paymentPollingJob: Job? = null
 
     init { load() }
 
@@ -222,6 +230,7 @@ class CartViewModel @JvmOverloads constructor(
                         message = "Đã tạo đơn ${result.orderCode}.",
                     )
                 }
+                if (result.paymentMethod == "ZALOPAY") monitorZaloPayment(result.orderCode)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -233,6 +242,50 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     fun consumeCheckoutResult() { state.update { it.copy(checkoutResult = null) } }
+
+    fun consumeCompletedOrder() { state.update { it.copy(completedOrderCode = null) } }
+
+    private fun monitorZaloPayment(orderCode: String) {
+        paymentPollingJob?.cancel()
+        paymentPollingJob = viewModelScope.launch {
+            state.update { it.copy(isCheckingPayment = true) }
+            try {
+                repeat(60) { attempt ->
+                    val payment = orderRepository.getPaymentStatus(orderCode, CheckoutPaymentMethod.ZALOPAY)
+                    when (payment.paymentStatus) {
+                        "PAID" -> {
+                            state.update {
+                                it.copy(
+                                    checkoutResult = null,
+                                    completedOrderCode = orderCode,
+                                    message = "Thanh toán ZaloPay thành công.",
+                                )
+                            }
+                            return@launch
+                        }
+                        "FAILED" -> {
+                            state.update { it.copy(message = "Thanh toán ZaloPay không thành công.") }
+                            return@launch
+                        }
+                    }
+                    if (!payment.shouldPoll) return@launch
+                    if (attempt < 59) delay(2_000L)
+                }
+                state.update { it.copy(message = "Giao dịch vẫn đang xử lý. Bạn có thể theo dõi trong Đơn hàng.") }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                state.update { it.copy(message = "Chưa thể kiểm tra thanh toán: ${cartError(error)}") }
+            } finally {
+                state.update { it.copy(isCheckingPayment = false) }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        paymentPollingJob?.cancel()
+        super.onCleared()
+    }
 }
 
 internal fun cartError(error: Exception): String = when (error) {

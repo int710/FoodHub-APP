@@ -103,6 +103,14 @@ class OrderListViewModel @JvmOverloads constructor(
                     it.copy(orders = page.orders, page = page.page, hasMore = page.hasMore, requiresLogin = false)
                 }
                 orderSocket.watch(page.orders.map { it.id })
+                page.orders.firstOrNull {
+                    it.status == OrderStatus.PENDING_PAYMENT &&
+                        it.paymentMethod == CheckoutPaymentMethod.ZALOPAY.name
+                }?.let { pending ->
+                    if (state.value.checkingPaymentOrderCode != pending.orderCode) {
+                        handlePaymentReturn(pending.orderCode, null, "zalopay")
+                    }
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -183,6 +191,9 @@ class OrderListViewModel @JvmOverloads constructor(
                 }
                 val launch = repository.createPaymentLaunch(order.orderCode, method)
                 state.update { it.copy(paymentLaunch = launch, paymentLaunchMethod = method) }
+                if (method == CheckoutPaymentMethod.ZALOPAY) {
+                    handlePaymentReturn(order.orderCode, null, "zalopay")
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -228,11 +239,15 @@ class OrderListViewModel @JvmOverloads constructor(
                     }
                     if (!payment.shouldPoll) {
                         state.update {
-                            it.copy(message = when (payment.paymentStatus) {
+                            it.copy(
+                                paymentLaunch = if (payment.paymentStatus == "PAID") null else it.paymentLaunch,
+                                paymentLaunchMethod = if (payment.paymentStatus == "PAID") null else it.paymentLaunchMethod,
+                                message = when (payment.paymentStatus) {
                                 "PAID" -> "Thanh toán $providerName thành công. Đơn hàng đang chờ quán xác nhận."
                                 "FAILED" -> "Thanh toán $providerName không thành công."
                                 else -> "Trạng thái thanh toán: ${payment.paymentStatus ?: payment.orderStatus.name}."
-                            })
+                                },
+                            )
                         }
                         load(refresh = true)
                         return@launch

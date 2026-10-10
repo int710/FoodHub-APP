@@ -159,7 +159,6 @@ class RemoteOrderRepository(
         val provider = method.name.lowercase()
         val response = apiClient.getJson(
             "/payment/$provider/status/${orderCode.encoded()}",
-            authHeaders(),
         )
         val data = response.optJSONObject("data")
             ?: error("Máy chủ chưa trả trạng thái thanh toán.")

@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.customer.menu.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,10 +84,16 @@ fun MenuRoute(
                                 Row(
                                     Modifier
                                         .fillMaxWidth()
-                                        .clickable { onFoodClick(food.id) }
+                                        .clickable(enabled = food.available) { onFoodClick(food.id) }
                                         .padding(vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically) {
-                                    FoodImage(food.imageUrl, food.name, Modifier.size(80.dp))
+                                    Box(Modifier.size(80.dp)) {
+                                        FoodImage(food.imageUrl, food.name, Modifier.fillMaxSize().alpha(if (food.available) 1f else .38f))
+                                        if (!food.available) Box(
+                                            Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)),
+                                            contentAlignment = Alignment.Center,
+                                        ) { Text("TẠM HẾT", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
+                                    }
                                     Spacer(Modifier.width(16.dp))
                                     Column(Modifier.weight(1f)) {
                                         Text(food.name, fontWeight = FontWeight.SemiBold)
@@ -92,6 +101,7 @@ fun MenuRoute(
                                         Text(
                                             NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN"))
                                                 .format(food.price) + "đ", color = Brand)
+                                        if (!food.available) Text("Món đang tạm hết hàng", color = Brand, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                     }
                                 }
                                 HorizontalDivider(color = CardStroke)

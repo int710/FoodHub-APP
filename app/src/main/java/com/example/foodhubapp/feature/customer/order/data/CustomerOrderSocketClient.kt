@@ -9,6 +9,8 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
 import java.net.URI
+import com.example.foodhubapp.R
+import com.example.foodhubapp.core.media.AppSoundPlayer
 
 data class CustomerOrderSocketEvent(
     val orderId: String,
@@ -17,6 +19,7 @@ data class CustomerOrderSocketEvent(
 )
 
 class CustomerOrderSocketClient(context: Context) {
+    private val appContext = context.applicationContext
     private val tokenStore = TokenStore(context.applicationContext)
     private val tableSessionStore = TableSessionStore(context.applicationContext)
     private val handler = Handler(Looper.getMainLooper())
@@ -37,6 +40,9 @@ class CustomerOrderSocketClient(context: Context) {
             on("order:status:update") { args ->
                 val payload = args.firstOrNull() as? JSONObject ?: return@on
                 handler.post {
+                    if (payload.optString("status") == "COMPLETED") {
+                        AppSoundPlayer.play(appContext, R.raw.sound_tingting)
+                    }
                     onChanged(
                         CustomerOrderSocketEvent(
                             orderId = payload.optString("orderId"),

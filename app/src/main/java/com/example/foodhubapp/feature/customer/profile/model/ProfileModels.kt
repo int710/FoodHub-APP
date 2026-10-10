@@ -66,7 +66,7 @@ val previewProfile = ProfileUiModel(
         isActive = true,
         isVerified = true,
         memberSince = "Khách hàng thân thiết từ 2022",
-        avatarRes = R.drawable.profile_avatar_thu_ha
+        avatarRes = R.drawable.avatar_user
     ),
     rewards = RewardsSummary(
         points = "1.250",

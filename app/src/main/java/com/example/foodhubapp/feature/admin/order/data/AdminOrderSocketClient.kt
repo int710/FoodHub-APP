@@ -8,10 +8,13 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import java.net.URI
 import org.json.JSONObject
+import com.example.foodhubapp.R
+import com.example.foodhubapp.core.media.AppSoundPlayer
 
 data class AdminOrderSocketEvent(val name: String, val orderId: String, val status: String?)
 
 class AdminOrderSocketClient(context: Context) {
+    private val appContext = context.applicationContext
     private val tokenStore = TokenStore(context.applicationContext)
     private val handler = Handler(Looper.getMainLooper())
     private var socket: Socket? = null
@@ -27,6 +30,7 @@ class AdminOrderSocketClient(context: Context) {
                 on(event) { args ->
                     val payload = args.firstOrNull() as? JSONObject
                     handler.post {
+                        if (event == "order:new") AppSoundPlayer.play(appContext, R.raw.sound_foodhub_neworder)
                         onOrderChanged(
                             AdminOrderSocketEvent(
                                 name = event,

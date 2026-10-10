@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -21,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -36,6 +38,7 @@ import com.example.foodhubapp.feature.admin.navigation.AdminAmber
 import com.example.foodhubapp.feature.admin.navigation.AdminAmberSoft
 import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
+import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
 
 @Composable
 internal fun AdminMetric(title: String, value: String, caption: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
@@ -50,6 +53,29 @@ internal fun AdminMetric(title: String, value: String, caption: String, icon: Im
             }
             Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(title, color = AdminMuted, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+internal fun AdminInsightCard(title: String, rows: List<Triple<String, String, Float>>) {
+    Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            rows.forEach { (label, value, progress) ->
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(label, Modifier.weight(1f), color = AdminMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(value, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    }
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        color = AdminPrimary,
+                        trackColor = AdminPrimary.copy(alpha = .1f),
+                    )
+                }
+            }
         }
     }
 }

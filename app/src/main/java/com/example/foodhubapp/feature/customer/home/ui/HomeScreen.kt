@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -266,7 +267,7 @@ private fun HomeHeader(
             Spacer(Modifier.width(6.dp))
             IconButton(onClick = onProfileClick, modifier = Modifier.size(44.dp)) {
                 Image(
-                    painterResource(R.drawable.home_figma_08),
+                    painterResource(R.drawable.avatar_user),
                     "Tài khoản",
                     Modifier.size(32.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop
@@ -541,13 +542,13 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         items(foods, key = { "popular:${it.id}" }) { food ->
             Surface(
-                modifier = Modifier.width(174.dp).clickable { onFoodClick(food.id) },
+                modifier = Modifier.width(174.dp).clickable(enabled = food.available) { onFoodClick(food.id) },
                 shape = RoundedCornerShape(8.dp),
                 color = Color.White,
                 shadowElevation = 1.dp
             ) {
                 Column {
-                    HomeFoodImage(food.imageUrl, fallbackFor(food, foods), Modifier.fillMaxWidth().height(116.dp))
+                    AvailabilityImage(food, fallbackFor(food, foods), Modifier.fillMaxWidth().height(116.dp))
                     Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(food.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
                         if (food.rating != "0") Row(verticalAlignment = Alignment.CenterVertically) {
@@ -556,9 +557,9 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                            Surface(shape = CircleShape, color = BrandSoft) {
+                            if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
                                 Icon(Icons.Default.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
-                            }
+                            } else Text("Tạm hết", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -570,13 +571,13 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
 @Composable
 private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoodClick: (String) -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable { onFoodClick(food.id) },
+        modifier = Modifier.fillMaxWidth().clickable(enabled = food.available) { onFoodClick(food.id) },
         shape = RoundedCornerShape(8.dp),
         color = Color.White,
         shadowElevation = 1.dp
     ) {
         Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HomeFoodImage(food.imageUrl, fallback, Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)))
+            AvailabilityImage(food, fallback, Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)))
             Column(Modifier.weight(1f).height(96.dp), verticalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(food.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -590,11 +591,25 @@ private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoo
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Surface(shape = CircleShape, color = BrandSoft) {
+                    if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
                         Icon(Icons.Default.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
-                    }
+                    } else Text("Tạm hết hàng", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AvailabilityImage(food: MenuFood, @DrawableRes fallback: Int, modifier: Modifier) {
+    Box(modifier) {
+        HomeFoodImage(food.imageUrl, fallback, Modifier.fillMaxSize().alpha(if (food.available) 1f else .42f))
+        if (!food.available) {
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                color = Color.Black.copy(alpha = .72f),
+                shape = RoundedCornerShape(8.dp),
+            ) { Text("TẠM HẾT", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }

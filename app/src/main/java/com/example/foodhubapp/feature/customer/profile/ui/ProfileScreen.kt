@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +80,12 @@ fun ProfileScreen(
                         .size(64.dp)
                         .background(BrandSoft, CircleShape),
                     contentAlignment = Alignment.Center) {
-                    Image(painterResource(R.drawable.ic_auth_person), null, Modifier.size(28.dp))
+                    Image(
+                        painterResource(R.drawable.avatar_user),
+                        "Ảnh đại diện mặc định",
+                        Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
                 }
                 Column(Modifier.weight(1f)) {
                     Text(uiState.user?.fullName?.takeIf { it.isNotBlank() } ?: "Tài khoản FoodHub",

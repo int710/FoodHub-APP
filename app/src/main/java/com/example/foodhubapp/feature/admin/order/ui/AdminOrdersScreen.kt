@@ -95,9 +95,11 @@ fun AdminOrdersScreen(
             onDismissRequest = { pendingAction = null },
             title = { Text(if (approve) "Xác nhận đơn ${order.code}?" else "Từ chối đơn ${order.code}?") },
             text = {
-                if (approve) Text(if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid)
-                    "Chỉ xác nhận khi đã nhận đủ tiền mặt. Thao tác này ghi nhận đã thanh toán và cho phép bếp làm món."
-                    else "Đơn sẽ được chuyển sang trạng thái đã xác nhận.")
+                if (approve) Text(
+                    if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid)
+                        "Xác nhận tiếp nhận đơn. Tiền mặt sẽ được ghi nhận sau khi món đã phục vụ cho khách."
+                    else "Đơn sẽ được chuyển sang trạng thái đã xác nhận."
+                )
                 else OutlinedTextField(
                     rejectReason,
                     { rejectReason = it.take(255) },

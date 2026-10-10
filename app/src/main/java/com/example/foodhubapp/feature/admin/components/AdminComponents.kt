@@ -3,6 +3,7 @@
 package com.example.foodhubapp.feature.admin.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.foodhubapp.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,9 +66,12 @@ internal fun AdminSearchField(value: String, onValueChange: (String) -> Unit, pl
 
 @Composable
 internal fun AdminAvatar(name: String) {
-    Box(Modifier.size(42.dp).background(AdminBlueSoft, CircleShape), contentAlignment = Alignment.Center) {
-        Text(name.firstOrNull()?.uppercase() ?: "K", color = AdminBlue, fontWeight = FontWeight.Bold)
-    }
+    Image(
+        painter = painterResource(R.drawable.avatar_user),
+        contentDescription = "Ảnh đại diện $name",
+        modifier = Modifier.size(42.dp).clip(CircleShape),
+        contentScale = ContentScale.Crop,
+    )
 }
 
 @Composable

@@ -241,11 +241,7 @@ fun AdminApp(onLogout: () -> Unit) {
                         orders = orderState.orders,
                         onOpenOrder = { navController.navigate("admin/order/$it") },
                         busyId = orderState.busyId,
-                        onConfirm = { order ->
-                            if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) {
-                                orderViewModel.confirmCash(order.id)
-                            } else orderViewModel.confirm(order.id)
-                        },
+                        onConfirm = { order -> orderViewModel.confirm(order.id) },
                         onReject = { order, reason -> orderViewModel.reject(order.id, reason) },
                         onRefresh = orderViewModel::refresh,
                     )
@@ -256,11 +252,8 @@ fun AdminApp(onLogout: () -> Unit) {
                         AdminOrderDetailScreen(
                             order = order,
                             busyId = orderState.busyId,
-                            onConfirm = {
-                                if (it.paymentMethod == AdminPaymentMethod.CASH && !it.paid) {
-                                    orderViewModel.confirmCash(it.id)
-                                } else orderViewModel.confirm(it.id)
-                            },
+                            onConfirm = { orderViewModel.confirm(it.id) },
+                            onConfirmCash = { orderViewModel.confirmCash(it.id) },
                             onUpdateItem = orderViewModel::updateItem,
                             onServe = { orderViewModel.serve(it.id) },
                             onComplete = { orderViewModel.complete(it.id) },

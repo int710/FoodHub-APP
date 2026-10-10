@@ -9,6 +9,7 @@ import com.example.foodhubapp.feature.customer.cart.data.RemoteCartRepository
 import com.example.foodhubapp.feature.customer.menu.data.FoodRepository
 import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
 import com.example.foodhubapp.feature.customer.menu.data.MenuFood
+import com.example.foodhubapp.feature.customer.menu.data.MenuSocketClient
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.customer.menu.viewmodel.foodError
 import kotlinx.coroutines.CancellationException
@@ -57,12 +58,14 @@ class HomeViewModel @JvmOverloads constructor(
     private val tokenStore = TokenStore(application.applicationContext)
     private val state = MutableStateFlow(HomeUiState())
     val uiState = state.asStateFlow()
+    private val menuSocket = MenuSocketClient()
 
     init {
         viewModelScope.launch {
             tokenStore.user.collect { user -> state.update { it.copy(userName = user?.fullName, isLoggedIn = user != null) } }
         }
         load()
+        menuSocket.connect(::loadFromRealtime)
     }
 
     fun load() {
@@ -85,7 +88,16 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
+    private fun loadFromRealtime() {
+        if (!state.value.isLoading) load()
+    }
+
     fun onQueryChange(query: String) { state.update { it.copy(query = query) } }
     fun selectCategory(categoryId: String?) { state.update { it.copy(selectedCategoryId = categoryId) } }
     fun selectMaxPrice(maxPrice: Long?) { state.update { it.copy(maxPrice = maxPrice) } }
+
+    override fun onCleared() {
+        menuSocket.disconnect()
+        super.onCleared()
+    }
 }

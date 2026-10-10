@@ -17,8 +17,11 @@ import org.json.JSONObject
 import java.net.URI
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
+import com.example.foodhubapp.R
+import com.example.foodhubapp.core.media.AppSoundPlayer
 
 class ChatSocketClient(context: Context) {
+    private val appContext = context.applicationContext
     private val tokenStore = TokenStore(context.applicationContext)
     private val conversations = context.getSharedPreferences("customer_chat", Context.MODE_PRIVATE)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -77,7 +80,10 @@ class ChatSocketClient(context: Context) {
     }
     private val onNewMessage = Emitter.Listener { args ->
         val message = (args.firstOrNull() as? JSONObject)?.toChatMessage() ?: return@Listener
-        dispatch { listener?.onMessage(message) }
+        dispatch {
+            if (!message.isCustomer) AppSoundPlayer.play(appContext, R.raw.sound_foodhub_message)
+            listener?.onMessage(message)
+        }
     }
     private val onHistory = Emitter.Listener { args ->
         val payload = args.firstOrNull() as? JSONObject ?: return@Listener

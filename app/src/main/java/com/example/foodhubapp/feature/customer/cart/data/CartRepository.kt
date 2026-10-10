@@ -61,6 +61,7 @@ data class CheckoutResult(
     val paymentMethod: String,
     val paymentUrl: String?,
     val qrContent: String? = null,
+    val amount: Long = 0,
 )
 
 /** Body của PATCH cart item; theo docs phải có ít nhất một trường khác null. */
@@ -199,6 +200,7 @@ class RemoteCartRepository(
             paymentMethod = request.paymentMethod,
             paymentUrl = data.optionalString("paymentUrl") ?: response.optionalString("paymentUrl"),
             qrContent = data.optionalString("qrCode") ?: response.optionalString("qrCode"),
+            amount = order.firstMoney("totalAmount", "total") ?: data.firstMoney("amount", "totalAmount") ?: 0,
         )
     }
 

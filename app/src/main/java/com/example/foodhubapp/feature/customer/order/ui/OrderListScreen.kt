@@ -117,6 +117,9 @@ fun OrderListRoute(
             ZaloPayLaunchDialog(
                 paymentUrl = launch.url,
                 qrContent = launch.qrContent,
+                orderCode = state.checkingPaymentOrderCode,
+                amount = state.orders.firstOrNull { it.orderCode == state.checkingPaymentOrderCode }?.totalAmount,
+                isChecking = state.checkingPaymentOrderCode != null,
                 onOpenOnThisDevice = {
                     runCatching { uriHandler.openUri(launch.url) }
                     viewModel.consumePaymentLaunch()

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.feature.customer.menu.data.FoodRepository
 import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
+import com.example.foodhubapp.feature.customer.menu.data.MenuSocketClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,11 @@ class MenuViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
     private val state = MutableStateFlow(MenuUiState())
     val uiState = state.asStateFlow()
-    init { load() }
+    private val menuSocket = MenuSocketClient()
+    init {
+        load()
+        menuSocket.connect { load() }
+    }
 
     fun load() {
         if (state.value.isLoading) return
@@ -29,5 +34,10 @@ class MenuViewModel @JvmOverloads constructor(
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) { state.value = MenuUiState(error = foodError(error)) }
         }
+    }
+
+    override fun onCleared() {
+        menuSocket.disconnect()
+        super.onCleared()
     }
 }

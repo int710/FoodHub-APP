@@ -24,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +61,22 @@ fun AdminOverviewScreen(
     onOpenMenu: () -> Unit,
 ) {
     val activeOrders = orders.filter { it.status !in listOf(AdminOrderStatus.COMPLETED, AdminOrderStatus.CANCELLED) }
+    val paidOrders = orders.filter { it.paid }
+    val revenue = paidOrders.sumOf { it.total }
+    val averageOrder = if (paidOrders.isEmpty()) 0L else revenue / paidOrders.size
+    val completedCount = orders.count { it.status == AdminOrderStatus.COMPLETED }
+    val completionRate = if (orders.isEmpty()) 0 else completedCount * 100 / orders.size
+    val topItems = orders.asSequence()
+        .filter { it.status != AdminOrderStatus.CANCELLED }
+        .flatMap { it.items.asSequence() }
+        .groupBy { it.name }
+        .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
+        .entries.sortedByDescending { it.value }.take(5)
+    val maxTopQuantity = topItems.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+    val typeCounts = com.example.foodhubapp.feature.admin.model.AdminOrderType.entries.map { type ->
+        type.label to orders.count { it.type == type }
+    }
+    val maxTypeCount = typeCounts.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -79,7 +97,7 @@ fun AdminOverviewScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AdminMetric("Doanh thu", orders.filter { it.paid }.sumOf { it.total }.vnd(), "Đã thanh toán", Icons.AutoMirrored.Filled.TrendingUp,
+                    AdminMetric("Doanh thu", revenue.vnd(), "${paidOrders.size} đơn đã thu", Icons.AutoMirrored.Filled.TrendingUp,
                         AdminGreen, Modifier.weight(1f))
                     AdminMetric("Đơn đang xử lý", activeOrders.size.toString(), "${orders.size} tổng đơn", Icons.AutoMirrored.Filled.ReceiptLong,
                         AdminBlue, Modifier.weight(1f))
@@ -90,6 +108,30 @@ fun AdminOverviewScreen(
                     AdminMetric("Tin chưa đọc", conversations.sumOf { it.unread }.toString(), "${conversations.count { it.isOnline }} đang online", Icons.Default.ChatBubbleOutline,
                         AdminPrimary, Modifier.weight(1f))
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AdminMetric("Giá trị TB/đơn", averageOrder.vnd(), "Đơn đã thanh toán", Icons.Default.Payments,
+                        AdminPrimary, Modifier.weight(1f))
+                    AdminMetric("Tỷ lệ hoàn tất", "$completionRate%", "$completedCount/${orders.size} đơn", Icons.Default.RestaurantMenu,
+                        AdminGreen, Modifier.weight(1f))
+                }
+            }
+        }
+        if (topItems.isNotEmpty()) {
+            item {
+                AdminInsightCard(
+                    "Top món bán chạy",
+                    topItems.mapIndexed { index, entry ->
+                        Triple("${index + 1}. ${entry.key}", "${entry.value} phần", entry.value.toFloat() / maxTopQuantity)
+                    },
+                )
+            }
+        }
+        if (orders.isNotEmpty()) {
+            item {
+                AdminInsightCard(
+                    "Cơ cấu loại đơn",
+                    typeCounts.map { (label, count) -> Triple(label, "$count đơn", count.toFloat() / maxTypeCount) },
+                )
             }
         }
         if (menuItems.any { !it.isAvailable }) {

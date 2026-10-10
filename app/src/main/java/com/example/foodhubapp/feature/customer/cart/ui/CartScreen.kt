@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.customer.cart.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -13,11 +14,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -87,6 +93,12 @@ fun CartRoute(
             }
         }
     }
+    LaunchedEffect(state.completedOrderCode) {
+        state.completedOrderCode?.let {
+            viewModel.consumeCompletedOrder()
+            onOrderCreated()
+        }
+    }
 
     state.checkoutResult
         ?.takeIf { it.paymentMethod == "ZALOPAY" && !it.paymentUrl.isNullOrBlank() }
@@ -94,6 +106,9 @@ fun CartRoute(
             ZaloPayLaunchDialog(
                 paymentUrl = requireNotNull(result.paymentUrl),
                 qrContent = result.qrContent,
+                orderCode = result.orderCode,
+                amount = result.amount.takeIf { it > 0 },
+                isChecking = state.isCheckingPayment,
                 onOpenOnThisDevice = {
                     runCatching { uriHandler.openUri(requireNotNull(result.paymentUrl)) }
                     viewModel.consumeCheckoutResult()
@@ -148,6 +163,7 @@ fun CartRoute(
     )
     if (showCheckout) {
         CheckoutDialog(
+            cart = state.cart,
             type = state.cartType,
             isSubmitting = state.isCheckingOut,
             onDismiss = { if (!state.isCheckingOut) showCheckout = false },
@@ -277,6 +293,7 @@ fun CartScreen(
 
 @Composable
 private fun CheckoutDialog(
+    cart: Cart,
     type: CartType,
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
@@ -289,35 +306,105 @@ private fun CheckoutDialog(
     var address by rememberSaveable { mutableStateOf("") }
     val deliveryValid = type != CartType.DELIVERY ||
         (recipientName.isNotBlank() && phone.isNotBlank() && address.isNotBlank())
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Xác nhận ${type.label().lowercase()}") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Phương thức thanh toán", fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(paymentMethod == "CASH", { paymentMethod = "CASH" }, { Text("Tiền mặt") })
-                    FilterChip(paymentMethod == "VNPAY", { paymentMethod = "VNPAY" }, { Text("VNPay") })
-                    FilterChip(paymentMethod == "ZALOPAY", { paymentMethod = "ZALOPAY" }, { Text("ZaloPay") })
+    Dialog(onDismissRequest = { if (!isSubmitting) onDismiss() }) {
+        Surface(shape = RoundedCornerShape(22.dp), color = CeramicSurface, tonalElevation = 8.dp) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 720.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(type.label().uppercase(), color = Brand, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("Xác nhận và đặt món", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(onClick = onDismiss, enabled = !isSubmitting) { Icon(Icons.Default.Close, "Đóng") }
                 }
+                HorizontalDivider(color = CardStroke)
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
                 if (type == CartType.DELIVERY) {
-                    OutlinedTextField(recipientName, { recipientName = it }, label = { Text("Người nhận") }, singleLine = true)
-                    OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(11) }, label = { Text("Số điện thoại") }, singleLine = true)
-                    OutlinedTextField(address, { address = it }, label = { Text("Địa chỉ giao hàng") }, minLines = 2)
+                    Text("ĐỊA CHỈ GIAO HÀNG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(recipientName, { recipientName = it }, Modifier.weight(1f), label = { Text("Người nhận *") }, singleLine = true)
+                        OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(11) }, Modifier.weight(1f), label = { Text("Số điện thoại *") }, singleLine = true)
+                    }
+                    OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text("Địa chỉ chi tiết *") }, minLines = 2)
+                } else {
+                    Surface(color = Brand.copy(alpha = .07f), shape = RoundedCornerShape(12.dp)) {
+                        Text(
+                            if (type == CartType.DINE_IN) "Đơn sẽ được phục vụ tại bàn đang kết nối."
+                            else "Nhận món tại quầy bằng mã nhận món sau khi đặt.",
+                            Modifier.fillMaxWidth().padding(12.dp), color = OnSurfaceVariant, fontSize = 12.sp,
+                        )
+                    }
                 }
-                OutlinedTextField(note, { note = it.take(255) }, label = { Text("Ghi chú đơn hàng") }, minLines = 2)
+                Text("PHƯƠNG THỨC THANH TOÁN", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PaymentOption("CASH", "Tiền mặt", "Thanh toán khi nhận món", Icons.Default.Payments, paymentMethod) { paymentMethod = it }
+                    PaymentOption("ZALOPAY", "Ví ZaloPay", "QR realtime · tự động xác nhận", Icons.Default.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
+                    PaymentOption("VNPAY", "Cổng VNPay", "Thẻ ngân hàng hoặc ứng dụng hỗ trợ", Icons.Default.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
+                }
+                OutlinedTextField(note, { note = it.take(255) }, Modifier.fillMaxWidth(), label = { Text("Ghi chú cho nhà hàng") }, minLines = 2)
+                Surface(color = Color.White, shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Text("Tạm tính (${cart.items.sumOf { it.quantity }} món)", Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 12.sp)
+                            Text(money(cart.totalAmount), fontSize = 12.sp)
+                        }
+                        HorizontalDivider(color = CardStroke)
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Tổng thanh toán", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                            Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                        }
+                    }
+                }
+                }
+                Button(
+                    onClick = { onSubmit(CheckoutRequest(type, paymentMethod, note, recipientName, phone, address)) },
+                    enabled = deliveryValid && !isSubmitting,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp).height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                ) {
+                    if (isSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    else Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isSubmitting) "Đang đặt món…" else "Hoàn tất đặt đơn", fontWeight = FontWeight.Bold)
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSubmit(CheckoutRequest(type, paymentMethod, note, recipientName, phone, address))
-                },
-                enabled = deliveryValid && !isSubmitting,
-            ) { Text("Tạo đơn") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Hủy") } },
-    )
+        }
+    }
+}
+
+@Composable
+private fun PaymentOption(
+    value: String,
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    val active = value == selected
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onSelect(value) },
+        color = if (active) Brand.copy(alpha = .06f) else Color.White,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(if (active) 1.5.dp else 1.dp, if (active) Brand else CardStroke),
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = if (active) Brand.copy(alpha = .12f) else AppBackground, shape = RoundedCornerShape(9.dp)) {
+                Icon(icon, null, Modifier.padding(9.dp).size(18.dp), tint = if (active) Brand else OnSurfaceVariant)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(subtitle, color = OnSurfaceVariant, fontSize = 10.sp)
+            }
+            RadioButton(selected = active, onClick = { onSelect(value) })
+        }
+    }
 }
 
 private fun CartType.label(): String = when (this) {

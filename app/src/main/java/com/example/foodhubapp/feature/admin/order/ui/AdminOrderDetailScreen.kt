@@ -57,6 +57,7 @@ fun AdminOrderDetailScreen(
     order: AdminOrder,
     busyId: String? = null,
     onConfirm: (AdminOrder) -> Unit,
+    onConfirmCash: (AdminOrder) -> Unit,
     onUpdateItem: (String, AdminItemStatus) -> Unit,
     onServe: (AdminOrder) -> Unit,
     onComplete: (AdminOrder) -> Unit,
@@ -100,11 +101,11 @@ fun AdminOrderDetailScreen(
                     when (line.status) {
                         AdminItemStatus.WAITING -> TextButton(
                             onClick = { onUpdateItem(line.id, AdminItemStatus.PREPARING) },
-                            enabled = busyId == null && order.paid,
-                        ) { Text(if (order.paid) "Bắt đầu làm" else "Chờ thanh toán") }
+                            enabled = busyId == null,
+                        ) { Text("Bắt đầu làm") }
                         AdminItemStatus.PREPARING -> TextButton(
                             onClick = { onUpdateItem(line.id, AdminItemStatus.READY) },
-                            enabled = busyId == null && order.paid,
+                            enabled = busyId == null,
                         ) { Text("Đánh dấu đã xong") }
                         else -> Text(line.status.label, color = AdminGreen, fontSize = 12.sp)
                     }
@@ -141,14 +142,13 @@ fun AdminOrderDetailScreen(
                 }
             }
         }
-        if (order.status == AdminOrderStatus.PENDING_CONFIRMATION ||
-            (order.status == AdminOrderStatus.CONFIRMED && !order.paid && order.paymentMethod == AdminPaymentMethod.CASH)) {
+        if (order.status == AdminOrderStatus.PENDING_CONFIRMATION) {
             item {
                 Button(
                     onClick = { onConfirm(order) },
                     enabled = busyId == null,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text(if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) "Đã thu tiền • Xác nhận đơn" else "Xác nhận đơn") }
+                ) { Text("Xác nhận tiếp nhận đơn") }
             }
         }
         if (order.status == AdminOrderStatus.READY) {
@@ -161,6 +161,15 @@ fun AdminOrderDetailScreen(
             }
         }
         if (order.status == AdminOrderStatus.SERVED) {
+            if (order.paymentMethod == AdminPaymentMethod.CASH && !order.paid) {
+                item {
+                    Button(
+                        onClick = { onConfirmCash(order) },
+                        enabled = busyId == null,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                    ) { Text("Xác nhận đã thu ${order.total.vnd()} tiền mặt") }
+                }
+            }
             item {
                 Button(
                     onClick = { onComplete(order) },
