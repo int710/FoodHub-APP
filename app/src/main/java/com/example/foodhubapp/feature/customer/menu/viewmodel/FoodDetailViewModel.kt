@@ -1,11 +1,11 @@
 package com.example.foodhubapp.feature.customer.menu.viewmodel
 
+import com.example.foodhubapp.core.network.*
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
-import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.customer.menu.data.*
 import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
 import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.SocketTimeoutException
-import org.json.JSONException
+import com.google.gson.JsonParseException
 
 data class FoodDetailUiState(
     val isLoading: Boolean = false,
@@ -118,7 +118,7 @@ class FoodDetailViewModel @JvmOverloads constructor(
 internal fun foodError(error: Exception): String = when (error) {
     is SocketTimeoutException -> "Máy chủ phản hồi quá lâu. Vui lòng thử lại."
     is IOException -> "Không thể kết nối máy chủ. Vui lòng kiểm tra mạng và thử lại."
-    is JSONException -> "Dữ liệu món ăn không hợp lệ. Vui lòng thử lại sau."
+    is JsonParseException -> "Dữ liệu món ăn không hợp lệ. Vui lòng thử lại sau."
     is FoodHubApiException -> if (error.statusCode == 404) "Món ăn không còn tồn tại." else error.message.orEmpty()
     else -> error.message ?: "Không thể tải dữ liệu. Vui lòng thử lại."
 }

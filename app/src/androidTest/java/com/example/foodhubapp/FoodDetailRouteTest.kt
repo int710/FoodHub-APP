@@ -23,6 +23,7 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class FoodDetailRouteTest {
     @get:Rule val compose = createComposeRule()
+    @get:Rule val orderingSession = OrderingSessionRule()
 
     @Test fun repositoryDataRendersAndGuestCanOpenLogin() {
         val pending = CompletableDeferred<FoodDetail>()
@@ -55,7 +56,7 @@ class FoodDetailRouteTest {
         compose.onNodeWithText("Trứng").performScrollTo().performClick()
         compose.onNodeWithText("114.000đ").assertExists()
         compose.onNodeWithText("Thêm vào giỏ").performClick()
-        compose.onNodeWithText("Bạn cần đăng nhập để thêm món vào giỏ mang đi.").assertExists()
+        compose.onNodeWithText("Bạn cần đăng nhập để thêm món vào giỏ TAKEAWAY hoặc DELIVERY.").assertExists()
         compose.onNode(hasText("Đăng nhập") and hasClickAction()).performClick()
         compose.runOnIdle { assertTrue(loginOpened) }
     }

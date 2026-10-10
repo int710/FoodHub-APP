@@ -39,9 +39,10 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation(libs.okhttp)
+    implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.gson)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.navigation.compose)
@@ -71,8 +72,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20240303")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation(libs.mockwebserver)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

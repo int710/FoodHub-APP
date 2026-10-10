@@ -1,12 +1,12 @@
 package com.example.foodhubapp
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.customer.cart.data.CartItemUpdate
 import com.example.foodhubapp.feature.customer.cart.data.RemoteCartRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -65,12 +65,12 @@ class CartRepositoryTest {
             CartItemUpdate(3, listOf("egg", "cheese", "egg"), "Ít sốt")
         )
         val request = server.takeRequest()
-        val body = JSONObject(request.body.readUtf8())
+        val body = parseJsonObject(request.body.readUtf8())
 
         assertEquals("PATCH", request.method)
         assertEquals("/api/v1/cart/TAKEAWAY/items/cart+line%2F1", request.path)
         assertEquals(3, body.getInt("quantity"))
-        assertEquals(2, body.getJSONArray("variantOptionIds").length())
+        assertEquals(2, body.getArray("variantOptionIds").size())
         assertEquals("Ít sốt", body.getString("note"))
         assertFalse(body.has("menuItemId"))
     }

@@ -1,5 +1,6 @@
 package com.example.foodhubapp.core.datastore
 
+import com.example.foodhubapp.core.network.*
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -8,8 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.example.foodhubapp.feature.shared.auth.model.UserDto
-import org.json.JSONObject
-import com.example.foodhubapp.core.network.SessionTokens
+import com.google.gson.JsonObject
 
 /**
  * Tên của DataStore Preferences lưu trữ thông tin phiên đăng nhập (token).
@@ -37,7 +37,7 @@ class TokenStore(
 
     val user: Flow<UserDto?> = context.authDataStore.data.map { preferences ->
         preferences[userKey]?.let { value ->
-            runCatching { UserDto.fromJson(JSONObject(value)) }.getOrNull()
+            runCatching { UserDto.fromJson(parseJsonObject(value)) }.getOrNull()
         }
     }
 
@@ -73,7 +73,7 @@ class TokenStore(
             if (user == null) {
                 preferences.remove(userKey)
             } else {
-                preferences[userKey] = JSONObject()
+                preferences[userKey] = JsonObject()
                     .put("id", user.id)
                     .put("fullName", user.fullName)
                     .put("phoneNumber", user.phoneNumber ?: "")
@@ -127,7 +127,7 @@ class TokenStore(
 
     suspend fun saveUser(user: UserDto) {
         context.authDataStore.edit { preferences ->
-            preferences[userKey] = JSONObject()
+            preferences[userKey] = JsonObject()
                 .put("id", user.id)
                 .put("fullName", user.fullName)
                 .put("phoneNumber", user.phoneNumber ?: "")

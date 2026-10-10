@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.shared.auth.model
 
-import org.json.JSONObject
+import com.example.foodhubapp.core.network.*
+import com.google.gson.JsonObject
 
 data class UserDto(
     val id: String,
@@ -10,7 +11,7 @@ data class UserDto(
     val role: String = "CUSTOMER"
 ) {
     companion object {
-        fun fromJson(json: JSONObject): UserDto {
+        fun fromJson(json: JsonObject): UserDto {
             return UserDto(
                 id = json.optString("id", json.optString("_id")),
                 fullName = json.optString("fullName", json.optString("name")),

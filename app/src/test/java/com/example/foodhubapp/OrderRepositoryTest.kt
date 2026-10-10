@@ -1,13 +1,14 @@
 package com.example.foodhubapp
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.customer.order.data.OrderStatus
 import com.example.foodhubapp.feature.customer.order.data.OrderType
 import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
+import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -68,18 +69,58 @@ class OrderRepositoryTest {
         assertEquals("PATCH", cancel.method)
         assertEquals("Bearer order-token", cancel.getHeader("Authorization"))
         assertEquals("/api/v1/order/order%2F1/cancel", cancel.path)
-        assertEquals("Đổi món", JSONObject(cancel.body.readUtf8()).getString("reason"))
+        assertEquals("Đổi món", parseJsonObject(cancel.body.readUtf8()).getString("reason"))
 
         assertEquals("https://pay.example/vnpay", repository.createVnPayUrl("FH-9082"))
         val payment = server.takeRequest()
         assertEquals("POST", payment.method)
         assertEquals("/api/v1/payment/vnpay/create", payment.path)
-        assertEquals("FH-9082", JSONObject(payment.body.readUtf8()).getString("orderCode"))
+        assertEquals("FH-9082", parseJsonObject(payment.body.readUtf8()).getString("orderCode"))
     }
 
     @Test fun lastShortPageHasNoMoreItems() = runBlocking {
         server.enqueue(MockResponse().setBody("{\"data\":[]}"))
         val page = repository.getHistory(2)
         assertFalse(page.hasMore)
+    }
+
+    @Test fun guestHistoryUsesTableSessionWithoutBearerToken() = runBlocking {
+        server.enqueue(MockResponse().setBody("{\"data\":[]}"))
+        val guest = RemoteOrderRepository(
+            apiClient = FoodHubApiClient(server.url("/api/v1/").toString()),
+            tableToken = { "table-session" },
+        )
+        guest.getHistory(2, type = OrderType.DINE_IN)
+        val request = server.takeRequest()
+        assertEquals("/api/v1/order/table-history?page=2&limit=20&type=DINE_IN", request.path)
+        assertEquals("table-session", request.getHeader("X-Table-Token"))
+        assertEquals(null, request.getHeader("Authorization"))
+    }
+
+    @Test fun loggedInHistoryPrefersBearerOverTableSession() = runBlocking {
+        server.enqueue(MockResponse().setBody("{\"data\":[]}"))
+        val loggedIn = RemoteOrderRepository(
+            apiClient = FoodHubApiClient(server.url("/api/v1/").toString()),
+            tableToken = { "table-session" },
+            accessToken = { "user-token" },
+        )
+        loggedIn.getHistory(1)
+        val request = server.takeRequest()
+        assertEquals("/api/v1/order/history?page=1&limit=20", request.path)
+        assertEquals("Bearer user-token", request.getHeader("Authorization"))
+        assertEquals(null, request.getHeader("X-Table-Token"))
+    }
+
+    @Test fun guestWithoutSessionCannotLoadHistoryOrCancel() = runBlocking {
+        val guest = RemoteOrderRepository(
+            apiClient = FoodHubApiClient(server.url("/api/v1/").toString()),
+        )
+        assertTrue(runCatching { guest.getHistory(1) }.exceptionOrNull() is LoginRequiredException)
+        val tableGuest = RemoteOrderRepository(
+            apiClient = FoodHubApiClient(server.url("/api/v1/").toString()),
+            tableToken = { "table-session" },
+        )
+        assertTrue(runCatching { tableGuest.cancel("order-1", "Đổi món") }.exceptionOrNull() is LoginRequiredException)
+        assertEquals(0, server.requestCount)
     }
 }

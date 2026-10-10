@@ -1,5 +1,6 @@
 package com.example.foodhubapp
 
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.customer.menu.data.*
@@ -7,7 +8,7 @@ import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONObject
+import com.google.gson.JsonObject
 import org.junit.Assert.*
 import org.junit.After
 import org.junit.Before
@@ -24,7 +25,7 @@ class FoodRepositoryTest {
     }
     @After fun tearDown() { server.shutdown() }
 
-    private fun item() = JSONObject("""{
+    private fun item() = parseJsonObject("""{
         "id":"burger-id", "name":"Burger", "description":"Fresh burger",
         "basePrice":"99000", "avgRating":"4.2", "image":"https://example.com/burger.png",
         "isAvailable":true, "variantGroups":[{
@@ -37,7 +38,7 @@ class FoodRepositoryTest {
     }""")
 
     @Test fun detailUsesActualIdAndFiltersInactiveOptions() = runBlocking {
-        server.enqueue(MockResponse().setBody(JSONObject().put("data", item()).toString()))
+        server.enqueue(MockResponse().setBody(JsonObject().put("data", item()).toString()))
         val food = repository.getFood("burger-id")
         assertEquals("/api/v1/menu/item/burger-id", server.takeRequest().path)
         assertEquals(99000L, food.basePrice)
@@ -48,8 +49,8 @@ class FoodRepositoryTest {
     }
 
     @Test fun itemWithoutGroupsAndNullFieldsIsSupported() {
-        val food = parseFoodDetail(item().put("variantGroups", org.json.JSONArray())
-            .put("description", JSONObject.NULL).put("image", JSONObject.NULL))
+        val food = parseFoodDetail(item().put("variantGroups", com.google.gson.JsonArray())
+            .put("description", com.google.gson.JsonNull.INSTANCE).put("image", com.google.gson.JsonNull.INSTANCE))
         assertTrue(food.groups.isEmpty())
         assertEquals("", food.description)
         assertNull(food.imageUrl)
@@ -62,10 +63,10 @@ class FoodRepositoryTest {
         assertEquals("POST", request.method)
         assertEquals("/api/v1/cart/TAKEAWAY/items/add", request.path)
         assertEquals("Bearer test-token", request.getHeader("Authorization"))
-        val body = JSONObject(request.body.readUtf8())
+        val body = parseJsonObject(request.body.readUtf8())
         assertEquals("burger-id", body.getString("menuItemId"))
         assertEquals(2, body.getInt("quantity"))
-        assertEquals("egg", body.getJSONArray("variantOptionIds").getString(0))
+        assertEquals("egg", body.getArray("variantOptionIds").getString(0))
         assertEquals("No onion", body.getString("note"))
         assertFalse(body.has("price"))
     }
@@ -109,7 +110,7 @@ class FoodRepositoryTest {
     }
 
     @Test fun flashSaleOnlyAppliesWithinActivePeriod() {
-        val data = item().put("flashSale", JSONObject("""{
+        val data = item().put("flashSale", parseJsonObject("""{
             "isActive":true, "discountPercent":"20",
             "startsAt":"2026-09-18T00:00:00.000Z", "endsAt":"2026-09-19T00:00:00.000Z"
         }"""))

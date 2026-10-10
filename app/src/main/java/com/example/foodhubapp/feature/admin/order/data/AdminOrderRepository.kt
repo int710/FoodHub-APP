@@ -1,8 +1,8 @@
 package com.example.foodhubapp.feature.admin.order.data
 
+import com.example.foodhubapp.core.network.*
 import android.content.Context
 import com.example.foodhubapp.core.datastore.TokenStore
-import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.feature.admin.model.AdminItemStatus
 import com.example.foodhubapp.feature.admin.model.AdminOrder
 import com.example.foodhubapp.feature.admin.model.AdminOrderLine
@@ -12,8 +12,8 @@ import com.example.foodhubapp.feature.admin.model.AdminPaymentMethod
 import com.example.foodhubapp.feature.admin.model.AdminZaloPayment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -23,48 +23,63 @@ class AdminOrderRepository internal constructor(
     private val apiClient: FoodHubApiClient,
     private val accessToken: suspend () -> String?,
 ) {
-    constructor(context: Context, apiClient: FoodHubApiClient = FoodHubApiClient()) : this(
+    constructor(context: Context, apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient) : this(
         apiClient, { TokenStore(context.applicationContext).getAccessToken() },
     )
 
     suspend fun getOrders(): List<AdminOrder> = withContext(Dispatchers.IO) {
-        val response = apiClient.getJson("/order/history?page=1&limit=100", headers())
-        (response.optJSONArray("data") ?: JSONArray()).objects().map(JSONObject::toAdminOrder)
+        val response = apiClient.execute(
+            apiClient.adminOrderApi.getOrders(
+                headers = headers()
+            )
+        )
+        (response.optArray("data") ?: JsonArray()).objects().map(JsonObject::toAdminOrder)
     }
 
     suspend fun getKitchenItems(page: Int = 1): List<KitchenItem> = withContext(Dispatchers.IO) {
-        val response = apiClient.getJson("/order/kitchen?page=$page&limit=100", headers())
-        (response.optJSONArray("data") ?: JSONArray()).objects().map { item ->
-            val order = item.getJSONObject("order")
+        val response = apiClient.execute(
+            apiClient.adminOrderApi.getKitchenItems(
+                page = page,
+                headers = headers()
+            )
+        )
+        (response.optArray("data") ?: JsonArray()).objects().map { item ->
+            val order = item.getObject("order")
             KitchenItem(item.getString("id"), item.getString("orderId"),
-                item.optJSONObject("snapshot")?.optString("name").orEmpty().ifBlank { "Món ăn" },
+                item.optObject("snapshot")?.optString("name").orEmpty().ifBlank { "Món ăn" },
                 item.optInt("quantity", 1), item.optionalString("note"),
                 enumValueOrDefault(item.optString("status"), AdminItemStatus.WAITING),
-                order.optJSONObject("table")?.optString("name")?.takeIf(String::isNotBlank)
+                order.optObject("table")?.optString("name")?.takeIf(String::isNotBlank)
                     ?: order.optString("pickupCode").ifBlank { when (order.optString("type")) {
                         "TAKEAWAY" -> "Mang về"; "DELIVERY" -> "Giao hàng"; else -> "Tại bàn"
                     } },
-                options = item.optJSONObject("snapshot")?.optJSONArray("variantOptions")?.strings().orEmpty())
+                options = item.optObject("snapshot")?.optArray("variantOptions")?.strings().orEmpty())
         }
     }
 
-    suspend fun confirm(orderId: String) = mutate("/order/$orderId/confirm", JSONObject())
+    suspend fun confirm(orderId: String) = mutate { apiClient.adminOrderApi.confirm(it, orderId) }
 
     suspend fun reject(orderId: String, reason: String) =
-        mutate("/order/$orderId/reject", JSONObject().put("reason", reason.trim()))
+        mutate { apiClient.adminOrderApi.reject(it, orderId, JsonObject().put("reason", reason.trim())) }
 
     suspend fun updateItem(itemId: String, status: AdminItemStatus) =
-        mutate("/order/kitchen/$itemId/status", JSONObject().put("status", status.name))
+        mutate { apiClient.adminOrderApi.updateItem(it, itemId, JsonObject().put("status", status.name)) }
 
-    suspend fun serve(orderId: String) = mutate("/order/$orderId/serve", JSONObject())
+    suspend fun serve(orderId: String) = mutate { apiClient.adminOrderApi.serve(it, orderId) }
 
-    suspend fun complete(orderId: String) = mutate("/order/$orderId/complete", JSONObject())
+    suspend fun complete(orderId: String) = mutate { apiClient.adminOrderApi.complete(it, orderId) }
 
-    suspend fun confirmCash(orderId: String) = mutate("/payment/$orderId/cash-confirm", JSONObject())
+    suspend fun confirmCash(orderId: String) = mutate { apiClient.adminOrderApi.confirmCash(it, orderId) }
 
     suspend fun convertCashToZaloPay(orderId: String): AdminZaloPayment = withContext(Dispatchers.IO) {
-        val response = apiClient.patch("/payment/$orderId/zalopay/convert", JSONObject(), headers())
-        val data = response.optJSONObject("data") ?: error("Máy chủ chưa trả giao dịch ZaloPay")
+        val response = apiClient.execute(
+            apiClient.adminOrderApi.convertCashToZaloPay(
+                id = orderId,
+                headers = headers(),
+                body = JsonObject()
+            )
+        )
+        val data = response.optObject("data") ?: error("Máy chủ chưa trả giao dịch ZaloPay")
         AdminZaloPayment(
             orderId = data.optString("orderId", orderId),
             orderCode = data.optString("orderCode"),
@@ -74,8 +89,10 @@ class AdminOrderRepository internal constructor(
         )
     }
 
-    private suspend fun mutate(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
-        apiClient.patch(path, body, headers())
+    private suspend fun mutate(
+        call: (Map<String, String>) -> retrofit2.Call<JsonObject>
+    ) = withContext(Dispatchers.IO) {
+        apiClient.execute(call(headers()))
         Unit
     }
 
@@ -89,11 +106,11 @@ class AdminOrderRepository internal constructor(
 data class KitchenItem(val id: String, val orderId: String, val name: String, val quantity: Int,
     val note: String?, val status: AdminItemStatus, val destination: String, val options: List<String> = emptyList())
 
-private fun JSONObject.toAdminOrder(): AdminOrder {
-    val table = optJSONObject("table")
-    val delivery = optJSONObject("deliveryInfo")
-    val payments = optJSONArray("payments")
-    val payment = payments?.optJSONObject(0) ?: optJSONObject("payment")
+private fun JsonObject.toAdminOrder(): AdminOrder {
+    val table = optObject("table")
+    val delivery = optObject("deliveryInfo")
+    val payments = optArray("payments")
+    val payment = payments?.optObject(0) ?: optObject("payment")
     val created = optString("createdAt")
     val createdInstant = runCatching { Instant.parse(created) }
         .recoverCatching { OffsetDateTime.parse(created).toInstant() }
@@ -110,14 +127,14 @@ private fun JSONObject.toAdminOrder(): AdminOrder {
         destination = destination,
         createdAt = createdInstant?.atZone(ZoneId.systemDefault())?.toLocalTime()?.toString()?.take(5) ?: created.take(16),
         waitMinutes = createdInstant?.let { ChronoUnit.MINUTES.between(it, Instant.now()).toInt().coerceAtLeast(0) } ?: 0,
-        items = (optJSONArray("items") ?: JSONArray()).objects().map { item ->
-            val snapshot = item.optJSONObject("snapshot")
+        items = (optArray("items") ?: JsonArray()).objects().map { item ->
+            val snapshot = item.optObject("snapshot")
             AdminOrderLine(
                 id = item.optString("id"),
-                name = snapshot?.optString("name").orEmpty().ifBlank { item.optJSONObject("menuItem")?.optString("name").orEmpty().ifBlank { "Món ăn" } },
+                name = snapshot?.optString("name").orEmpty().ifBlank { item.optObject("menuItem")?.optString("name").orEmpty().ifBlank { "Món ăn" } },
                 quantity = item.optInt("quantity", 1),
                 unitPrice = item.money("unitPrice"),
-                options = snapshot?.optJSONArray("variantOptions")?.strings().orEmpty(),
+                options = snapshot?.optArray("variantOptions")?.strings().orEmpty(),
                 note = item.optionalString("note"),
                 status = enumValueOrDefault(item.optString("status"), AdminItemStatus.WAITING),
             )
@@ -132,12 +149,12 @@ private fun JSONObject.toAdminOrder(): AdminOrder {
 private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String, fallback: T): T =
     enumValues<T>().firstOrNull { it.name == value } ?: fallback
 
-private fun JSONObject.money(key: String): Long = opt(key)?.toString()?.toBigDecimalOrNull()?.toLong() ?: 0L
-private fun JSONObject.optionalString(key: String): String? = if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
-private fun JSONArray.objects() = (0 until length()).mapNotNull(::optJSONObject)
-private fun JSONArray.strings() = (0 until length()).mapNotNull { index ->
+private fun JsonObject.money(key: String): Long = opt(key)?.toString()?.toBigDecimalOrNull()?.toLong() ?: 0L
+private fun JsonObject.optionalString(key: String): String? = if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
+private fun JsonArray.objects() = (0 until size()).mapNotNull(::optObject)
+private fun JsonArray.strings() = (0 until size()).mapNotNull { index ->
     when (val value = opt(index)) {
-        is JSONObject -> value.optString("name").takeIf(String::isNotBlank)
+        is JsonObject -> value.optString("name").takeIf(String::isNotBlank)
         is String -> value.takeIf(String::isNotBlank)
         else -> null
     }

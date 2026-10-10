@@ -1,6 +1,7 @@
 package com.example.foodhubapp
 
 import com.example.foodhubapp.core.network.*
+import com.example.foodhubapp.core.network.*
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -88,7 +89,8 @@ class SessionRefreshTest {
         server.enqueue(MockResponse().setResponseCode(401).setBody("""{"message":"Expired access token"}"""))
         server.enqueue(MockResponse().setBody("""{"data":{"access_token":"new-access","refresh_token":"new-refresh"}}"""))
         server.enqueue(MockResponse().setBody("""{"data":{"id":"customer-1"}}"""))
-        assertEquals("customer-1", api.getJson("/user/me", "old-access").getJSONObject("data").getString("id"))
+        val profile = api.execute(api.authApi.getProfile(mapOf("Authorization" to "Bearer old-access")))
+        assertEquals("customer-1", profile.getObject("data").getString("id"))
         assertEquals("Bearer old-access", server.takeRequest().getHeader("Authorization"))
         assertEquals("/api/v1/user/refresh-token", server.takeRequest().path)
         assertEquals("Bearer new-access", server.takeRequest().getHeader("Authorization"))
@@ -100,7 +102,10 @@ class SessionRefreshTest {
         val api = FoodHubApiClient(url(), client, coordinator::refresh)
         server.enqueue(MockResponse().setResponseCode(401).setBody("""{"message":"Expired"}"""))
         server.enqueue(MockResponse().setResponseCode(503).setBody("""{"message":"Retry later"}"""))
-        try { api.getJson("/order/history", "old-access"); fail("Expected server error") }
+        try {
+            api.execute(api.orderApi.getHistory(mapOf("Authorization" to "Bearer old-access"), 1, 20))
+            fail("Expected server error")
+        }
         catch (error: FoodHubApiException) { assertEquals(503, error.statusCode) }
         assertEquals(SessionTokens("old-access", "old-refresh"), store.tokens)
     }

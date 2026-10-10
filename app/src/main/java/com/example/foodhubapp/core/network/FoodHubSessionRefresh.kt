@@ -5,7 +5,8 @@ import com.example.foodhubapp.core.datastore.TokenStore
 import okhttp3.OkHttpClient
 
 object FoodHubSessionRefresh {
-    @Volatile private var coordinator: SessionRefreshCoordinator? = null
+    @Volatile
+    private var coordinator: SessionRefreshCoordinator? = null
 
     @Synchronized
     fun initialize(context: Context) {
@@ -18,6 +19,9 @@ object FoodHubSessionRefresh {
         })
     }
 
-    fun refresh(httpClient: OkHttpClient, baseUrl: String, rejectedAccessToken: String? = null): String? =
-        coordinator?.refresh(httpClient, baseUrl, rejectedAccessToken)
+    fun refresh(
+        httpClient: OkHttpClient,
+        baseUrl: String,
+        rejectedAccessToken: String? = null
+    ): String? = coordinator?.refresh(httpClient, baseUrl, rejectedAccessToken)
 }

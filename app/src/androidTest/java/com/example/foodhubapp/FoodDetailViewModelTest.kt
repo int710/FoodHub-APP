@@ -11,10 +11,12 @@ import com.example.foodhubapp.feature.customer.menu.viewmodel.FoodDetailViewMode
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.Rule
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class FoodDetailViewModelTest {
+    @get:Rule val orderingSession = OrderingSessionRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val application get() = instrumentation.targetContext.applicationContext as Application
 

@@ -1,13 +1,13 @@
 package com.example.foodhubapp.feature.customer.cart.data
 
-import com.example.foodhubapp.core.network.FoodHubApiClient
+import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import java.math.BigDecimal
 import java.net.URLEncoder
 
@@ -88,22 +88,27 @@ interface CartRepository {
  * công việc mạng được chuyển sang Dispatchers.IO để không chặn main thread.
  */
 class RemoteCartRepository(
-    private val apiClient: FoodHubApiClient = FoodHubApiClient(),
+    private val apiClient: FoodHubApiClient = FoodhubRetrofit.apiClient,
     private val tableToken: () -> String? = { null },
     private val accessToken: suspend () -> String? = { null },
 ) : CartRepository {
     override suspend fun getCart(type: CartType): Cart = withContext(Dispatchers.IO) {
-        val response = apiClient.getJson("/cart/${type.name}/items", requestHeaders(type))
+        val response = apiClient.execute(
+            apiClient.cartApi.getItems(
+                type = type.name,
+                headers = requestHeaders(type)
+            )
+        )
         completeCartItems(response)
         parseCart(response)
     }
 
     /** Older servers return Redis cart entries without menu display data or prices. */
-    private suspend fun completeCartItems(response: JSONObject) {
+    private suspend fun completeCartItems(response: JsonObject) {
         val foodRepository = RemoteFoodRepository(apiClient)
         val foodById = mutableMapOf<String, FoodDetail>()
         for (item in response.cartItems().objects()) {
-            val menu = item.optJSONObject("menuItem") ?: item.optJSONObject("item")
+            val menu = item.optObject("menuItem") ?: item.optObject("item")
             val hasName = item.firstString("name", "menuItemName").isNotBlank() ||
                 menu?.optionalString("name") != null
             val hasPrice = item.firstMoney("unitPrice", "price", "basePrice") != null ||
@@ -117,20 +122,20 @@ class RemoteCartRepository(
             if (!hasName) item.put("name", food.name)
             if (item.optionalString("image") == null && item.optionalString("imageUrl") == null &&
                 menu?.optionalString("image") == null && menu?.optionalString("imageUrl") == null) {
-                item.put("imageUrl", food.imageUrl ?: JSONObject.NULL)
+                item.put("imageUrl", food.imageUrl ?: com.google.gson.JsonNull.INSTANCE)
             }
             var options = item.firstArray("variantOptions", "selectedOptions", "options")?.cartOptions()
             if (options == null) {
-                val ids = item.optJSONArray("variantOptionIds")
-                val selectedIds = ids?.let { array -> (0 until array.length()).map { array.getString(it) } }.orEmpty()
+                val ids = item.optArray("variantOptionIds")
+                val selectedIds = ids?.let { array -> (0 until array.size()).map { array.getString(it) } }.orEmpty()
                 val availableOptions = food.groups.flatMap { it.options }.associateBy { it.id }
                 options = selectedIds.map { id ->
                     val option = availableOptions[id]
                         ?: error("Tùy chọn món không còn hợp lệ. Vui lòng chỉnh sửa món trong giỏ.")
                     CartOption(option.id, option.name, option.priceAdd)
                 }
-                item.put("variantOptions", JSONArray(options.map { option ->
-                    JSONObject().put("id", option.id).put("name", option.name).put("priceAdd", option.priceAdd)
+                item.put("variantOptions", jsonArray(options.map { option ->
+                    JsonObject().put("id", option.id).put("name", option.name).put("priceAdd", option.priceAdd)
                 }))
             }
             if (!hasPrice) {
@@ -149,26 +154,40 @@ class RemoteCartRepository(
             update.quantity?.let { require(it in 1..99) }
             update.note?.let { require(it.length <= 255) }
             // Chỉ đưa trường được sửa vào body PATCH; null nghĩa là giữ nguyên.
-            val body = JSONObject()
+            val body = JsonObject()
             update.quantity?.let { body.put("quantity", it) }
-            update.variantOptionIds?.let { body.put("variantOptionIds", JSONArray(it.distinct())) }
+            update.variantOptionIds?.let { body.put("variantOptionIds", jsonArray(it.distinct())) }
             update.note?.let { body.put("note", it) }
-            apiClient.patch(
-                "/cart/${type.name}/items/${itemId.encoded()}",
-                body,
-                requestHeaders(type)
+            apiClient.execute(
+                apiClient.cartApi.updateItem(
+                    type = type.name,
+                    id = itemId.encoded(),
+                    headers = requestHeaders(type),
+                    body = body
+                )
             )
             Unit
         }
 
     override suspend fun deleteItem(itemId: String, type: CartType) = withContext(Dispatchers.IO) {
         require(itemId.isNotBlank())
-        apiClient.delete("/cart/${type.name}/items/${itemId.encoded()}", requestHeaders(type))
+        apiClient.execute(
+            apiClient.cartApi.deleteItem(
+                type = type.name,
+                id = itemId.encoded(),
+                headers = requestHeaders(type)
+            )
+        )
         Unit
     }
 
     override suspend fun clear(type: CartType) = withContext(Dispatchers.IO) {
-        apiClient.delete("/cart/${type.name}/clear", requestHeaders(type))
+        apiClient.execute(
+            apiClient.cartApi.clear(
+                type = type.name,
+                headers = requestHeaders(type)
+            )
+        )
         Unit
     }
 
@@ -179,21 +198,27 @@ class RemoteCartRepository(
                 "Vui lòng nhập đủ thông tin giao hàng."
             }
         }
-        val body = JSONObject()
+        val body = JsonObject()
             .put("note", request.note.trim())
             .put("paymentMethod", request.paymentMethod)
         if (request.type == CartType.DELIVERY) {
             body.put(
                 "deliveryInfo",
-                JSONObject()
+                JsonObject()
                     .put("recipientName", request.recipientName.trim())
                     .put("phone", request.phone.trim())
                     .put("address", request.address.trim()),
             )
         }
-        val response = apiClient.post("/order/${request.type.name}/new", body, requestHeaders(request.type))
-        val data = response.optJSONObject("data") ?: response
-        val order = data.optJSONObject("order") ?: data
+        val response = apiClient.execute(
+            apiClient.orderApi.createOrder(
+                type = request.type.name,
+                headers = requestHeaders(request.type),
+                body = body
+            )
+        )
+        val data = response.optObject("data") ?: response
+        val order = data.optObject("order") ?: data
         CheckoutResult(
             orderId = order.optString("id"),
             orderCode = data.optString("orderCode", order.optString("orderCode")),
@@ -221,19 +246,19 @@ class RemoteCartRepository(
  * Chuyển ApiResponse JSON thành model UI. Swagger chưa mô tả schema `data`
  * chi tiết, nên parser chấp nhận cả data dạng mảng và object chứa items/cartItems.
  */
-internal fun parseCart(response: JSONObject): Cart {
+internal fun parseCart(response: JsonObject): Cart {
     val data = response.opt("data")
     val itemsArray = response.cartItems()
     val items = itemsArray.objects().map(::parseCartItem)
-    val container = data as? JSONObject
+    val container = data as? JsonObject
     // Ưu tiên tổng do backend trả về vì backend quyết định sale/thuế; phép cộng chỉ là fallback.
     val total = container?.firstMoney("totalAmount", "total", "subtotal", "subTotal")
         ?: items.sumOf { it.subTotal }
     return Cart(items, total)
 }
 
-private fun parseCartItem(json: JSONObject): CartItem {
-    val menuItem = json.optJSONObject("menuItem") ?: json.optJSONObject("item")
+private fun parseCartItem(json: JsonObject): CartItem {
+    val menuItem = json.optObject("menuItem") ?: json.optObject("item")
     val optionsArray = json.firstArray("variantOptions", "selectedOptions", "options")
     val options = optionsArray?.cartOptions().orEmpty()
     val quantity = json.optInt("quantity", 1).coerceIn(1, 99)
@@ -259,16 +284,16 @@ private fun parseCartItem(json: JSONObject): CartItem {
 }
 
 private fun String.encoded() = URLEncoder.encode(this, "UTF-8")
-private fun JSONObject.cartItems(): JSONArray = when (val data = opt("data")) {
-    is JSONArray -> data
-    is JSONObject -> data.optJSONArray("items") ?: data.optJSONArray("cartItems") ?: JSONArray()
-    else -> JSONArray()
+private fun JsonObject.cartItems(): JsonArray = when (val data = opt("data")) {
+    is JsonArray -> data
+    is JsonObject -> data.optArray("items") ?: data.optArray("cartItems") ?: JsonArray()
+    else -> JsonArray()
 }
-private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
-private fun JSONArray.cartOptions(): List<CartOption> = (0 until length()).mapNotNull { index ->
+private fun JsonArray.objects(): List<JsonObject> = (0 until size()).map { getObject(it) }
+private fun JsonArray.cartOptions(): List<CartOption> = (0 until size()).mapNotNull { index ->
     when (val raw = opt(index)) {
-        is JSONObject -> {
-            val option = raw.optJSONObject("option") ?: raw
+        is JsonObject -> {
+            val option = raw.optObject("option") ?: raw
             CartOption(
                 id = option.firstString("id", "variantOptionId"),
                 name = option.firstString("name", "optionName").ifBlank { "Tùy chọn" },
@@ -279,13 +304,13 @@ private fun JSONArray.cartOptions(): List<CartOption> = (0 until length()).mapNo
         else -> null
     }
 }
-private fun JSONObject.firstArray(vararg keys: String): JSONArray? =
-    keys.firstNotNullOfOrNull { optJSONArray(it) }
-private fun JSONObject.firstString(vararg keys: String): String =
+private fun JsonObject.firstArray(vararg keys: String): JsonArray? =
+    keys.firstNotNullOfOrNull { optArray(it) }
+private fun JsonObject.firstString(vararg keys: String): String =
     keys.firstNotNullOfOrNull { key -> optionalString(key) }.orEmpty()
-private fun JSONObject.optionalString(key: String): String? =
+private fun JsonObject.optionalString(key: String): String? =
     if (!has(key) || isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
-private fun JSONObject.firstMoney(vararg keys: String): Long? = keys.firstNotNullOfOrNull { key ->
+private fun JsonObject.firstMoney(vararg keys: String): Long? = keys.firstNotNullOfOrNull { key ->
     if (!has(key) || isNull(key)) null
-    else runCatching { BigDecimal(get(key).toString()).longValueExact() }.getOrNull()
+    else runCatching { BigDecimal(opt(key).toString()).longValueExact() }.getOrNull()
 }

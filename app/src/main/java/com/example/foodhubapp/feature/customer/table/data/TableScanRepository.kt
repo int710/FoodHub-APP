@@ -1,15 +1,15 @@
 package com.example.foodhubapp.feature.customer.table.data
 
+import com.example.foodhubapp.core.network.*
 import android.content.Context
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
+
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
+
+import com.google.gson.JsonObject
 import java.io.IOException
 import java.net.URI
 import java.net.URLDecoder
@@ -86,89 +86,77 @@ class TableSessionStore(context: Context) {
 
 class TableScanRepository(
     context: Context,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
+    client: OkHttpClient = FoodhubRetrofit.httpClient.newBuilder()
         .readTimeout(20, TimeUnit.SECONDS)
         .build(),
+    baseUrl: String = FoodhubRetrofit.BASE_URL,
 ) {
     private val appContext = context.applicationContext
     private val sessionStore = TableSessionStore(appContext)
+    private val api = FoodHubApiClient(baseUrl, client).tableApi
 
     suspend fun scan(rawQrValue: String): TableSession = withContext(Dispatchers.IO) {
         val qrToken = extractQrToken(rawQrValue)
         if (qrToken.isBlank()) throw TableScanException("Mã QR không chứa token hợp lệ")
 
-        val body = JSONObject()
-            .put("qrToken", qrToken)
-            .toString()
-            .toRequestBody(JSON_MEDIA_TYPE)
-        val request = Request.Builder()
-            .url("https://foodhub-8lv1.onrender.com/api/v1/table/scan")
-            .post(body)
-            .build()
+        val root = tableResponse(
+            api.scan(body = JsonObject().put("qrToken", qrToken)),
+            "Không thể kết nối với bàn"
+        )
+        val message = root.optString("message").ifBlank { "Không thể kết nối với bàn" }
+        val data = root.optObject("data") ?: throw TableScanException(message)
+        val table = data.optObject("table") ?: data
+        val session = data.optObject("session")
+        val tableToken = data.firstString("tableToken", "table_token", "token")
+            ?: session?.firstString("tableToken", "table_token", "token")
+            ?: throw TableScanException(message)
 
-        client.newCall(request).execute().use { response ->
-            val responseText = response.body?.string().orEmpty()
-            val root = responseText.asJsonObject()
-            val message = root?.optString("message")
-                ?.takeIf(String::isNotBlank)
-                ?: "Không thể kết nối với bàn"
-
-            if (!response.isSuccessful) {
-                throw TableScanException(message)
-            }
-
-            val data = root?.optJSONObject("data")
-                ?: throw TableScanException(message)
-            val table = data.optJSONObject("table") ?: data
-            val session = data.optJSONObject("session")
-            val tableToken = data.firstString("tableToken", "table_token", "token")
-                ?: session?.firstString("tableToken", "table_token", "token")
-                ?: throw TableScanException(message)
-
-            val tableSession = TableSession(
-                tableId = table.firstString("id", "tableId").orEmpty(),
-                tableName = table.firstString("name", "tableName") ?: "Bàn đã quét",
-                floor = table.firstString("floor"),
-                capacity = table.optInt("capacity", 0).takeIf { it > 0 },
-                tableToken = tableToken,
-                sessionId = data.firstString("sessionId", "session_id"),
-                expiresAtEpochMillis = data.optLong("expiresIn", 0L)
-                    .takeIf { it > 0L }
-                    ?.let { System.currentTimeMillis() + it * 1_000L },
-            )
-            sessionStore.save(tableSession)
-            OrderingContextStore(appContext).select(CartType.DINE_IN)
-            tableSession
-        }
+        val tableSession = TableSession(
+            tableId = table.firstString("id", "tableId").orEmpty(),
+            tableName = table.firstString("name", "tableName") ?: "Bàn đã quét",
+            floor = table.firstString("floor"),
+            capacity = table.optInt("capacity", 0).takeIf { it > 0 },
+            tableToken = tableToken,
+            sessionId = data.firstString("sessionId", "session_id"),
+            expiresAtEpochMillis = data.optLong("expiresIn", 0L)
+                .takeIf { it > 0L }
+                ?.let { System.currentTimeMillis() + it * 1_000L },
+        )
+        sessionStore.save(tableSession)
+        OrderingContextStore(appContext).select(CartType.DINE_IN)
+        tableSession
     }
 
     suspend fun endSession() = withContext(Dispatchers.IO) {
         val session = sessionStore.current() ?: return@withContext
-        val request = Request.Builder()
-            .url("https://foodhub-8lv1.onrender.com/api/v1/table/session/end")
-            .header("X-Table-Token", session.tableToken)
-            .post(JSONObject().toString().toRequestBody(JSON_MEDIA_TYPE))
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                val message = response.body?.string().orEmpty().asJsonObject()?.optString("message")
-                throw TableScanException(message?.takeIf(String::isNotBlank) ?: "Không thể kết thúc phiên bàn")
-            }
-        }
+        tableResponse(
+            api.endSession(headers = mapOf("X-Table-Token" to session.tableToken)),
+            "Không thể kết thúc phiên bàn"
+        )
         sessionStore.clear()
     }
 
-    private fun String.asJsonObject(): JSONObject? = runCatching { JSONObject(this) }.getOrNull()
+    private fun tableResponse(call: retrofit2.Call<JsonObject>, fallback: String): JsonObject {
+        val response = try {
+            call.execute()
+        } catch (_: com.google.gson.JsonParseException) {
+            throw TableScanException(fallback)
+        } catch (_: IllegalStateException) {
+            throw TableScanException(fallback)
+        }
+        if (!response.isSuccessful) {
+            val root = runCatching {
+                response.errorBody()?.use { parseJsonObject(it.string()) }
+            }.getOrNull()
+            throw TableScanException(root?.optString("message")?.takeIf(String::isNotBlank) ?: fallback)
+        }
+        return response.body() ?: JsonObject()
+    }
 
-    private fun JSONObject.firstString(vararg keys: String): String? =
+    private fun JsonObject.firstString(vararg keys: String): String? =
         keys.firstNotNullOfOrNull { key ->
             if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
         }
-
-    private companion object {
-        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-    }
 }
 
 /** Chấp nhận đúng ba định dạng QR mà backend/admin đang phát: JSON, URL và token thô. */
@@ -176,7 +164,7 @@ internal fun extractQrToken(rawValue: String): String {
     val value = rawValue.trim()
     if (value.isBlank()) return ""
 
-    runCatching { JSONObject(value) }.getOrNull()
+    runCatching { parseJsonObject(value) }.getOrNull()
         ?.optString("qrToken")
         ?.takeIf(String::isNotBlank)
         ?.let { return it }
