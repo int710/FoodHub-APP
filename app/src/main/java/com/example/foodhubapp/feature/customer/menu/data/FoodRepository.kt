@@ -1,10 +1,13 @@
 package com.example.foodhubapp.feature.customer.menu.data
 
 import com.example.foodhubapp.core.network.*
-import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
-import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
-import com.example.foodhubapp.feature.customer.menu.ui.FoodOption
-import com.example.foodhubapp.feature.customer.menu.ui.FoodOptionGroup
+import com.example.foodhubapp.feature.customer.menu.model.FoodCartSelection
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodOption
+import com.example.foodhubapp.feature.customer.menu.model.FoodOptionGroup
+import com.example.foodhubapp.feature.customer.menu.model.FoodReview
+import com.example.foodhubapp.feature.customer.menu.model.MenuCategory
+import com.example.foodhubapp.feature.customer.menu.model.MenuFood
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,38 +18,6 @@ import java.math.RoundingMode
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Locale
-
-/**
- * Model đại diện cho một món ăn hiển thị trong danh sách thực đơn.
- */
-data class MenuFood(
-    val id: String, 
-    val name: String, 
-    val price: Long, 
-    val imageUrl: String?,
-    val description: String = "",
-    val rating: String = "0",
-    val isFeatured: Boolean = false,
-    val totalOrder: Int = 0,
-    val available: Boolean = true
-)
-
-/**
- * Model đại diện cho danh mục món ăn (ví dụ: Burger, Pizza, Tráng miệng).
- */
-data class MenuCategory(
-    val id: String, 
-    val name: String, 
-    val items: List<MenuFood>
-)
-
-data class FoodReview(
-    val id: String,
-    val customerName: String,
-    val rating: Int,
-    val comment: String,
-    val createdAt: String,
-)
 
 /**
  * Ngoại lệ ném ra khi người dùng chưa đăng nhập nhưng cố gắng thêm món vào giỏ hàng.

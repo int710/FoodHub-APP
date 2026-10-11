@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.shared.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -13,8 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
@@ -72,7 +72,7 @@ fun FoodHubDialog(
                     Spacer(Modifier.width(10.dp))
                     Surface(shape = CircleShape, color = Color.White.copy(alpha = .14f)) {
                         IconButton(onClick = onDismissRequest, enabled = dismissEnabled, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Close, "Đóng", tint = Color.White, modifier = Modifier.size(19.dp))
+                            Icon(TablerIcons.Close, "Đóng", tint = Color.White, modifier = Modifier.size(19.dp))
                         }
                     }
                 }
@@ -128,7 +128,7 @@ fun FoodHubAlertDialog(
                         Surface(Modifier.weight(1f), color = Color.Transparent, contentColor = Color.White) { it() }
                     } ?: Spacer(Modifier.weight(1f))
                     IconButton(onClick = onDismissRequest, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Close, "Đóng", tint = Color.White, modifier = Modifier.size(19.dp))
+                        Icon(TablerIcons.Close, "Đóng", tint = Color.White, modifier = Modifier.size(19.dp))
                     }
                 }
                 text?.let {

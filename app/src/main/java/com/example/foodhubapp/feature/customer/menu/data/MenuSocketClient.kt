@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.menu.data
 
+import com.example.foodhubapp.core.network.FoodhubRetrofit
+
 import android.os.Handler
 import android.os.Looper
 import io.socket.client.IO
@@ -13,7 +15,7 @@ class MenuSocketClient {
     fun connect(onMenuUpdated: () -> Unit) {
         disconnect()
         val options = IO.Options.builder().setReconnection(true).build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on("menu:updated") { handler.post(onMenuUpdated) }
             connect()
         }
@@ -26,6 +28,5 @@ class MenuSocketClient {
     }
 
     private companion object {
-        const val SOCKET_URL = "https://foodhub-8lv1.onrender.com"
     }
 }

@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.chat.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.components.AdminAvatar
 import com.example.foodhubapp.feature.admin.components.AdminSearchField
 
@@ -27,10 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,7 +90,7 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
                         Modifier.fillMaxWidth().padding(vertical = 64.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Icon(Icons.Default.ChatBubbleOutline, null, Modifier.size(42.dp), tint = AdminMuted)
+                        Icon(TablerIcons.ChatBubble, null, Modifier.size(42.dp), tint = AdminMuted)
                         Spacer(Modifier.height(10.dp))
                         Text("Không có hội thoại phù hợp", color = AdminText, fontWeight = FontWeight.SemiBold)
                         Text("Tin nhắn mới sẽ tự động xuất hiện tại đây.", color = AdminMuted, fontSize = 12.sp)
@@ -128,7 +126,7 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
                 border = BorderStroke(2.dp, AdminSurface),
             ) {
                 Icon(
-                    if (conversation.isTableSession) Icons.Default.TableRestaurant else Icons.Default.PersonOutline,
+                    if (conversation.isTableSession) TablerIcons.Table else TablerIcons.User,
                     null,
                     Modifier.padding(3.dp),
                     tint = if (conversation.isTableSession) AdminPrimary else AdminGreen,

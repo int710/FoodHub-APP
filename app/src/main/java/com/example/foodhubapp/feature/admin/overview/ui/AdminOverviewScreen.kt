@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.overview.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.chat.ui.AdminConversationRow
 
 import com.example.foodhubapp.feature.admin.components.AdminSectionHeader
@@ -21,14 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Surface
@@ -108,7 +102,7 @@ fun AdminOverviewScreen(
         item {
             Text("Tổng quan vận hành", fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, null, Modifier.size(15.dp), tint = AdminMuted)
+                Icon(TablerIcons.CalendarToday, null, Modifier.size(15.dp), tint = AdminMuted)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     "Hôm nay, ${LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
@@ -155,21 +149,21 @@ fun AdminOverviewScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AdminMetric("Doanh thu", revenue.vnd(), "${paidOrders.size} đơn đã thu", Icons.AutoMirrored.Filled.TrendingUp,
+                    AdminMetric("Doanh thu", revenue.vnd(), "${paidOrders.size} đơn đã thu", TablerIcons.TrendingUp,
                         AdminGreen, Modifier.weight(1f))
-                    AdminMetric("Đơn đang xử lý", activeOrders.size.toString(), "${filteredOrders.size} tổng đơn", Icons.AutoMirrored.Filled.ReceiptLong,
+                    AdminMetric("Đơn đang xử lý", activeOrders.size.toString(), "${filteredOrders.size} tổng đơn", TablerIcons.Receipt,
                         AdminBlue, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AdminMetric("Chờ xác nhận", filteredOrders.count { it.status == AdminOrderStatus.PENDING_CONFIRMATION }.toString(), "Cần xử lý", Icons.Default.AccessTime,
+                    AdminMetric("Chờ xác nhận", filteredOrders.count { it.status == AdminOrderStatus.PENDING_CONFIRMATION }.toString(), "Cần xử lý", TablerIcons.AccessTime,
                         AdminAmber, Modifier.weight(1f))
-                    AdminMetric("Tin chưa đọc", conversations.sumOf { it.unread }.toString(), "${conversations.count { it.isOnline }} đang online", Icons.Default.ChatBubbleOutline,
+                    AdminMetric("Tin chưa đọc", conversations.sumOf { it.unread }.toString(), "${conversations.count { it.isOnline }} đang online", TablerIcons.ChatBubble,
                         AdminPrimary, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AdminMetric("Giá trị TB/đơn", averageOrder.vnd(), "Đơn đã thanh toán", Icons.Default.Payments,
+                    AdminMetric("Giá trị TB/đơn", averageOrder.vnd(), "Đơn đã thanh toán", TablerIcons.Payment,
                         AdminPrimary, Modifier.weight(1f))
-                    AdminMetric("Tỷ lệ hoàn tất", "$completionRate%", "$completedCount/${filteredOrders.size} đơn", Icons.Default.RestaurantMenu,
+                    AdminMetric("Tỷ lệ hoàn tất", "$completionRate%", "$completedCount/${filteredOrders.size} đơn", TablerIcons.Restaurant,
                         AdminGreen, Modifier.weight(1f))
                 }
             }

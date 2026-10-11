@@ -30,17 +30,6 @@ class AdminConversationRepository internal constructor(
             .map(JsonObject::toAdminConversation)
     }
 
-    suspend fun close(id: String) = withContext(Dispatchers.IO) {
-        apiClient.execute(
-            apiClient.conversationApi.closeConversation(
-                id = id,
-                headers = headers(),
-                body = JsonObject()
-            )
-        )
-        Unit
-    }
-
     private suspend fun headers(): Map<String, String> {
         val token = accessToken()?.takeIf(String::isNotBlank)
             ?: error("Vui lòng đăng nhập lại")

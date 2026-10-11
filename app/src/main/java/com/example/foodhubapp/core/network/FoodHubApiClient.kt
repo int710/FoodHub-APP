@@ -7,7 +7,7 @@ import com.example.foodhubapp.feature.shared.auth.data.AuthApi
 import com.example.foodhubapp.feature.customer.menu.data.MenuApi
 import com.example.foodhubapp.feature.customer.cart.data.CartApi
 import com.example.foodhubapp.feature.customer.order.data.OrderApi
-import com.example.foodhubapp.feature.table.data.TableApi
+import com.example.foodhubapp.feature.customer.table.data.TableApi
 import com.example.foodhubapp.feature.shared.notification.data.NotificationApi
 import com.example.foodhubapp.feature.shared.payment.PaymentApi
 import com.example.foodhubapp.feature.customer.menu.data.ReviewApi

@@ -3,6 +3,8 @@
 package com.example.foodhubapp.feature.admin.menu.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +43,10 @@ import com.example.foodhubapp.feature.admin.navigation.AdminMuted
 import com.example.foodhubapp.feature.admin.navigation.AdminPrimarySoft
 import com.example.foodhubapp.feature.admin.navigation.AdminRed
 import com.example.foodhubapp.feature.admin.navigation.AdminSurface
+import com.example.foodhubapp.feature.admin.navigation.AdminPrimary
+import com.example.foodhubapp.core.ui.icons.foodCategoryIcon
+import com.example.foodhubapp.core.ui.icons.foodCategoryIconKey
+import com.example.foodhubapp.core.ui.icons.foodCategoryIconOptions
 
 @Composable
 internal fun AdminCategoryRow(
@@ -52,7 +60,14 @@ internal fun AdminCategoryRow(
             Box(
                 Modifier.size(46.dp).background(AdminPrimarySoft, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
-            ) { Text(category.icon, fontSize = 22.sp) }
+            ) {
+                Icon(
+                    foodCategoryIcon(category.icon, category.name),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = AdminPrimary,
+                )
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(category.name, fontWeight = FontWeight.Bold)
@@ -76,7 +91,9 @@ internal fun AdminCategoryEditorDialog(
     onSubmit: (AdminMenuCategoryInput) -> Unit,
 ) {
     var name by remember(category?.id) { mutableStateOf(category?.name.orEmpty()) }
-    var icon by remember(category?.id) { mutableStateOf(category?.icon ?: "🍽") }
+    var icon by remember(category?.id) {
+        mutableStateOf(foodCategoryIconKey(category?.icon.orEmpty(), category?.name.orEmpty()))
+    }
     var sortOrder by remember(category?.id) { mutableStateOf(category?.sortOrder?.toString() ?: "0") }
     val parsedSortOrder = sortOrder.toIntOrNull()
 
@@ -86,7 +103,24 @@ internal fun AdminCategoryEditorDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Tên danh mục") }, singleLine = true)
-                OutlinedTextField(icon, { icon = it.take(8) }, label = { Text("Biểu tượng") }, singleLine = true)
+                Text("Biểu tượng", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    foodCategoryIconOptions.forEach { option ->
+                        Column(
+                            Modifier.background(
+                                if (icon == option.key) AdminPrimarySoft else AdminSurface,
+                                RoundedCornerShape(10.dp),
+                            ).clickable { icon = option.key }.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(option.icon, option.label, Modifier.size(22.dp), tint = AdminPrimary)
+                            Text(option.label, fontSize = 10.sp, color = AdminMuted)
+                        }
+                    }
+                }
                 OutlinedTextField(
                     sortOrder,
                     { sortOrder = it.filter(Char::isDigit) },

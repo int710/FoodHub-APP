@@ -1,6 +1,9 @@
 package com.example.foodhubapp.core.payment
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,9 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,7 +73,7 @@ fun ZaloPayLaunchDialog(
                     Text("ZaloPay", color = Color(0xFF0878C9), fontWeight = FontWeight.Black, fontSize = 11.sp,
                         modifier = Modifier.background(Color.White, RoundedCornerShape(4.dp)).padding(horizontal = 7.dp, vertical = 4.dp))
                     Text("Cổng thanh toán điện tử", Modifier.padding(start = 8.dp).weight(1f), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    IconButton(onClick = onDismiss, Modifier.size(32.dp)) { Icon(Icons.Default.Close, "Đóng", tint = Color.White) }
+                    IconButton(onClick = onDismiss, Modifier.size(32.dp)) { Icon(TablerIcons.Close, "Đóng", tint = Color.White) }
                 }
                 Column(
                     Modifier.fillMaxWidth().padding(18.dp),
@@ -97,7 +97,7 @@ fun ZaloPayLaunchDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (isChecking) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp, color = Color(0xFF0878C9))
-                    else Icon(Icons.Default.VerifiedUser, null, Modifier.size(17.dp), tint = Color(0xFF0878C9))
+                    else Icon(TablerIcons.ShieldCheck, null, Modifier.size(17.dp), tint = Color(0xFF0878C9))
                     Text(if (isChecking) "Đang tự động kiểm tra thanh toán…" else "Thanh toán được xác nhận tự động", Modifier.padding(start = 8.dp), color = Color(0xFF075A99), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Button(
@@ -123,7 +123,7 @@ private fun String.toQrBitmap(size: Int): Bitmap {
     for (y in 0 until size) {
         for (x in 0 until size) pixels[y * size + x] = if (matrix[x, y]) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
     }
-    return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
+    return createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
         setPixels(pixels, 0, size, 0, 0, size, size)
     }
 }

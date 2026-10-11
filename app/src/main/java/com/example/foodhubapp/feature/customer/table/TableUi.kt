@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.foodhubapp.core.ui.icons.TablerIcons
 
 internal val Ink = Color(0xFF181C22)
 internal val Muted = Color(0xFF5B4138)
@@ -51,12 +54,11 @@ internal fun Label(
 }
 
 @Composable
-internal fun GlyphCircle(
-    glyph: String,
+internal fun IconCircle(
+    icon: ImageVector,
     size: Dp,
     background: Color,
     foreground: Color,
-    fontSize: TextUnit = 20.sp,
     onClick: (() -> Unit)? = null,
 ) {
     Box(
@@ -64,7 +66,7 @@ internal fun GlyphCircle(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Label(glyph, size = fontSize, color = foreground, bold = true)
+        Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(size * .5f))
     }
 }
 
@@ -91,8 +93,8 @@ private fun TableUiPreview() {
         Label("Văn bản mô tả phụ", size = 14.sp, color = Muted)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            GlyphCircle(glyph = "♜", size = 44.dp, background = PaleBlue, foreground = BurntOrange)
-            GlyphCircle(glyph = "×", size = 44.dp, background = Ink, foreground = Color.White)
+            IconCircle(icon = TablerIcons.Table, size = 44.dp, background = PaleBlue, foreground = BurntOrange)
+            IconCircle(icon = TablerIcons.Close, size = 44.dp, background = Ink, foreground = Color.White)
         }
 
         ThreeDots(color = BurntOrange)

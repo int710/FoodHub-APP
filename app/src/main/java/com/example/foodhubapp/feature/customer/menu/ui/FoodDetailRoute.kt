@@ -1,8 +1,8 @@
 package com.example.foodhubapp.feature.customer.menu.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.runtime.*
@@ -43,7 +43,7 @@ fun FoodDetailRoute(
         Scaffold(containerColor = AppBackground) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại")
+                    Icon(TablerIcons.ArrowBack, "Quay lại")
                 }
                 if (state.isLoading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Brand)
                 else FoodLoadError(state.error ?: "Không tìm thấy món ăn.", viewModel::loadFood,

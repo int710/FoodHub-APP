@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.network.FoodhubRetrofit
 import io.socket.client.IO
 import io.socket.client.Socket
 import java.net.URI
@@ -25,7 +26,7 @@ class AdminOrderSocketClient(context: Context) {
             .setAuth(mapOf("token" to token))
             .setReconnection(true)
             .build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             listOf("order:new", "order:status:update", "order:item:update").forEach { event ->
                 on(event) { args ->
                     val payload = args.firstOrNull() as? JSONObject
@@ -52,6 +53,5 @@ class AdminOrderSocketClient(context: Context) {
     }
 
     private companion object {
-        const val SOCKET_URL = "https://foodhub-8lv1.onrender.com"
     }
 }

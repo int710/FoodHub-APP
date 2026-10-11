@@ -3,7 +3,7 @@ package com.example.foodhubapp.feature.customer.cart.data
 import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
-import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.google.gson.JsonArray

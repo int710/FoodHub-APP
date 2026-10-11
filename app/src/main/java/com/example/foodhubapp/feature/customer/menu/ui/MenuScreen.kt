@@ -1,13 +1,12 @@
 package com.example.foodhubapp.feature.customer.menu.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +41,7 @@ fun MenuRoute(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackClick) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
+                        TablerIcons.ArrowBack,
                         "Quay lại")
                 }
                 Text(
@@ -51,7 +50,7 @@ fun MenuRoute(
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = onCartClick) {
-                    Icon(Icons.Default.ShoppingCart, "Mở giỏ hàng")
+                    Icon(TablerIcons.ShoppingCart, "Mở giỏ hàng")
                 }
             }
             Box(Modifier

@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.feature.customer.menu.data.FoodRepository
-import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
+import com.example.foodhubapp.feature.customer.menu.model.MenuCategory
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.customer.menu.data.MenuSocketClient
 import kotlinx.coroutines.CancellationException
@@ -38,6 +38,5 @@ class MenuViewModel @JvmOverloads constructor(
 
     override fun onCleared() {
         menuSocket.disconnect()
-        super.onCleared()
     }
 }

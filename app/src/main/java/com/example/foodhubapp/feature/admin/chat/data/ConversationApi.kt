@@ -12,10 +12,4 @@ interface ConversationApi {
         @HeaderMap headers: Map<String, String> = emptyMap()
     ): Call<JsonObject>
 
-    @PATCH("conversations/{id}/close")
-    fun closeConversation(
-        @HeaderMap headers: Map<String, String> = emptyMap(),
-        @Path("id", encoded = true) id: String,
-        @Body body: JsonObject = JsonObject()
-    ): Call<JsonObject>
 }

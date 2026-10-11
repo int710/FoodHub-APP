@@ -24,10 +24,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun OnboardingScreen(
+    modifier: Modifier = Modifier,
     onStartClick: () -> Unit = {},
     onLoginClick: () -> Unit = {},
     onSkipClick: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(pageCount = { onboardingHeroPages.size })
     val coroutineScope = rememberCoroutineScope()

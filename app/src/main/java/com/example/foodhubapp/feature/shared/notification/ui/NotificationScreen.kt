@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.shared.notification.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -105,10 +102,10 @@ fun NotificationScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại") }
+                    IconButton(onClick = onBack) { Icon(TablerIcons.ArrowBack, "Quay lại") }
                     Text("Thông báo", Modifier.weight(1f), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     IconButton(onClick = onRefresh, enabled = !state.isLoading) {
-                        Icon(Icons.Default.Refresh, "Tải lại")
+                        Icon(TablerIcons.Refresh, "Tải lại")
                     }
                 }
             }
@@ -172,7 +169,7 @@ private fun NotificationRow(notification: FoodHubNotification, isBusy: Boolean, 
             contentAlignment = Alignment.Center,
         ) {
             if (isBusy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            else Icon(Icons.Default.NotificationsNone, null, tint = if (notification.isRead) OnSurfaceVariant else Color.White)
+            else Icon(TablerIcons.Bell, null, tint = if (notification.isRead) OnSurfaceVariant else Color.White)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -197,7 +194,7 @@ private fun NotificationEmpty(title: String, message: String, action: String? = 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Default.CheckCircle, null, Modifier.size(48.dp), tint = Brand)
+        Icon(TablerIcons.CheckCircle, null, Modifier.size(48.dp), tint = Brand)
         Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text(message, color = OnSurfaceVariant)
         if (action != null) Button(onClick = onClick, modifier = Modifier.padding(top = 12.dp)) { Text(action) }

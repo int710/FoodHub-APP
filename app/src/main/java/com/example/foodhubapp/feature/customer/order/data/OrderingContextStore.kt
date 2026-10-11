@@ -1,6 +1,7 @@
 package com.example.foodhubapp.feature.customer.order.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 
@@ -31,7 +32,7 @@ class OrderingContextStore(context: Context) {
         require(type != CartType.DINE_IN || tableSessionStore.current() != null) {
             "Vui lòng quét QR bàn trước khi chọn dùng tại bàn."
         }
-        preferences.edit().putString(KEY_TYPE, type.name).apply()
+        preferences.edit { putString(KEY_TYPE, type.name) }
     }
 
     private companion object {

@@ -7,8 +7,8 @@ import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.feature.customer.cart.data.CartRepository
 import com.example.foodhubapp.feature.customer.cart.data.RemoteCartRepository
 import com.example.foodhubapp.feature.customer.menu.data.FoodRepository
-import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
-import com.example.foodhubapp.feature.customer.menu.data.MenuFood
+import com.example.foodhubapp.feature.customer.menu.model.MenuCategory
+import com.example.foodhubapp.feature.customer.menu.model.MenuFood
 import com.example.foodhubapp.feature.customer.menu.data.MenuSocketClient
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
 import com.example.foodhubapp.feature.customer.menu.viewmodel.foodError
@@ -98,6 +98,5 @@ class HomeViewModel @JvmOverloads constructor(
 
     override fun onCleared() {
         menuSocket.disconnect()
-        super.onCleared()
     }
 }

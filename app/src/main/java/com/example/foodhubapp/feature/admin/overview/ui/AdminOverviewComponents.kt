@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.overview.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,9 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -86,13 +85,13 @@ internal fun AdminAlert(title: String, message: String, onClick: () -> Unit) {
         Modifier.fillMaxWidth().background(AdminAmberSoft, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.WarningAmber, null, tint = AdminAmber)
+        Icon(TablerIcons.AlertTriangle, null, tint = AdminAmber)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Bold)
             Text(message, color = AdminMuted, fontSize = 12.sp)
         }
-        Icon(Icons.Default.ChevronRight, null, tint = AdminMuted)
+        Icon(TablerIcons.ChevronRight, null, tint = AdminMuted)
     }
 }
 

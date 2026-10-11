@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.network.FoodhubRetrofit
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -35,7 +36,7 @@ class CustomerOrderSocketClient(context: Context) {
             .setAuth(if (token != null) mapOf("token" to token) else mapOf("tableToken" to tableToken!!))
             .setReconnection(true)
             .build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on(Socket.EVENT_CONNECT) { joinCurrentOrders() }
             on("order:status:update") { args ->
                 val payload = args.firstOrNull() as? JSONObject ?: return@on
@@ -78,6 +79,5 @@ class CustomerOrderSocketClient(context: Context) {
     }
 
     private companion object {
-        const val SOCKET_URL = "https://foodhub-8lv1.onrender.com"
     }
 }

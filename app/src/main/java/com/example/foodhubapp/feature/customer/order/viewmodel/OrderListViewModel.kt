@@ -363,7 +363,6 @@ class OrderListViewModel @JvmOverloads constructor(
     override fun onCleared() {
         paymentPollingJob?.cancel()
         orderSocket.disconnect()
-        super.onCleared()
     }
 }
 

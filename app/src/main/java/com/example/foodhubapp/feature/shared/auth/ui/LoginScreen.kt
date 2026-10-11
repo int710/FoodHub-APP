@@ -1,5 +1,6 @@
 package com.example.foodhubapp.feature.shared.auth.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,13 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,8 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,17 +38,18 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodhubapp.R
-import com.example.foodhubapp.feature.shared.auth.model.AuthMode
+import com.example.foodhubapp.core.ui.icons.TablerIcons
 import com.example.foodhubapp.feature.shared.auth.viewmodel.LoginUiState
 import com.example.foodhubapp.feature.shared.auth.viewmodel.LoginViewModel
 import com.example.foodhubapp.theme.AppBackground
 import com.example.foodhubapp.theme.BodyFont
 import com.example.foodhubapp.theme.Brand
+import com.example.foodhubapp.theme.CardStroke
 import com.example.foodhubapp.theme.FoodHubAppTheme
+import com.example.foodhubapp.theme.HeadingFont
 import com.example.foodhubapp.theme.InputBackgroundSoft
 import com.example.foodhubapp.theme.Neutral
 import com.example.foodhubapp.theme.OnSurfaceVariant
-import com.example.foodhubapp.theme.Warning
 
 @Composable
 fun LoginRoute(
@@ -56,17 +57,14 @@ fun LoginRoute(
     onLoginClick: (String?) -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit = {},
-    onVerifyEmailClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onForgotPasswordClick: () -> Unit = {},
     viewModel: LoginViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) {
-            onLoginClick(uiState.userRole)
-        }
+        if (uiState.isLoggedIn) onLoginClick(uiState.userRole)
     }
 
     LoginScreen(
@@ -79,7 +77,6 @@ fun LoginRoute(
         onRegisterClick = onRegisterClick,
         onGuestQrClick = onGuestQrClick,
         onForgotPasswordClick = onForgotPasswordClick,
-        onVerifyEmailClick = onVerifyEmailClick,
         modifier = modifier
     )
 }
@@ -94,90 +91,103 @@ fun LoginScreen(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onGuestQrClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onForgotPasswordClick: () -> Unit = {},
-    onVerifyEmailClick: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(AppBackground)
+            .safeDrawingPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp)
-                .size(288.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            Brand.copy(alpha = 0.6f),
-                            Warning.copy(alpha = 0.4f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = CircleShape
-                )
-                .blur(48.dp)
-        )
+        LoginTopBar(onBackClick = onBackClick)
 
         Column(
-            modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AuthHeaderBar(onBackClick = onBackClick)
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 520.dp)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                modifier = Modifier.size(72.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                shadowElevation = 4.dp
             ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    color = Color.White.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(24.dp),
-                    shadowElevation = 2.dp
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        LoginBrandHero()
-                        Spacer(modifier = Modifier.height(20.dp))
-                        AuthSegmentedTabs(
-                            selectedMode = AuthMode.Login,
-                            onLoginClick = {},
-                            onRegisterClick = onRegisterClick
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(18.dp))
-                LoginFormCard(
-                    uiState = uiState,
-                    onAccountChange = onAccountChange,
-                    onPasswordChange = onPasswordChange,
-                    onTogglePassword = onTogglePassword,
-                    onLoginClick = onLoginClick,
-                    onForgotPasswordClick = onForgotPasswordClick
+                Image(
+                    painter = painterResource(R.drawable.foodhub_logo),
+                    contentDescription = "FoodHub",
+                    modifier = Modifier.padding(4.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                GuestQrCard(onGuestQrClick = onGuestQrClick)
-                Spacer(modifier = Modifier.height(24.dp))
-                AuthSwitchText(
-                    normalText = "Chưa có tài khoản?",
-                    actionText = "Đăng ký ngay",
-                    onClick = onRegisterClick
-                )
-                Text(
-                    "Xác minh email bằng token",
-                    modifier = Modifier.clickable(onClick = onVerifyEmailClick).padding(12.dp),
-                    color = Brand,
-                    fontWeight = FontWeight.SemiBold,
+            }
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = "Đăng nhập",
+                color = Neutral,
+                fontFamily = HeadingFont,
+                fontWeight = FontWeight.Bold,
+                fontSize = 28.sp
+            )
+            Text(
+                text = "Chào mừng bạn trở lại FoodHub",
+                modifier = Modifier.padding(top = 6.dp),
+                color = OnSurfaceVariant,
+                fontFamily = BodyFont,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(28.dp))
+            LoginForm(
+                uiState = uiState,
+                onAccountChange = onAccountChange,
+                onPasswordChange = onPasswordChange,
+                onTogglePassword = onTogglePassword,
+                onLoginClick = onLoginClick,
+                onForgotPasswordClick = onForgotPasswordClick
+            )
+
+            Spacer(Modifier.height(18.dp))
+            AuthSwitchText(
+                normalText = "Chưa có tài khoản?",
+                actionText = "Đăng ký ngay",
+                onClick = onRegisterClick
+            )
+
+            Spacer(Modifier.height(18.dp))
+            GuestQrCard(onGuestQrClick)
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun LoginTopBar(onBackClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(40.dp)
+                .clickable(onClick = onBackClick),
+            color = Color.White,
+            shape = CircleShape,
+            shadowElevation = 3.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = TablerIcons.ArrowBack,
+                    contentDescription = "Quay lại trang trước",
+                    tint = Neutral,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -185,158 +195,120 @@ fun LoginScreen(
 }
 
 @Composable
-private fun LoginFormCard(
+private fun LoginForm(
     uiState: LoginUiState,
     onAccountChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
     onLoginClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit
+    onForgotPasswordClick: () -> Unit,
 ) {
-    Surface(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
-        shape = RoundedCornerShape(16.dp),
-        shadowElevation = 1.dp
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            AuthTextField(
-                label = "Email",
-                value = uiState.account,
-                onValueChange = onAccountChange,
-                iconRes = R.drawable.ic_auth_email,
-                backgroundColor = InputBackgroundSoft
-            )
-            AuthTextField(
-                label = "Mật khẩu",
-                value = uiState.password,
-                onValueChange = onPasswordChange,
-                iconRes = R.drawable.ic_auth_lock,
-                isPassword = true,
-                isPasswordVisible = uiState.isPasswordVisible,
-                backgroundColor = InputBackgroundSoft,
-                trailing = {
-                    PasswordToggleButton(
-                        isVisible = uiState.isPasswordVisible,
-                        onClick = onTogglePassword
-                    )
-                }
-            )
-            Text(
-                text = "Quên mật khẩu?",
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clickable(onClick = onForgotPasswordClick)
-                    .padding(vertical = 4.dp),
-                color = Brand,
-                fontFamily = BodyFont,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
-            )
-            if (uiState.errorMessage != null) {
+        AuthTextField(
+            label = "Email",
+            value = uiState.account,
+            onValueChange = onAccountChange,
+            iconRes = R.drawable.ic_auth_email,
+            placeholder = "Nhập địa chỉ email",
+            backgroundColor = Color.White
+        )
+        AuthTextField(
+            label = "Mật khẩu",
+            value = uiState.password,
+            onValueChange = onPasswordChange,
+            iconRes = R.drawable.ic_auth_lock,
+            placeholder = "Nhập mật khẩu",
+            isPassword = true,
+            isPasswordVisible = uiState.isPasswordVisible,
+            backgroundColor = Color.White,
+            trailing = {
+                PasswordToggleButton(uiState.isPasswordVisible, onTogglePassword)
+            }
+        )
+        Text(
+            text = "Quên mật khẩu?",
+            modifier = Modifier
+                .align(Alignment.End)
+                .clickable(onClick = onForgotPasswordClick)
+                .padding(vertical = 2.dp),
+            color = Brand,
+            fontFamily = BodyFont,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp
+        )
+        uiState.errorMessage?.let { message ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFFFFF1EE),
+                shape = RoundedCornerShape(10.dp)
+            ) {
                 Text(
-                    text = uiState.errorMessage,
+                    text = message,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     color = Brand,
                     fontFamily = BodyFont,
-                    fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
-                    lineHeight = 16.sp
+                    lineHeight = 17.sp
                 )
             }
-            PrimaryAuthButton(
-                text = if (uiState.isLoading) "Đang đăng nhập..." else "Đăng nhập ngay",
-                onClick = onLoginClick,
-                enabled = !uiState.isLoading
-            )
         }
+        PrimaryAuthButton(
+            text = if (uiState.isLoading) "Đang đăng nhập..." else "Đăng nhập",
+            onClick = onLoginClick,
+            enabled = !uiState.isLoading,
+            showArrow = false
+        )
     }
 }
 
 @Composable
-private fun GuestQrCard(onGuestQrClick: () -> Unit) {
+private fun GuestQrCard(onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent,
-        shape = RoundedCornerShape(16.dp),
-        shadowElevation = 1.dp
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = InputBackgroundSoft,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, CardStroke)
     ) {
         Row(
-            modifier = Modifier
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Warning.copy(alpha = 0.5f),
-                            InputBackgroundSoft,
-                            Color.White
-                        )
-                    )
-                )
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(Warning, RoundedCornerShape(12.dp)),
+                    .size(38.dp)
+                    .background(Color.White, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_onboarding_qr),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(TablerIcons.QrScan, contentDescription = null, tint = Brand)
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = "Gọi món tại bàn không cần tài khoản?",
+                    text = "Gọi món tại bàn",
                     color = Neutral,
                     fontFamily = BodyFont,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp
+                    fontSize = 14.sp
                 )
                 Text(
-                    text = "Dành cho thực khách tại nhà hàng. Xem thực đơn và gọi món siêu tốc.",
+                    text = "Không cần tài khoản · Quét mã QR",
                     color = OnSurfaceVariant,
                     fontFamily = BodyFont,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
+                    fontSize = 11.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onGuestQrClick() },
-                    color = Color.White,
-                    shape = RoundedCornerShape(8.dp),
-                    shadowElevation = 1.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_auth_camera),
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            text = "Quét QR Dùng Bữa Ngay (Khách Vãng Lai)",
-                            color = Brand,
-                            fontFamily = BodyFont,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
             }
+            Text(
+                text = "Quét QR",
+                color = Brand,
+                fontFamily = BodyFont,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
         }
     }
 }
@@ -352,27 +324,20 @@ internal fun AuthSwitchText(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(normalText, color = OnSurfaceVariant, fontFamily = BodyFont, fontSize = 14.sp)
+        Spacer(Modifier.size(4.dp))
         Text(
-            text = normalText,
-            color = OnSurfaceVariant,
-            fontFamily = BodyFont,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
-        )
-        Spacer(modifier = Modifier.size(4.dp))
-        Text(
-            modifier = Modifier.clickable { onClick() },
             text = actionText,
+            modifier = Modifier.clickable(onClick = onClick),
             color = Brand,
             fontFamily = BodyFont,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
+            fontSize = 14.sp
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 390, heightDp = 948)
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun LoginScreenPreview() {
     FoodHubAppTheme {

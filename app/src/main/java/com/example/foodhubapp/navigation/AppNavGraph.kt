@@ -153,7 +153,12 @@ fun AppNavGraph(
         composable(AppRoutes.Login) {
             LoginRoute(
                 onBackClick = {
-                    navController.popBackStack()
+                    if (!navController.popBackStack()) {
+                        navController.navigate(AppRoutes.Home) {
+                            popUpTo(navController.graph.id)
+                            launchSingleTop = true
+                        }
+                    }
                 },
                 onLoginClick = { role ->
                     if (role.equals("ADMIN", ignoreCase = true)) {
@@ -182,7 +187,6 @@ fun AppNavGraph(
                 onForgotPasswordClick = {
                     navController.navigate(AppRoutes.ForgotPassword) { launchSingleTop = true }
                 },
-                onVerifyEmailClick = { navController.navigate(AppRoutes.VerifyEmail) { launchSingleTop = true } },
             )
         }
          // Màn hình quên mật khẩu

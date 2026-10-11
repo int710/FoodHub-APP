@@ -1,5 +1,8 @@
 package com.example.foodhubapp.feature.shared.chat
 
+import org.json.JSONArray
+import org.json.JSONObject
+
 enum class ChatConnectionState {
     CONNECTING,
     CONNECTED,
@@ -27,4 +30,33 @@ interface ChatSocketListener {
     fun onError(message: String)
     fun onSessionEnded() {}
 }
+
+fun JSONObject.toChatMessage(): ChatMessage? {
+    val content = optStringValue("content") ?: return null
+    return ChatMessage(
+        id = optStringValue("_id", "id")
+            ?: "${optStringValue("senderId")}-${optStringValue("createdAt")}-$content",
+        conversationId = optStringValue("conversationId").orEmpty(),
+        senderId = optStringValue("senderId").orEmpty(),
+        senderRole = optStringValue("senderRole") ?: "customer",
+        content = content,
+        type = optStringValue("type") ?: "TEXT",
+        createdAt = optStringValue("createdAt").orEmpty(),
+    )
+}
+
+fun JSONArray?.toChatMessages(): List<ChatMessage> = if (this == null) {
+    emptyList()
+} else {
+    buildList {
+        for (index in 0 until length()) {
+            optJSONObject(index)?.toChatMessage()?.let(::add)
+        }
+    }
+}
+
+fun JSONObject.optStringValue(vararg keys: String): String? =
+    keys.firstNotNullOfOrNull { key ->
+        if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
+    }
 

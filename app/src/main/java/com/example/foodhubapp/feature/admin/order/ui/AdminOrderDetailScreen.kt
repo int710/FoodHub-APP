@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.order.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.model.AdminPaymentMethod
 
 import com.example.foodhubapp.feature.admin.components.AdminSectionHeader
@@ -25,8 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -156,7 +156,7 @@ fun AdminOrderDetailScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 orderTimeline(order.status).forEach { status ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, null, Modifier.size(20.dp), tint = if (status == order.status) AdminPrimary else AdminGreen)
+                        Icon(TablerIcons.CheckCircle, null, Modifier.size(20.dp), tint = if (status == order.status) AdminPrimary else AdminGreen)
                         Spacer(Modifier.width(10.dp))
                         Text(status.label, fontWeight = if (status == order.status) FontWeight.Bold else FontWeight.Normal)
                     }

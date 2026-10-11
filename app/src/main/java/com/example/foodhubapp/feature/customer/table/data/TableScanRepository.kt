@@ -2,6 +2,7 @@ package com.example.foodhubapp.feature.customer.table.data
 
 import com.example.foodhubapp.core.network.*
 import android.content.Context
+import androidx.core.content.edit
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
 import kotlinx.coroutines.Dispatchers
@@ -32,16 +33,16 @@ class TableSessionStore(context: Context) {
 
     fun save(session: TableSession) {
         val previousToken = preferences.getString(KEY_TABLE_TOKEN, null)
-        val editor = preferences.edit()
-            .putString(KEY_TABLE_ID, session.tableId)
-            .putString(KEY_TABLE_NAME, session.tableName)
-            .putString(KEY_FLOOR, session.floor)
-            .putInt(KEY_CAPACITY, session.capacity ?: 0)
-            .putString(KEY_TABLE_TOKEN, session.tableToken)
-            .putString(KEY_SESSION_ID, session.sessionId)
-            .putLong(KEY_EXPIRES_AT, session.expiresAtEpochMillis ?: 0L)
-        if (previousToken != session.tableToken) editor.remove(KEY_CONVERSATION_ID)
-        editor.commit()
+        preferences.edit {
+            putString(KEY_TABLE_ID, session.tableId)
+            putString(KEY_TABLE_NAME, session.tableName)
+            putString(KEY_FLOOR, session.floor)
+            putInt(KEY_CAPACITY, session.capacity ?: 0)
+            putString(KEY_TABLE_TOKEN, session.tableToken)
+            putString(KEY_SESSION_ID, session.sessionId)
+            putLong(KEY_EXPIRES_AT, session.expiresAtEpochMillis ?: 0L)
+            if (previousToken != session.tableToken) remove(KEY_CONVERSATION_ID)
+        }
     }
 
     fun current(): TableSession? {
@@ -62,14 +63,14 @@ class TableSessionStore(context: Context) {
         )
     }
 
-    fun clear() = preferences.edit().clear().commit()
+    fun clear() { preferences.edit { clear() } }
 
     fun conversationId(): String? = preferences.getString(KEY_CONVERSATION_ID, null)
 
-    fun clearConversationId() = preferences.edit().remove(KEY_CONVERSATION_ID).commit()
+    fun clearConversationId() { preferences.edit { remove(KEY_CONVERSATION_ID) } }
 
     fun saveConversationId(conversationId: String) {
-        preferences.edit().putString(KEY_CONVERSATION_ID, conversationId).apply()
+        preferences.edit { putString(KEY_CONVERSATION_ID, conversationId) }
     }
 
     private companion object {

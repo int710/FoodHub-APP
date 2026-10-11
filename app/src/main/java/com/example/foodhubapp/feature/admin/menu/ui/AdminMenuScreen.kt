@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.menu.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.components.AdminPlaceholder
 import com.example.foodhubapp.feature.admin.components.AdminSearchField
 import com.example.foodhubapp.feature.admin.components.vnd
@@ -18,11 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.WarningAmber
 import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -111,7 +108,7 @@ fun AdminMenuScreen(
                 },
                 containerColor = AdminPrimary,
             ) {
-                Icon(Icons.Default.Add, "Thêm", tint = Color.White)
+                Icon(TablerIcons.Add, "Thêm", tint = Color.White)
             }
         },
     ) { padding ->
@@ -136,14 +133,14 @@ fun AdminMenuScreen(
                         CircularProgressIndicator(color = AdminPrimary)
                     }
                     errorMessage != null && items.isEmpty() -> AdminPlaceholder(
-                        icon = Icons.Default.WarningAmber,
+                        icon = TablerIcons.AlertTriangle,
                         title = "Không tải được thực đơn",
                         message = errorMessage,
                         button = "Thử lại",
                         onClick = onRefresh,
                     )
                     filtered.isEmpty() -> AdminPlaceholder(
-                        icon = Icons.Default.RestaurantMenu,
+                        icon = TablerIcons.Restaurant,
                         title = "Chưa có món ăn",
                         message = if (query.isBlank()) "Hãy thêm món đầu tiên vào thực đơn." else "Không tìm thấy món phù hợp.",
                         button = "Tải lại",
@@ -179,7 +176,7 @@ fun AdminMenuScreen(
                         CircularProgressIndicator(color = AdminPrimary)
                     }
                     filteredCategories.isEmpty() -> AdminPlaceholder(
-                        icon = Icons.Default.RestaurantMenu,
+                        icon = TablerIcons.Restaurant,
                         title = "Chưa có danh mục",
                         message = "Tạo danh mục để sắp xếp các món trong thực đơn.",
                         button = "Thêm danh mục",
@@ -208,7 +205,7 @@ fun AdminMenuScreen(
             } else {
                 val saleItems = items.filter { it.salePrice != null }
                 if (saleItems.isEmpty()) AdminPlaceholder(
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    icon = TablerIcons.TrendingUp,
                     title = "Chưa có flash sale",
                     message = "Tạo chương trình giảm giá theo khung giờ.",
                     button = "Tạo flash sale",

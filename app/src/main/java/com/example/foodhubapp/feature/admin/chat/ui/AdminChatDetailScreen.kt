@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.admin.chat.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,13 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilledIconButton
@@ -52,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodhubapp.feature.admin.chat.AdminChatSocketClient
@@ -112,34 +108,71 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
 
     Column(Modifier.fillMaxSize().background(AdminBackground).imePadding()) {
         Surface(color = AdminSurface, shadowElevation = 2.dp) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.material3.IconButton(onClick = onClose) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại", tint = AdminText)
-                }
-                AdminAvatar(conversation.customer)
-                Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                    Text(conversation.customer, color = AdminText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(7.dp).background(connectionColor(connectionState), CircleShape))
-                        Spacer(Modifier.width(6.dp))
-                        Text("${conversation.contextLabel} · ${connectionText(connectionState)}", color = connectionColor(connectionState), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    androidx.compose.material3.IconButton(onClick = onClose) {
+                        Icon(TablerIcons.ArrowBack, "Quay lại", tint = AdminText)
                     }
-                }
-                Surface(color = if (conversation.isTableSession) AdminPrimarySoft else AdminGreenSoft, shape = RoundedCornerShape(9.dp)) {
-                    Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (conversation.isTableSession) Icons.Default.TableRestaurant else Icons.Default.PersonOutline,
-                            null,
-                            Modifier.size(14.dp),
-                            tint = if (conversation.isTableSession) AdminPrimary else AdminGreen,
+                    AdminAvatar(conversation.customer)
+                    Column(Modifier.weight(1f).padding(start = 11.dp, end = 12.dp)) {
+                        Text(
+                            conversation.customer,
+                            color = AdminText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (conversation.isTableSession) "Bàn" else "Tài khoản", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(7.dp).background(connectionColor(connectionState), CircleShape))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${conversation.contextLabel} · ${connectionText(connectionState)}",
+                                color = connectionColor(connectionState),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
-                conversation.orderCode?.let {
-                    Surface(color = AdminPrimarySoft, shape = RoundedCornerShape(8.dp)) {
-                        Text("#$it", Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = AdminPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 64.dp, end = 16.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    item {
+                        Surface(color = if (conversation.isTableSession) AdminPrimarySoft else AdminGreenSoft, shape = RoundedCornerShape(9.dp)) {
+                            Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (conversation.isTableSession) TablerIcons.Table else TablerIcons.User,
+                                    null,
+                                    Modifier.size(14.dp),
+                                    tint = if (conversation.isTableSession) AdminPrimary else AdminGreen,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(if (conversation.isTableSession) "Bàn" else "Tài khoản", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    conversation.orderCode?.let { orderCode ->
+                        item {
+                            Surface(color = AdminPrimarySoft, shape = RoundedCornerShape(8.dp)) {
+                                Text(
+                                    "#$orderCode",
+                                    Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                    color = AdminPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -171,7 +204,7 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
             if (messages.isEmpty() && connectionState == ChatConnectionState.CONNECTED) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.ChatBubbleOutline, null, Modifier.size(38.dp), tint = AdminMuted)
+                        Icon(TablerIcons.ChatBubble, null, Modifier.size(38.dp), tint = AdminMuted)
                         Text("Chưa có tin nhắn", Modifier.padding(top = 10.dp), color = AdminText, fontWeight = FontWeight.SemiBold)
                         Text("Hãy bắt đầu hỗ trợ khách hàng.", color = AdminMuted, fontSize = 12.sp)
                     }
@@ -211,7 +244,7 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
                         enabled = !isSending && draft.isNotBlank() && connectionState == ChatConnectionState.CONNECTED,
                         modifier = Modifier.size(50.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(containerColor = AdminPrimary, disabledContainerColor = AdminBorder),
-                    ) { Icon(Icons.AutoMirrored.Filled.Send, "Gửi", tint = Color.White) }
+                    ) { Icon(TablerIcons.Send, "Gửi", tint = Color.White) }
                 }
             }
         }

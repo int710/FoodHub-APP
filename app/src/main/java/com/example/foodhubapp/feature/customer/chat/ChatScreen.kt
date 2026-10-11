@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.chat
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.shared.chat.ChatConnectionState
 import com.example.foodhubapp.feature.shared.chat.ChatMessage
 import com.example.foodhubapp.feature.shared.chat.ChatSocketListener
@@ -21,13 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.HeadsetMic
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.FilledIconButton
@@ -49,6 +44,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,7 +90,7 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
     var isEndingSession by remember { mutableStateOf(false) }
     var sessionEnded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    var connectionAttempt by remember { mutableStateOf(0) }
+    var connectionAttempt by remember { mutableIntStateOf(0) }
 
     fun addOrUpdateMessage(message: ChatMessage) {
         val index = chatMessages.indexOfFirst { it.id == message.id }
@@ -276,7 +272,7 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
                         disabledContainerColor = Color(0xFFE7E2DF),
                     ),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi tin nhắn", tint = Color.White)
+                    Icon(TablerIcons.Send, contentDescription = "Gửi tin nhắn", tint = Color.White)
                 }
             }
         }
@@ -354,10 +350,10 @@ private fun ChatHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink)
+            Icon(TablerIcons.ArrowBack, contentDescription = "Quay lại", tint = Ink)
         }
         Box(Modifier.size(38.dp).background(Color(0xFFFFE8DF), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.HeadsetMic, null, tint = BurntOrange, modifier = Modifier.size(21.dp))
+            Icon(TablerIcons.Headset, null, tint = BurntOrange, modifier = Modifier.size(21.dp))
         }
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Text("Quản lý FoodHub", fontSize = 16.sp, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -376,7 +372,7 @@ private fun ChatHeader(
         }
         Spacer(Modifier.width(7.dp))
         IconButton(onClick = onCall, enabled = connectionState == ChatConnectionState.CONNECTED) {
-            Icon(Icons.Default.Call, "Gọi nhân viên", tint = if (connectionState == ChatConnectionState.CONNECTED) BurntOrange else Color.Gray)
+            Icon(TablerIcons.Call, "Gọi nhân viên", tint = if (connectionState == ChatConnectionState.CONNECTED) BurntOrange else Color.Gray)
         }
     }
     }
@@ -397,7 +393,7 @@ private fun SessionSummary(
             Modifier.size(42.dp).background(Color(0xFFFFEEE9), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.TableRestaurant, null, tint = BurntOrange)
+            Icon(TablerIcons.Table, null, tint = BurntOrange)
         }
         Column(Modifier.weight(1f).padding(start = 9.dp)) {
             Label(session?.tableName ?: "Hỗ trợ đơn hàng", 15.sp, Ink, bold = true)
@@ -413,7 +409,7 @@ private fun SessionSummary(
                 .clickable(onClick = onDetails).padding(horizontal = 8.dp, vertical = 5.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, null, Modifier.size(14.dp), tint = Color(0xFF765E53))
+                Icon(TablerIcons.Info, null, Modifier.size(14.dp), tint = Color(0xFF765E53))
                 Spacer(Modifier.width(4.dp))
                 Label("Chi tiết", 10.sp, Color(0xFF765E53), bold = true)
             }
@@ -443,7 +439,7 @@ private fun SystemMessage(tableName: String, state: ChatConnectionState) {
             Modifier.size(28.dp).background(Color(0xFFFFE9AE), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = Color(0xFF896000))
+            Icon(TablerIcons.Info, null, Modifier.size(16.dp), tint = Color(0xFF896000))
         }
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Label("HỆ THỐNG FOODHUB", 10.sp, Color(0xFF9B6514), bold = true)
@@ -461,7 +457,14 @@ private fun SentMessage(message: String, time: String) {
         ) {
             Label(message, 14.sp, Color.White)
         }
-        Label("$time  ✓", 10.sp, Color(0xFF647067), modifier = Modifier.padding(top = 3.dp, end = 3.dp))
+        Row(
+            Modifier.padding(top = 3.dp, end = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Label(time, 10.sp, Color(0xFF647067))
+            Icon(TablerIcons.DoneAll, "Đã gửi", Modifier.size(13.dp), tint = Color(0xFF647067))
+        }
     }
 }
 
@@ -473,7 +476,7 @@ private fun StaffMessage(message: ChatMessage) {
                 Modifier.size(32.dp).background(Color(0xFFD2E7DA), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.HeadsetMic, null, Modifier.size(18.dp), tint = Color(0xFF537257))
+                Icon(TablerIcons.Headset, null, Modifier.size(18.dp), tint = Color(0xFF537257))
             }
             Label(
                 if (message.senderRole.equals("admin", true)) "Quản lý FoodHub" else "Nhân viên phục vụ",

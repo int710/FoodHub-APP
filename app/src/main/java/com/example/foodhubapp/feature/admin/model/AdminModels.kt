@@ -88,7 +88,7 @@ data class AdminMenuItem(
 data class AdminMenuCategory(
     val id: String,
     val name: String,
-    val icon: String = "🍽",
+    val icon: String = "restaurant",
     val sortOrder: Int = 0,
     val isActive: Boolean = true,
     val itemCount: Int = 0,

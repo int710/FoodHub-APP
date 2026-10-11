@@ -2,6 +2,8 @@
 
 package com.example.foodhubapp.feature.admin.components
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -57,7 +57,7 @@ internal fun AdminSearchField(value: String, onValueChange: (String) -> Unit, pl
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
-        leadingIcon = { Icon(Icons.Default.Search, null) },
+        leadingIcon = { Icon(TablerIcons.Search, null) },
         placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),

@@ -16,7 +16,7 @@ import com.example.foodhubapp.feature.customer.cart.data.RemoteCartRepository
 import com.example.foodhubapp.feature.customer.menu.data.FoodRepository
 import com.example.foodhubapp.feature.customer.menu.data.LoginRequiredException
 import com.example.foodhubapp.feature.customer.menu.data.RemoteFoodRepository
-import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
 import com.example.foodhubapp.feature.customer.order.data.CheckoutPaymentMethod
 import com.example.foodhubapp.feature.customer.order.data.RemoteOrderRepository
@@ -284,7 +284,6 @@ class CartViewModel @JvmOverloads constructor(
 
     override fun onCleared() {
         paymentPollingJob?.cancel()
-        super.onCleared()
     }
 }
 

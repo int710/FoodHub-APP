@@ -14,10 +14,3 @@ data class AdminConversation(
 
 val AdminConversation.isTableSession: Boolean
     get() = conversationType.equals("TABLE", ignoreCase = true)
-
-data class AdminUiMessage(
-    val id: String,
-    val content: String,
-    val time: String,
-    val fromAdmin: Boolean,
-)

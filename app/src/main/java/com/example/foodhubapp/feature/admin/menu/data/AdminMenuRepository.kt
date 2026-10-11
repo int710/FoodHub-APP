@@ -54,7 +54,7 @@ class AdminMenuRepository private constructor(
             AdminMenuCategory(
                 id = category.getString("id"),
                 name = category.getString("name"),
-                icon = category.optString("icon").ifBlank { "🍽" },
+                icon = category.optString("icon").ifBlank { "restaurant" },
                 sortOrder = category.optInt("sortOrder", 0),
                 isActive = category.optBoolean("isActive", true),
                 itemCount = category.optObject("_count")?.optInt("item", 0) ?: 0,

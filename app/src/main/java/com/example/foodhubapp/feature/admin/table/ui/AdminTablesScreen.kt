@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.admin.table.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.model.AdminRestaurantTable
 import com.example.foodhubapp.feature.admin.components.vnd
 import com.example.foodhubapp.feature.admin.navigation.AdminBackground
@@ -31,16 +33,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chair
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material.icons.filled.TableRestaurant
 import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -151,7 +143,7 @@ fun AdminTablesScreen() {
                     showCreateDialog = true
                 },
                 containerColor = AdminPrimary,
-            ) { Icon(Icons.Default.Add, "Thêm bàn", tint = Color.White) }
+            ) { Icon(TablerIcons.Add, "Thêm bàn", tint = Color.White) }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -163,7 +155,7 @@ fun AdminTablesScreen() {
                     Text("Sơ đồ bàn", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("${tables.size} bàn từ hệ thống", color = AdminMuted, fontSize = 12.sp)
                 }
-                IconButton(onClick = ::reload, enabled = !isLoading) { Icon(Icons.Default.Refresh, "Tải lại") }
+                IconButton(onClick = ::reload, enabled = !isLoading) { Icon(TablerIcons.Refresh, "Tải lại") }
             }
 
             when {
@@ -347,7 +339,7 @@ private fun AdminTableRow(
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(table.floor ?: "Chưa đặt khu vực", Modifier.weight(1f), color = AdminMuted, fontSize = 11.sp, maxLines = 1)
-                Icon(Icons.Default.Chair, null, Modifier.size(14.dp), tint = AdminMuted)
+                Icon(TablerIcons.Armchair, null, Modifier.size(14.dp), tint = AdminMuted)
                 Spacer(Modifier.width(4.dp))
                 Text("${table.capacity} khách", color = AdminMuted, fontSize = 11.sp)
             }
@@ -373,27 +365,27 @@ private fun AdminTableRow(
                 }
             } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = onQr, Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
-                    Icon(Icons.Default.QrCode2, null, Modifier.size(17.dp))
+                    Icon(TablerIcons.QrCode, null, Modifier.size(17.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Xem mã QR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 Box {
-                    IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "Tùy chọn bàn") }
+                    IconButton(onClick = { menuOpen = true }) { Icon(TablerIcons.MoreVertical, "Tùy chọn bàn") }
                     DropdownMenu(menuOpen, { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text(if (table.isActive) "Tạm ngưng bàn" else "Mở lại bàn") },
-                            leadingIcon = { Icon(Icons.Default.PowerSettingsNew, null) },
+                            leadingIcon = { Icon(TablerIcons.Power, null) },
                             onClick = { menuOpen = false; onToggle() },
                         )
                         DropdownMenuItem(
                             text = { Text("Tạo lại QR") },
-                            leadingIcon = { Icon(Icons.Default.RestartAlt, null) },
+                            leadingIcon = { Icon(TablerIcons.Reload, null) },
                             onClick = { menuOpen = false; onRegenerateQr() },
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("Xóa bàn", color = AdminRed) },
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = AdminRed) },
+                            leadingIcon = { Icon(TablerIcons.Delete, null, tint = AdminRed) },
                             onClick = { menuOpen = false; onDelete() },
                         )
                     }
@@ -421,7 +413,7 @@ private fun AdminTableError(message: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Default.TableRestaurant, null, Modifier.size(42.dp), tint = AdminPrimary)
+        Icon(TablerIcons.Table, null, Modifier.size(42.dp), tint = AdminPrimary)
         Spacer(Modifier.height(12.dp))
         Text("Chưa thể tải dữ liệu bàn", fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text(message, color = AdminMuted, textAlign = TextAlign.Center)
@@ -437,7 +429,7 @@ private fun AdminTableEmpty(onCreate: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Default.TableRestaurant, null, Modifier.size(48.dp), tint = AdminMuted)
+        Icon(TablerIcons.Table, null, Modifier.size(48.dp), tint = AdminMuted)
         Spacer(Modifier.height(12.dp))
         Text("Chưa có bàn", fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Tạo bàn đầu tiên để backend sinh qrToken.", color = AdminMuted, textAlign = TextAlign.Center)
@@ -494,7 +486,7 @@ private fun AdminQrDialog(state: QrDialogState, onDismiss: () -> Unit, onRetry: 
                 when {
                     state.loading -> CircularProgressIndicator()
                     state.error != null -> {
-                        Icon(Icons.Default.QrCode2, null, Modifier.size(48.dp), tint = AdminRed)
+                        Icon(TablerIcons.QrCode, null, Modifier.size(48.dp), tint = AdminRed)
                         Text(state.error, color = AdminRed, textAlign = TextAlign.Center)
                         OutlinedButton(onClick = onRetry) { Text("Tải lại QR") }
                     }
@@ -503,7 +495,7 @@ private fun AdminQrDialog(state: QrDialogState, onDismiss: () -> Unit, onRetry: 
                         Image(bitmap.asImageBitmap(), "Mã QR của ${state.table.name}", Modifier.size(240.dp))
                         HorizontalDivider()
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Chair, null, tint = AdminPrimary)
+                            Icon(TablerIcons.Armchair, null, tint = AdminPrimary)
                             Spacer(Modifier.width(8.dp))
                             Text("${state.table.capacity} chỗ • ${state.table.floor ?: "Chưa đặt khu vực"}")
                         }

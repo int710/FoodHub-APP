@@ -31,6 +31,7 @@ import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialo
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +62,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.foodhubapp.feature.customer.table.data.TableScanException
 import com.example.foodhubapp.feature.customer.table.data.TableScanRepository
 import com.example.foodhubapp.feature.customer.table.data.TableSession
+import com.example.foodhubapp.core.ui.icons.TablerIcons
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -154,10 +157,10 @@ fun ScanScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GlyphCircle("×", 44.dp, Color(0xCC121417), Color.White, 29.sp, onClick = onBack)
+                IconCircle(TablerIcons.Close, 44.dp, Color(0xCC121417), Color.White, onClick = onBack)
                 Label("Quét QR", 18.sp, Color.White, bold = true)
-                GlyphCircle(
-                    if (flashOn) "ϟ" else "♜",
+                IconCircle(
+                    if (flashOn) TablerIcons.Flash else TablerIcons.Table,
                     44.dp,
                     Color(0xCC121417),
                     Color.White,
@@ -174,12 +177,16 @@ fun ScanScreen(
                         .padding(horizontal = 12.dp, vertical = 5.dp),
                 ) {
                     val status = when {
-                        isSubmitting -> "●  ĐANG KIỂM TRA MÃ QR"
-                        session != null -> "●  ĐÃ NHẬN DIỆN BÀN"
-                        hasCameraPermission -> "●  CAMERA SẴN SÀNG"
-                        else -> "●  CẦN QUYỀN CAMERA"
+                        isSubmitting -> "ĐANG KIỂM TRA MÃ QR"
+                        session != null -> "ĐÃ NHẬN DIỆN BÀN"
+                        hasCameraPermission -> "CAMERA SẴN SÀNG"
+                        else -> "CẦN QUYỀN CAMERA"
                     }
-                    Label(status, 10.sp, Color(0xFFFFDB97), bold = true)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Dot(Color(0xFFFFB600), 6.dp)
+                        Spacer(Modifier.size(7.dp))
+                        Label(status, 10.sp, Color(0xFFFFDB97), bold = true)
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
                 Label("Quét mã QR tại bàn để gọi món", 19.sp, Color.White, bold = true, align = TextAlign.Center)
@@ -222,11 +229,11 @@ fun ScanScreen(
                     .padding(horizontal = 10.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                ScanTool("ϟ", if (flashOn) "Tắt flash" else "Đèn flash") {
+                ScanTool(TablerIcons.Flash, if (flashOn) "Tắt flash" else "Đèn flash") {
                     if (hasCameraPermission) flashOn = !flashOn
                 }
-                ScanTool("▣", "Thư viện ảnh") { galleryLauncher.launch("image/*") }
-                ScanTool("▦", "Quét lại") {
+                ScanTool(TablerIcons.Photo, "Thư viện ảnh") { galleryLauncher.launch("image/*") }
+                ScanTool(TablerIcons.Refresh, "Quét lại") {
                     session = null
                     errorMessage = null
                     scanRevision++
@@ -294,7 +301,7 @@ private fun TableSessionCard(
             .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            GlyphCircle("♜", 36.dp, Color(0xFFF9ECE7), BurntOrange, 18.sp)
+            IconCircle(TablerIcons.Table, 36.dp, Color(0xFFF9ECE7), BurntOrange)
             Column(Modifier.weight(1f).padding(start = 9.dp)) {
                 Label("PHIÊN DÙNG BỮA", 10.sp, Color(0xFF8B5E50), bold = true)
                 Label(if (session == null) "Chưa kết nối bàn" else "FoodHub", 16.sp, Ink, bold = true)
@@ -305,12 +312,18 @@ private fun TableSessionCard(
                     RoundedCornerShape(24.dp),
                 ).padding(horizontal = 10.dp, vertical = 5.dp),
             ) {
-                Label(
-                    if (session == null) "Chờ quét" else "● Đã kết nối",
-                    10.sp,
-                    if (session == null) Muted else Color(0xFF0B6C43),
-                    bold = true,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (session != null) {
+                        Dot(Color(0xFF0B6C43), 6.dp)
+                        Spacer(Modifier.size(5.dp))
+                    }
+                    Label(
+                        if (session == null) "Chờ quét" else "Đã kết nối",
+                        10.sp,
+                        if (session == null) Muted else Color(0xFF0B6C43),
+                        bold = true,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -320,7 +333,7 @@ private fun TableSessionCard(
                     Modifier.size(48.dp).background(Gold, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label("▤", 28.sp, Color(0xFF6C4200), bold = true)
+                    Icon(TablerIcons.QrCode, null, Modifier.size(26.dp), tint = Color(0xFF6C4200))
                 }
                 Column(Modifier.padding(start = 12.dp)) {
                     Label(
@@ -341,28 +354,30 @@ private fun TableSessionCard(
                 shape = RoundedCornerShape(13.dp),
             ) {
                 Label(
-                    if (isLoading) "Đang xác thực..." else "Xác nhận vào bàn ngay  →",
+                    if (isLoading) "Đang xác thực..." else "Xác nhận vào bàn ngay",
                     14.sp,
                     Color.White,
                     bold = true,
                 )
+                if (!isLoading) {
+                    Spacer(Modifier.size(7.dp))
+                    Icon(TablerIcons.ArrowRight, null, Modifier.size(18.dp), tint = Color.White)
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
-        Label(
-            "♢  Phiên bàn được bảo vệ bằng mã xác thực riêng",
-            11.sp,
-            Color(0xFF5D5960),
-            modifier = Modifier.fillMaxWidth(),
-            align = TextAlign.Center,
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(TablerIcons.ShieldCheck, null, Modifier.size(15.dp), tint = Color(0xFF5D5960))
+            Spacer(Modifier.size(6.dp))
+            Label("Phiên bàn được bảo vệ bằng mã xác thực riêng", 11.sp, Color(0xFF5D5960))
+        }
     }
 }
 
 @Composable
-private fun ScanTool(icon: String, name: String, onClick: () -> Unit) {
+private fun ScanTool(icon: ImageVector, name: String, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        GlyphCircle(icon, 38.dp, Color(0xFF303135), Color.White, 18.sp)
+        IconCircle(icon, 38.dp, Color(0xFF303135), Color.White)
         Spacer(Modifier.height(5.dp))
         Label(name, 10.sp, Color.White, bold = true)
     }
@@ -407,7 +422,11 @@ private fun ScannerFrame(
                 .background(Color(0xCC171717), RoundedCornerShape(20.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Label("▦  Căn chỉnh mã trong khung", 10.sp, Color.White, bold = true)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(TablerIcons.QrScanPosition, null, Modifier.size(14.dp), tint = Color.White)
+                Spacer(Modifier.size(5.dp))
+                Label("Căn chỉnh mã trong khung", 10.sp, Color.White, bold = true)
+            }
         }
     }
 }

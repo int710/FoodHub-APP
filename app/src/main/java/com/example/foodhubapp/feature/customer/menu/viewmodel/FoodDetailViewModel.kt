@@ -7,8 +7,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.feature.customer.menu.data.*
-import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
-import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodCartSelection
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodReview
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import kotlinx.coroutines.CancellationException

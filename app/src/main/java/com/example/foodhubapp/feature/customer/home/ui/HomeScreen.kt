@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.home.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,9 +12,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +39,7 @@ import com.example.foodhubapp.core.network.resolveMediaUrl
 import com.example.foodhubapp.feature.shared.ui.FoodHubDialog
 import com.example.foodhubapp.feature.customer.home.viewmodel.HomeUiState
 import com.example.foodhubapp.feature.customer.home.viewmodel.HomeViewModel
-import com.example.foodhubapp.feature.customer.menu.data.MenuFood
+import com.example.foodhubapp.feature.customer.menu.model.MenuFood
 import com.example.foodhubapp.feature.shared.notification.viewmodel.NotificationViewModel
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import com.example.foodhubapp.feature.customer.order.data.OrderingContextStore
@@ -259,12 +258,12 @@ private fun HomeHeader(
                 )
             }
             HeaderButton("Quét mã QR", onQrClick) {
-                Icon(Icons.Default.QrCodeScanner, null, Modifier.size(20.dp))
+                Icon(TablerIcons.QrScan, null, Modifier.size(20.dp))
             }
             Spacer(Modifier.width(6.dp))
             Box {
                 HeaderButton("Giỏ hàng", onCartClick) {
-                    Icon(Icons.Default.ShoppingCart, null, Modifier.size(20.dp))
+                    Icon(TablerIcons.ShoppingCart, null, Modifier.size(20.dp))
                 }
                 if (cartCount > 0) Badge(
                     Modifier.align(Alignment.TopEnd).offset(x = 1.dp, y = (-1).dp),
@@ -319,9 +318,9 @@ private fun OrderingContext(
             Box(Modifier.size(32.dp).background(SuccessSoft, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(
                     when (selectedType) {
-                        CartType.DINE_IN -> Icons.Default.TableRestaurant
-                        CartType.DELIVERY -> Icons.Default.DeliveryDining
-                        CartType.TAKEAWAY -> Icons.Default.TakeoutDining
+                        CartType.DINE_IN -> TablerIcons.Table
+                        CartType.DELIVERY -> TablerIcons.Delivery
+                        CartType.TAKEAWAY -> TablerIcons.Takeaway
                     }, null, Modifier.size(18.dp), tint = SuccessDark,
                 )
             }
@@ -400,10 +399,10 @@ private fun SearchRow(
                     overflow = TextOverflow.Ellipsis
                 )
             },
-            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(20.dp)) },
+            leadingIcon = { Icon(TablerIcons.Search, null, Modifier.size(20.dp)) },
             trailingIcon = {
                 if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Close, "Xóa tìm kiếm", Modifier.size(18.dp))
+                    Icon(TablerIcons.Close, "Xóa tìm kiếm", Modifier.size(18.dp))
                 }
             },
             singleLine = true,
@@ -423,7 +422,7 @@ private fun SearchRow(
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = if (maxPrice == null) PrimaryContainer else Brand
                 )
-            ) { Icon(Icons.Default.Tune, "Lọc theo giá", tint = Color.White) }
+            ) { Icon(TablerIcons.Adjustments, "Lọc theo giá", tint = Color.White) }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 listOf(
                     "Tất cả mức giá" to null,
@@ -435,7 +434,7 @@ private fun SearchRow(
                         text = { Text(label) },
                         onClick = { onMaxPriceChange(value); menuExpanded = false },
                         leadingIcon = {
-                            if (maxPrice == value) Icon(Icons.Default.Check, null)
+                            if (maxPrice == value) Icon(TablerIcons.Check, null)
                         },
                     )
                 }
@@ -481,13 +480,13 @@ private fun QuickActions(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         QuickAction("Quét QR\nBàn", BrandSoft, onQrClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.QrCodeScanner, null, tint = Brand)
+            Icon(TablerIcons.QrScan, null, tint = Brand)
         }
         QuickAction("Đặt Mang\nVề", WarmAccent, onMenuClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.TakeoutDining, null, tint = WarningDark)
+            Icon(TablerIcons.Takeaway, null, tint = WarningDark)
         }
         QuickAction("Giao Tận\nNơi", SoftGreen, onDeliveryClick, Modifier.weight(1f)) {
-            Icon(Icons.Default.DeliveryDining, null, tint = SuccessDark)
+            Icon(TablerIcons.Delivery, null, tint = SuccessDark)
         }
     }
 }
@@ -519,7 +518,7 @@ private fun CategoryRow(state: HomeUiState, onCategoryClick: (String?) -> Unit) 
                 selected = state.selectedCategoryId == null,
                 onClick = { onCategoryClick(null) },
                 label = { Text("Tất cả") },
-                leadingIcon = { Icon(Icons.Default.Restaurant, null, Modifier.size(16.dp)) },
+                leadingIcon = { Icon(TablerIcons.Restaurant, null, Modifier.size(16.dp)) },
                 colors = homeFilterChipColors()
             )
         }
@@ -559,13 +558,13 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
                     Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(food.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
                         if (food.rating != "0") Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = Warning)
+                            Icon(TablerIcons.Star, null, Modifier.size(14.dp), tint = Warning)
                             Text(food.rating, fontSize = 11.sp, color = OnSurfaceVariant)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
-                                Icon(Icons.Default.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
+                                Icon(TablerIcons.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
                             } else Text("Tạm hết", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -599,7 +598,7 @@ private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoo
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
-                        Icon(Icons.Default.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
+                        Icon(TablerIcons.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
                     } else Text("Tạm hết hàng", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -638,7 +637,7 @@ private fun ServiceBar(canChat: Boolean, isDineIn: Boolean, onClick: () -> Unit)
     Surface(shape = RoundedCornerShape(12.dp), color = InputBackground) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(WarmAccent, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.RoomService, null, Modifier.size(18.dp), tint = WarningDark)
+                Icon(TablerIcons.ChefHat, null, Modifier.size(18.dp), tint = WarningDark)
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
@@ -675,19 +674,19 @@ private fun HomeBottomBar(
 ) {
     Surface(color = AppBackground.copy(alpha = .97f), shadowElevation = 8.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
-            BottomDestination(Icons.Default.Home, "Trang chủ", true, {})
-            BottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", false, onOrdersClick)
+            BottomDestination(TablerIcons.Home, "Trang chủ", true, {})
+            BottomDestination(TablerIcons.Receipt, "Đơn hàng", false, onOrdersClick)
             if (canChat) {
-                BottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
+                BottomDestination(TablerIcons.ChatBubble, "Tin nhắn", false, onChatClick)
             }
             BottomDestination(
-                Icons.Default.NotificationsNone,
+                TablerIcons.Bell,
                 "Thông báo",
                 false,
                 onNotificationsClick,
                 notificationUnreadCount,
             )
-            BottomDestination(Icons.Default.Person, "Cá nhân", false, onProfileClick)
+            BottomDestination(TablerIcons.User, "Cá nhân", false, onProfileClick)
         }
     }
 }

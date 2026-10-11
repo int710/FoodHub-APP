@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.cart.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,15 +11,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import com.example.foodhubapp.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.runtime.*
@@ -41,7 +34,7 @@ import com.example.foodhubapp.feature.customer.cart.data.CartItem
 import com.example.foodhubapp.feature.customer.cart.data.CartType
 import com.example.foodhubapp.feature.customer.cart.data.CheckoutRequest
 import com.example.foodhubapp.feature.customer.cart.viewmodel.CartViewModel
-import com.example.foodhubapp.feature.customer.menu.ui.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
 import com.example.foodhubapp.feature.customer.menu.ui.FoodImage
 import com.example.foodhubapp.theme.AppBackground
 import com.example.foodhubapp.theme.Brand
@@ -227,7 +220,7 @@ fun CartScreen(
                 Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại") }
+                IconButton(onClick = onBackClick) { Icon(TablerIcons.ArrowBack, "Quay lại") }
                 Text("Giỏ hàng", Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 21.sp)
                 if (cart.items.isNotEmpty()) TextButton(onClick = onClear, enabled = !isClearing && busyItemId == null) {
                     Text("Xóa tất cả", color = Brand)
@@ -318,7 +311,7 @@ private fun CheckoutDialog(
                         Text(type.label().uppercase(), color = Brand, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("Xác nhận và đặt món", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
-                    IconButton(onClick = onDismiss, enabled = !isSubmitting) { Icon(Icons.Default.Close, "Đóng") }
+                    IconButton(onClick = onDismiss, enabled = !isSubmitting) { Icon(TablerIcons.Close, "Đóng") }
                 }
                 HorizontalDivider(color = CardStroke)
                 Column(
@@ -343,9 +336,9 @@ private fun CheckoutDialog(
                 }
                 Text("PHƯƠNG THỨC THANH TOÁN", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PaymentOption("CASH", "Tiền mặt", "Thanh toán khi nhận món", Icons.Default.Payments, paymentMethod) { paymentMethod = it }
-                    PaymentOption("ZALOPAY", "Ví ZaloPay", "QR realtime · tự động xác nhận", Icons.Default.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
-                    PaymentOption("VNPAY", "Cổng VNPay", "Thẻ ngân hàng hoặc ứng dụng hỗ trợ", Icons.Default.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
+                    PaymentOption("CASH", "Tiền mặt", "Thanh toán khi nhận món", TablerIcons.Payment, paymentMethod) { paymentMethod = it }
+                    PaymentOption("ZALOPAY", "Ví ZaloPay", "QR realtime · tự động xác nhận", TablerIcons.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
+                    PaymentOption("VNPAY", "Cổng VNPay", "Thẻ ngân hàng hoặc ứng dụng hỗ trợ", TablerIcons.AccountBalanceWallet, paymentMethod) { paymentMethod = it }
                 }
                 OutlinedTextField(note, { note = it.take(255) }, Modifier.fillMaxWidth(), label = { Text("Ghi chú cho nhà hàng") }, minLines = 2)
                 Surface(color = Color.White, shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)) {
@@ -374,7 +367,7 @@ private fun CheckoutDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Brand),
                 ) {
                     if (isSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                    else Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                    else Icon(TablerIcons.CheckCircle, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(if (isSubmitting) "Đang đặt món…" else "Hoàn tất đặt đơn", fontWeight = FontWeight.Bold)
                 }
@@ -446,10 +439,10 @@ private fun CartItemRow(
                 Row(verticalAlignment = Alignment.Top) {
                     Text(item.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                     IconButton(onClick = onEdit, enabled = !busy, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Edit, "Sửa ${item.name}", Modifier.size(19.dp))
+                        Icon(TablerIcons.Edit, "Sửa ${item.name}", Modifier.size(19.dp))
                     }
                     IconButton(onClick = onDelete, enabled = !busy, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Delete, "Xóa ${item.name}", Modifier.size(19.dp), tint = Brand)
+                        Icon(TablerIcons.Delete, "Xóa ${item.name}", Modifier.size(19.dp), tint = Brand)
                     }
                 }
                 if (item.options.isNotEmpty()) Text(
@@ -475,7 +468,7 @@ private fun CartItemRow(
                         onClick = { onQuantityChange(item.quantity + 1) },
                         enabled = item.quantity < 99 && !busy,
                         modifier = Modifier.size(34.dp)
-                    ) { Icon(Icons.Default.Add, "Tăng số lượng", Modifier.size(18.dp)) }
+                    ) { Icon(TablerIcons.Add, "Tăng số lượng", Modifier.size(18.dp)) }
                 }
             }
         }
@@ -540,7 +533,7 @@ private fun CartEditDialog(
                     }
                     Text("$quantity", Modifier.width(32.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     IconButton(onClick = { if (quantity < 99) quantity++ }, enabled = quantity < 99) {
-                        Icon(Icons.Default.Add, "Tăng số lượng")
+                        Icon(TablerIcons.Add, "Tăng số lượng")
                     }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Hủy") }

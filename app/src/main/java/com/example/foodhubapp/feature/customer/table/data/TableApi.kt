@@ -1,26 +1,28 @@
-package com.example.foodhubapp.feature.table.data
+package com.example.foodhubapp.feature.customer.table.data
 
 import com.google.gson.JsonObject
 import retrofit2.Call
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.HeaderMap
+import retrofit2.http.POST
 
-/** Endpoint contracts; repositories perform blocking calls on Dispatchers.IO. */
+/** API phục vụ riêng luồng khách quét QR và kết thúc phiên bàn. */
 interface TableApi {
-
     @GET("table")
     fun getTables(
-        @HeaderMap headers: Map<String, String> = emptyMap()
+        @HeaderMap headers: Map<String, String> = emptyMap(),
     ): Call<JsonObject>
 
     @POST("table/scan")
     fun scan(
         @HeaderMap headers: Map<String, String> = emptyMap(),
-        @Body body: JsonObject
+        @Body body: JsonObject,
     ): Call<JsonObject>
 
     @POST("table/session/end")
     fun endSession(
         @HeaderMap headers: Map<String, String> = emptyMap(),
-        @Body body: JsonObject = JsonObject()
+        @Body body: JsonObject = JsonObject(),
     ): Call<JsonObject>
 }

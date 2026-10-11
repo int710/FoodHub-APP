@@ -413,7 +413,8 @@ internal fun PrimaryAuthButton(
     modifier: Modifier = Modifier,
     badgeText: String? = null,
     height: Int = 48,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    showArrow: Boolean = true
 ) {
     Surface(
         modifier = modifier
@@ -440,12 +441,14 @@ internal fun PrimaryAuthButton(
                     fontSize = 14.sp,
                     lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.ic_onboarding_arrow_right),
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp)
-                )
+                if (showArrow) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_onboarding_arrow_right),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
             if (badgeText != null) {
                 Surface(color = Warning, shape = CircleShape) {
@@ -561,12 +564,13 @@ internal fun SocialButton(
     @DrawableRes iconRes: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    textColor: Color = Neutral
+    textColor: Color = Neutral,
+    enabled: Boolean = true
 ) {
     Surface(
         modifier = modifier
             .height(48.dp)
-            .clickable { onClick() },
+            .clickable(enabled = enabled) { onClick() },
         color = Color.White,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, CardStroke),

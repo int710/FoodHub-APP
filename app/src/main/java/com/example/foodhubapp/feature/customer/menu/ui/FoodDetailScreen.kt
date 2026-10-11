@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.menu.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -11,15 +13,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,7 +35,11 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.example.foodhubapp.core.network.resolveMediaUrl
 import com.example.foodhubapp.R
-import com.example.foodhubapp.feature.customer.menu.data.FoodReview
+import com.example.foodhubapp.feature.customer.menu.model.FoodReview
+import com.example.foodhubapp.feature.customer.menu.model.FoodCartSelection
+import com.example.foodhubapp.feature.customer.menu.model.FoodDetail
+import com.example.foodhubapp.feature.customer.menu.model.FoodOption
+import com.example.foodhubapp.feature.customer.menu.model.FoodOptionGroup
 import com.example.foodhubapp.theme.AppBackground
 import com.example.foodhubapp.theme.Brand
 import com.example.foodhubapp.theme.BrandSoft
@@ -55,53 +52,6 @@ import com.example.foodhubapp.theme.OnSurfaceVariant
 import com.example.foodhubapp.theme.Warning
 import java.text.NumberFormat
 import java.util.Locale
-
-/**
- * Lựa chọn tùy chọn của món ăn (ví dụ: Size M, Thêm phô mai, Trứng ốp la,...).
- */
-data class FoodOption(
-    val id: String, 
-    val name: String, 
-    val priceAdd: Long
-)
-
-/**
- * Nhóm các tùy chọn của món ăn (ví dụ: Chọn Kích Cỡ, Topping Thêm).
- * @param multiple Cho phép chọn nhiều option hay chỉ chọn 1 option.
- * @param required Bắt buộc phải chọn ít nhất 1 option hay tùy chọn tự do.
- */
-data class FoodOptionGroup(
-    val id: String,
-    val name: String,
-    val multiple: Boolean,
-    val required: Boolean,
-    val options: List<FoodOption>
-)
-
-/**
- * Thông tin chi tiết hoàn chỉnh của món ăn.
- */
-data class FoodDetail(
-    val id: String,
-    val name: String,
-    val description: String,
-    val basePrice: Long,
-    val rating: String,
-    val available: Boolean = true,
-    val groups: List<FoodOptionGroup> = emptyList(),
-    val imageUrl: String? = null,
-    val salePrice: Long? = null
-)
-
-/**
- * Dữ liệu giỏ hàng người dùng chọn để thêm vào giỏ.
- */
-data class FoodCartSelection(
-    val menuItemId: String, 
-    val quantity: Int, 
-    val variantOptionIds: List<String>, 
-    val note: String
-)
 
 // Dữ liệu mẫu dùng cho Compose Preview
 val PreviewBurger = FoodDetail(
@@ -144,9 +94,9 @@ fun FoodDetailScreen(
     food: FoodDetail,
     onBackClick: () -> Unit,
     onAddToCart: (FoodCartSelection) -> Unit,
+    modifier: Modifier = Modifier,
     reviews: List<FoodReview> = emptyList(),
     onCartClick: () -> Unit = {},
-    modifier: Modifier = Modifier,
     isAdding: Boolean = false,
     snackbarHost: @Composable () -> Unit = {},
     image: @Composable BoxScope.() -> Unit = {
@@ -208,7 +158,7 @@ fun FoodDetailScreen(
                                 ) { Text("−", fontSize = 22.sp, color = OnSurfaceVariant) }
                                 Text("$quantity", Modifier.width(26.dp), fontWeight = FontWeight.Bold, color = Neutral)
                                 IconButton(onClick = { quantity++ }, enabled = quantity < 99 && !isAdding) {
-                                    Icon(Icons.Default.Add, "Tăng số lượng", tint = Brand)
+                                    Icon(TablerIcons.Add, "Tăng số lượng", tint = Brand)
                                 }
                             }
                         }
@@ -238,7 +188,7 @@ fun FoodDetailScreen(
                             Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
-                        else Icon(Icons.Default.ShoppingCart, null, Modifier.size(18.dp), tint = Color.White)
+                        else Icon(TablerIcons.ShoppingCart, null, Modifier.size(18.dp), tint = Color.White)
                         Spacer(Modifier.width(8.dp))
                         Text(if (food.available) "Thêm vào giỏ" else "Tạm hết món", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Spacer(Modifier.weight(1f))
@@ -273,7 +223,7 @@ fun FoodDetailScreen(
                     Surface(shape = CircleShape, color = Color.White.copy(alpha = .9f)) {
                         IconButton(onClick = onBackClick) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
+                                TablerIcons.ArrowBack,
                                 "Quay lại"
                             )
                         }
@@ -282,7 +232,7 @@ fun FoodDetailScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Surface(shape = CircleShape, color = Color.White.copy(alpha = .9f)) {
                             IconButton(onClick = onCartClick) {
-                                Icon(Icons.Default.ShoppingCart, "Mở giỏ hàng")
+                                Icon(TablerIcons.ShoppingCart, "Mở giỏ hàng")
                             }
                         }
                         Surface(shape = CircleShape, color = Color.White.copy(alpha = .9f)) {
@@ -294,7 +244,7 @@ fun FoodDetailScreen(
                                         "${food.name} - ${money(food.basePrice)}"
                                     )
                                 }, "Chia sẻ món ăn"))
-                            }) { Icon(Icons.Default.Share, "Chia sẻ món ăn") }
+                            }) { Icon(TablerIcons.Share, "Chia sẻ món ăn") }
                         }
                     }
                 }
@@ -302,8 +252,8 @@ fun FoodDetailScreen(
                     Modifier.align(Alignment.BottomStart).padding(18.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    DetailTag("Bán chạy", Icons.Default.LocalFireDepartment)
-                    if (food.rating.toDoubleOrNull()?.let { it >= 4.5 } == true) DetailTag("Được yêu thích", Icons.Default.Star)
+                    DetailTag("Bán chạy", TablerIcons.Flame)
+                    if (food.rating.toDoubleOrNull()?.let { it >= 4.5 } == true) DetailTag("Được yêu thích", TablerIcons.Star)
                 }
             }
             
@@ -330,9 +280,9 @@ fun FoodDetailScreen(
                 }
                 Text(food.description, color = OnSurfaceVariant, lineHeight = 22.sp, fontSize = 14.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    InfoChip(Icons.Default.Star, "${food.rating} điểm", Warning)
-                    InfoChip(Icons.Default.AccessTime, "8–12 phút", OnSurfaceVariant)
-                    InfoChip(Icons.Default.CheckCircle, if (food.available) "Đang bán" else "Tạm hết", if (food.available) Color(0xFF087A55) else Brand)
+                    InfoChip(TablerIcons.Star, "${food.rating} điểm", Warning)
+                    InfoChip(TablerIcons.AccessTime, "8–12 phút", OnSurfaceVariant)
+                    InfoChip(TablerIcons.CheckCircle, if (food.available) "Đang bán" else "Tạm hết", if (food.available) Color(0xFF087A55) else Brand)
                 }
 
                 if (reviews.isNotEmpty()) {
@@ -348,7 +298,11 @@ fun FoodDetailScreen(
                                         contentScale = ContentScale.Crop,
                                     )
                                     Text(review.customerName, Modifier.weight(1f).padding(start = 9.dp), fontWeight = FontWeight.SemiBold)
-                                    Text("★ ${review.rating}/5", color = Warning, fontWeight = FontWeight.Bold)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(TablerIcons.Star, null, Modifier.size(16.dp), tint = Warning)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("${review.rating}/5", color = Warning, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                                 if (review.comment.isNotBlank()) Text(review.comment, color = OnSurfaceVariant)
                             }

@@ -5,18 +5,18 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import androidx.core.content.edit
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.network.FoodHubSessionRefresh
+import com.example.foodhubapp.core.network.FoodhubRetrofit
 import com.example.foodhubapp.feature.customer.table.data.TableSessionStore
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
 import io.socket.emitter.Emitter
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
 import kotlinx.coroutines.*
-import okhttp3.OkHttpClient
 import com.example.foodhubapp.R
 import com.example.foodhubapp.core.media.AppSoundPlayer
 
@@ -52,7 +52,7 @@ class ChatSocketClient(context: Context) {
         dispatch {
             if (id == conversationId()) {
                 if (usingTable) sessionStore.clearConversationId()
-                else accountId?.let { conversations.edit().remove(it).apply() }
+                else accountId?.let { conversations.edit { remove(it) } }
                 listener?.onHistory(emptyList())
                 listener?.onError("Hội thoại đã đóng. Tin nhắn tiếp theo sẽ mở hội thoại mới.")
             }
@@ -135,7 +135,7 @@ class ChatSocketClient(context: Context) {
         connectionJob = scope.launch {
             val token = runCatching {
                 if (refresh) withContext(Dispatchers.IO) {
-                    FoodHubSessionRefresh.refresh(OkHttpClient(), "https://foodhub-8lv1.onrender.com/api/v1", accountAccessToken)
+                    FoodHubSessionRefresh.refresh(FoodhubRetrofit.httpClient, FoodhubRetrofit.BASE_URL.trimEnd('/'), accountAccessToken)
                 } else tokenStore.getAccessToken()
             }.getOrNull()
             ensureActive()
@@ -163,7 +163,7 @@ class ChatSocketClient(context: Context) {
             .setReconnectionDelay(1_000)
             .setReconnectionDelayMax(10_000)
             .build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on(Socket.EVENT_CONNECT, onConnect)
             on(Socket.EVENT_DISCONNECT, onDisconnect)
             on(Socket.EVENT_CONNECT_ERROR, onConnectError)
@@ -230,7 +230,7 @@ class ChatSocketClient(context: Context) {
             val error = response?.optStringValue("message")
             if (!success && error?.contains("closed", true) == true) {
                 if (usingTable) sessionStore.clearConversationId()
-                else accountId?.let { conversations.edit().remove(it).apply() }
+                else accountId?.let { conversations.edit { remove(it) } }
             }
             dispatch {
                 mainHandler.removeCallbacks(timeout)
@@ -262,7 +262,7 @@ class ChatSocketClient(context: Context) {
                 val message = response.optStringValue("message").orEmpty()
                 if (message.contains("not found", true) || message.contains("closed", true) || message.contains("forbidden", true)) {
                     if (usingTable) sessionStore.clearConversationId()
-                    else conversations.edit().remove(accountId).apply()
+                    else conversations.edit { remove(accountId) }
                 }
                 dispatch {
                     listener?.onError(
@@ -282,38 +282,10 @@ class ChatSocketClient(context: Context) {
 
     private fun saveConversationId(id: String) {
         if (usingTable) sessionStore.saveConversationId(id)
-        else accountId?.let { conversations.edit().putString(it, id).apply() }
+        else accountId?.let { conversations.edit { putString(it, id) } }
     }
-
-    private fun JSONObject.toChatMessage(): ChatMessage? {
-        val content = optStringValue("content") ?: return null
-        return ChatMessage(
-            id = optStringValue("_id", "id") ?: "${optStringValue("senderId")}-${optStringValue("createdAt")}-$content",
-            conversationId = optStringValue("conversationId").orEmpty(),
-            senderId = optStringValue("senderId").orEmpty(),
-            senderRole = optStringValue("senderRole") ?: "customer",
-            content = content,
-            type = optStringValue("type") ?: "TEXT",
-            createdAt = optStringValue("createdAt").orEmpty(),
-        )
-    }
-
-    private fun JSONArray?.toChatMessages(): List<ChatMessage> {
-        if (this == null) return emptyList()
-        return buildList {
-            for (index in 0 until length()) {
-                optJSONObject(index)?.toChatMessage()?.let(::add)
-            }
-        }
-    }
-
-    private fun JSONObject.optStringValue(vararg keys: String): String? =
-        keys.firstNotNullOfOrNull { key ->
-            if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
-        }
 
     private companion object {
-        const val SOCKET_URL = "https://foodhub-8lv1.onrender.com"
         const val EVENT_CONVERSATION_JOIN = "conversation:join"
         const val EVENT_MESSAGE_SEND = "message:send"
         const val EVENT_MESSAGE_NEW = "message:new"

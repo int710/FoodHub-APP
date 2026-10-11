@@ -2,18 +2,19 @@ package com.example.foodhubapp.feature.admin.chat
 
 import com.example.foodhubapp.feature.shared.chat.ChatConnectionState
 import com.example.foodhubapp.feature.shared.chat.ChatMessage
+import com.example.foodhubapp.feature.shared.chat.toChatMessage
+import com.example.foodhubapp.feature.shared.chat.toChatMessages
 
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.example.foodhubapp.core.datastore.TokenStore
 import com.example.foodhubapp.core.network.FoodHubSessionRefresh
+import com.example.foodhubapp.core.network.FoodhubRetrofit
 import kotlinx.coroutines.*
-import okhttp3.OkHttpClient
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
 
@@ -38,7 +39,7 @@ class AdminChatSocketClient(context: Context) {
             ?: run { onState(ChatConnectionState.ERROR); return onError("Vui lòng đăng nhập lại") }
         onState(ChatConnectionState.CONNECTING)
         val options = IO.Options.builder().setAuth(mapOf("token" to token)).setReconnection(true).build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on(Socket.EVENT_CONNECT) {
                 handler.post { onState(ChatConnectionState.CONNECTED) }
                 emit("conversation:join", JSONObject().put("conversationId", conversationId).put("limit", 100))
@@ -56,7 +57,7 @@ class AdminChatSocketClient(context: Context) {
                         refreshJob = scope.launch {
                             val newToken = runCatching {
                                 withContext(Dispatchers.IO) {
-                                    FoodHubSessionRefresh.refresh(OkHttpClient(), "https://foodhub-8lv1.onrender.com/api/v1", token)
+                                    FoodHubSessionRefresh.refresh(FoodhubRetrofit.httpClient, FoodhubRetrofit.BASE_URL.trimEnd('/'), token)
                                 }
                             }.getOrNull()
                             ensureActive()
@@ -71,10 +72,10 @@ class AdminChatSocketClient(context: Context) {
             }
             on("message:history") { args ->
                 val data = args.firstOrNull() as? JSONObject ?: return@on
-                handler.post { onHistory(data.optJSONArray("messages").messages()) }
+                handler.post { onHistory(data.optJSONArray("messages").toChatMessages()) }
             }
             on("message:new") { args ->
-                (args.firstOrNull() as? JSONObject)?.message()?.let { value -> handler.post { onMessage(value) } }
+                (args.firstOrNull() as? JSONObject)?.toChatMessage()?.let { value -> handler.post { onMessage(value) } }
             }
             on("conversation:closed") { args ->
                 val id = (args.firstOrNull() as? JSONObject)?.optString("conversationId")
@@ -100,16 +101,4 @@ class AdminChatSocketClient(context: Context) {
 
     fun disconnect() { refreshJob?.cancel(); socket?.off(); socket?.disconnect(); socket = null }
 
-    private fun JSONObject.message(): ChatMessage? {
-        val content = optString("content").takeIf(String::isNotBlank) ?: return null
-        return ChatMessage(
-            optString("_id", optString("id")), optString("conversationId"), optString("senderId"),
-            optString("senderRole", "staff"), content, optString("type", "TEXT"), optString("createdAt"),
-        )
-    }
-
-    private fun JSONArray?.messages() = if (this == null) emptyList() else
-        (0 until length()).mapNotNull { optJSONObject(it)?.message() }
-
-    private companion object { const val SOCKET_URL = "https://foodhub-8lv1.onrender.com" }
 }

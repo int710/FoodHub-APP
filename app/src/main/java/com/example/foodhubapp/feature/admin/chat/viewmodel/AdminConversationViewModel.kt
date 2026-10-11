@@ -43,14 +43,6 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    fun close(id: String) {
-        viewModelScope.launch {
-            runCatching { repository.close(id) }
-                .onSuccess { refresh() }
-                .onFailure { error -> state.update { it.copy(error = error.message) } }
-        }
-    }
-
     private fun onRealtimeConversationChanged(isNew: Boolean) {
         viewModelScope.launch {
             runCatching { repository.getOpenConversations() }
@@ -71,6 +63,5 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
 
     override fun onCleared() {
         socketClient.disconnect()
-        super.onCleared()
     }
 }

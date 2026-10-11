@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.customer.order.ui
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -15,9 +17,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -282,7 +281,7 @@ private fun OrderHeader(state: OrderListUiState, onRefresh: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(Modifier.size(38.dp).background(Brand, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(TablerIcons.Receipt, null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
@@ -298,7 +297,7 @@ private fun OrderHeader(state: OrderListUiState, onRefresh: () -> Unit) {
                 onClick = onRefresh,
                 enabled = !state.isLoading && !state.isRefreshing,
                 modifier = Modifier.semantics { contentDescription = "Làm mới đơn hàng" }
-            ) { Icon(Icons.Default.Refresh, null, tint = Brand) }
+            ) { Icon(TablerIcons.Refresh, null, tint = Brand) }
         }
     }
 }
@@ -341,10 +340,10 @@ private fun OrderTypeFilters(selected: OrderType?, onClick: (OrderType?) -> Unit
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item { OrderFilterChip("Tất cả", Icons.Default.GridView, selected == null) { onClick(null) } }
-        item { OrderFilterChip("Tại bàn", Icons.Default.TableRestaurant, selected == OrderType.DINE_IN) { onClick(OrderType.DINE_IN) } }
-        item { OrderFilterChip("Mang về", Icons.Default.ShoppingBag, selected == OrderType.TAKEAWAY) { onClick(OrderType.TAKEAWAY) } }
-        item { OrderFilterChip("Giao hàng", Icons.Default.DeliveryDining, selected == OrderType.DELIVERY) { onClick(OrderType.DELIVERY) } }
+        item { OrderFilterChip("Tất cả", TablerIcons.GridView, selected == null) { onClick(null) } }
+        item { OrderFilterChip("Tại bàn", TablerIcons.Table, selected == OrderType.DINE_IN) { onClick(OrderType.DINE_IN) } }
+        item { OrderFilterChip("Mang về", TablerIcons.ShoppingBag, selected == OrderType.TAKEAWAY) { onClick(OrderType.TAKEAWAY) } }
+        item { OrderFilterChip("Giao hàng", TablerIcons.Delivery, selected == OrderType.DELIVERY) { onClick(OrderType.DELIVERY) } }
     }
 }
 
@@ -410,7 +409,7 @@ private fun OrderCard(
                         if (expanded) "Thu gọn" else "+ ${order.items.size - 2} món khác",
                         Modifier.weight(1f), color = OnSurfaceVariant, fontSize = 11.sp
                     )
-                    Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(18.dp), tint = Brand)
+                    Icon(if (expanded) TablerIcons.ChevronUp else TablerIcons.ChevronDown, null, Modifier.size(18.dp), tint = Brand)
                 }
             }
             if (order.status in setOf(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.SERVED)) {
@@ -451,7 +450,7 @@ private fun OrderCard(
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     else {
-                        Icon(Icons.Default.CreditCard, null, Modifier.size(17.dp))
+                        Icon(TablerIcons.CreditCard, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Thanh toán ngay")
                     }
@@ -479,7 +478,7 @@ private fun ReviewDialog(
     onUploadImage: (Uri, (String) -> Unit) -> Unit,
     onSubmit: (Int, String, List<String>) -> Unit,
 ) {
-    var rating by rememberSaveable { mutableStateOf(5) }
+    var rating by rememberSaveable { mutableIntStateOf(5) }
     var comment by rememberSaveable { mutableStateOf("") }
     var imageLink by rememberSaveable { mutableStateOf("") }
     val imageUrls = remember { mutableStateListOf<String>() }
@@ -501,11 +500,11 @@ private fun ReviewDialog(
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     (1..5).forEach { value ->
-                        Text(
-                            if (value <= rating) "★" else "☆",
-                            Modifier.clickable(enabled = !isBusy) { rating = value }.padding(4.dp),
-                            color = Brand,
-                            fontSize = 30.sp,
+                        Icon(
+                            TablerIcons.Star,
+                            contentDescription = "$value sao",
+                            modifier = Modifier.size(36.dp).clickable(enabled = !isBusy) { rating = value }.padding(4.dp),
+                            tint = if (value <= rating) Brand else Brand.copy(alpha = .28f),
                         )
                     }
                 }
@@ -544,7 +543,7 @@ private fun ReviewDialog(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("${index + 1}. $url", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                         IconButton(onClick = { imageUrls.remove(url) }, enabled = !isBusy) {
-                            Icon(Icons.Default.Close, "Xóa ảnh")
+                            Icon(TablerIcons.Close, "Xóa ảnh")
                         }
                     }
                 }
@@ -561,16 +560,16 @@ private fun ReviewDialog(
 @Composable
 private fun OrderContext(order: CustomerOrder) {
     val (icon, text) = when (order.type) {
-        OrderType.DINE_IN -> Icons.Default.TableRestaurant to buildString {
+        OrderType.DINE_IN -> TablerIcons.Table to buildString {
             append("Tại bàn")
             order.tableName?.let { append(" · $it") }
             order.tableFloor?.let { append(" ($it)") }
         }
-        OrderType.TAKEAWAY -> Icons.Default.ShoppingBag to buildString {
+        OrderType.TAKEAWAY -> TablerIcons.ShoppingBag to buildString {
             append("Mang về")
             order.pickupCode?.let { append(" · Mã nhận: $it") }
         }
-        OrderType.DELIVERY -> Icons.Default.DeliveryDining to buildString {
+        OrderType.DELIVERY -> TablerIcons.Delivery to buildString {
             append("Giao hàng")
             order.deliveryAddress?.let { append(" · $it") }
         }
@@ -694,7 +693,7 @@ private fun EmptyOrders(group: OrderGroup, modifier: Modifier = Modifier) {
     }
     Column(modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(64.dp).background(BrandSoft, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = Brand, modifier = Modifier.size(30.dp))
+            Icon(TablerIcons.Receipt, null, tint = Brand, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.height(12.dp))
         Text("Chưa có đơn hàng", fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -705,7 +704,7 @@ private fun EmptyOrders(group: OrderGroup, modifier: Modifier = Modifier) {
 @Composable
 private fun OrderError(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.CloudOff, null, tint = Brand, modifier = Modifier.size(36.dp))
+        Icon(TablerIcons.CloudOff, null, tint = Brand, modifier = Modifier.size(36.dp))
         Spacer(Modifier.height(8.dp))
         Text(message, color = OnSurfaceVariant)
         Spacer(Modifier.height(12.dp))
@@ -724,19 +723,19 @@ private fun OrderBottomBar(
 ) {
     Surface(color = AppBackground.copy(alpha = .97f), shadowElevation = 8.dp) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp)) {
-            OrderBottomDestination(Icons.Default.Home, "Trang chủ", false, onHomeClick)
-            OrderBottomDestination(Icons.AutoMirrored.Filled.ReceiptLong, "Đơn hàng", true, {})
+            OrderBottomDestination(TablerIcons.Home, "Trang chủ", false, onHomeClick)
+            OrderBottomDestination(TablerIcons.Receipt, "Đơn hàng", true, {})
             if (canChat) {
-                OrderBottomDestination(Icons.Default.ChatBubbleOutline, "Tin nhắn", false, onChatClick)
+                OrderBottomDestination(TablerIcons.ChatBubble, "Tin nhắn", false, onChatClick)
             }
             OrderBottomDestination(
-                Icons.Default.NotificationsNone,
+                TablerIcons.Bell,
                 "Thông báo",
                 false,
                 onNotificationClick,
                 notificationUnreadCount,
             )
-            OrderBottomDestination(Icons.Default.Person, "Cá nhân", false, onProfileClick)
+            OrderBottomDestination(TablerIcons.User, "Cá nhân", false, onProfileClick)
         }
     }
 }

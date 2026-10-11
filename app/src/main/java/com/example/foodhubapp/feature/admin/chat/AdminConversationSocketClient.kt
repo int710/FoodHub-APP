@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.example.foodhubapp.core.datastore.TokenStore
+import com.example.foodhubapp.core.network.FoodhubRetrofit
 import io.socket.client.IO
 import io.socket.client.Socket
 import java.net.URI
@@ -24,7 +25,7 @@ class AdminConversationSocketClient(context: Context) {
             .setAuth(mapOf("token" to token))
             .setReconnection(true)
             .build()
-        socket = IO.socket(URI.create(SOCKET_URL), options).apply {
+        socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on("conversation:new") { args -> handler.post {
                 val senderId = (args.firstOrNull() as? JSONObject)?.optString("lastMessageSenderId")
                 if (senderId.isNullOrBlank() || senderId != currentUserId) AppSoundPlayer.play(appContext, R.raw.sound_foodhub_message)
@@ -45,7 +46,4 @@ class AdminConversationSocketClient(context: Context) {
         socket = null
     }
 
-    private companion object {
-        const val SOCKET_URL = "https://foodhub-8lv1.onrender.com"
-    }
 }

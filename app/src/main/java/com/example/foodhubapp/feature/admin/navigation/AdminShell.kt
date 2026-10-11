@@ -1,5 +1,7 @@
 package com.example.foodhubapp.feature.admin.navigation
 
+import com.example.foodhubapp.core.ui.icons.TablerIcons
+
 import com.example.foodhubapp.feature.admin.order.data.AdminOrderSocketClient
 import com.example.foodhubapp.feature.admin.model.AdminPaymentMethod
 import com.example.foodhubapp.feature.admin.table.ui.AdminTablesScreen
@@ -10,14 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -111,11 +105,11 @@ private enum class AdminTab(
     val label: String,
     val icon: ImageVector,
 ) {
-    Overview("admin/overview", "Tổng quan", Icons.Default.Dashboard),
-    Orders("admin/orders", "Đơn hàng", Icons.AutoMirrored.Filled.ReceiptLong),
-    Tables("admin/tables", "Bàn", Icons.Default.TableRestaurant),
-    Menu("admin/menu", "Thực đơn", Icons.Default.RestaurantMenu),
-    Messages("admin/messages", "Tin nhắn", Icons.Default.ChatBubbleOutline),
+    Overview("admin/overview", "Tổng quan", TablerIcons.Dashboard),
+    Orders("admin/orders", "Đơn hàng", TablerIcons.Receipt),
+    Tables("admin/tables", "Bàn", TablerIcons.Table),
+    Menu("admin/menu", "Thực đơn", TablerIcons.Restaurant),
+    Messages("admin/messages", "Tin nhắn", TablerIcons.ChatBubble),
 }
 
 @Composable
@@ -141,6 +135,7 @@ fun AdminApp(onLogout: () -> Unit) {
         val backStackEntry by navController.currentBackStackEntryAsState()
         val route = backStackEntry?.destination?.route.orEmpty()
         val isTopLevel = AdminTab.entries.any { it.route == route }
+        val isChatDetail = route.startsWith("admin/chat/")
         val title = when {
             route.startsWith("admin/order/") -> "Chi tiết đơn"
             route.startsWith("admin/chat/") -> "Hội thoại"
@@ -196,19 +191,21 @@ fun AdminApp(onLogout: () -> Unit) {
         Scaffold(
             containerColor = AdminBackground,
             topBar = {
-                AdminTopBar(
-                    title = title,
-                    userName = adminUser?.fullName.orEmpty(),
-                    showGreeting = isTopLevel,
-                    showBack = !isTopLevel,
-                    unreadNotifications = notificationState.unreadCount,
-                    onBack = navController::popBackStack,
-                    onNotifications = {
-                        notificationViewModel.refresh()
-                        navController.navigate("admin/notifications") { launchSingleTop = true }
-                    },
-                    onProfile = { navController.navigate("admin/profile") },
-                )
+                if (!isChatDetail) {
+                    AdminTopBar(
+                        title = title,
+                        userName = adminUser?.fullName.orEmpty(),
+                        showGreeting = isTopLevel,
+                        showBack = !isTopLevel,
+                        unreadNotifications = notificationState.unreadCount,
+                        onBack = navController::popBackStack,
+                        onNotifications = {
+                            notificationViewModel.refresh()
+                            navController.navigate("admin/notifications") { launchSingleTop = true }
+                        },
+                        onProfile = { navController.navigate("admin/profile") },
+                    )
+                }
             },
             bottomBar = {
                 if (isTopLevel) {
@@ -375,7 +372,7 @@ private fun AdminTopBar(
         navigationIcon = {
             if (showBack) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay lại")
+                    Icon(TablerIcons.ArrowBack, "Quay lại")
                 }
             }
         },
@@ -385,9 +382,9 @@ private fun AdminTopBar(
                     BadgedBox(badge = {
                         Badge { Text(if (unreadNotifications > 99) "99+" else unreadNotifications.toString()) }
                     }) {
-                        Icon(Icons.Default.Notifications, "Thông báo")
+                        Icon(TablerIcons.Bell, "Thông báo")
                     }
-                } else Icon(Icons.Default.Notifications, "Thông báo")
+                } else Icon(TablerIcons.Bell, "Thông báo")
             }
             Box(Modifier.padding(end = 12.dp).clickable(onClick = onProfile)) { AdminAvatar(userName.ifBlank { "Admin" }) }
         },
