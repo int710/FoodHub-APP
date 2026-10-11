@@ -9,8 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.foodhubapp.feature.customer.home.ui.HomeScreen
 import com.example.foodhubapp.feature.customer.home.viewmodel.HomeUiState
-import com.example.foodhubapp.feature.customer.menu.data.MenuCategory
-import com.example.foodhubapp.feature.customer.menu.data.MenuFood
+import com.example.foodhubapp.feature.customer.menu.model.MenuCategory
+import com.example.foodhubapp.feature.customer.menu.model.MenuFood
 import com.example.foodhubapp.theme.FoodHubAppTheme
 import org.junit.Rule
 import org.junit.Test

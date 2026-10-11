@@ -210,16 +210,6 @@ private fun AdminPriceRow(label: String, amount: Long, color: androidx.compose.u
     }
 }
 
-private fun nextOrderStatus(status: AdminOrderStatus): AdminOrderStatus? = when (status) {
-    AdminOrderStatus.PENDING_PAYMENT -> AdminOrderStatus.PENDING_CONFIRMATION
-    AdminOrderStatus.PENDING_CONFIRMATION -> AdminOrderStatus.CONFIRMED
-    AdminOrderStatus.CONFIRMED -> AdminOrderStatus.PREPARING
-    AdminOrderStatus.PREPARING -> AdminOrderStatus.READY
-    AdminOrderStatus.READY -> AdminOrderStatus.SERVED
-    AdminOrderStatus.SERVED -> AdminOrderStatus.COMPLETED
-    AdminOrderStatus.COMPLETED, AdminOrderStatus.CANCELLED, AdminOrderStatus.PAYMENT_FAILED -> null
-}
-
 private fun orderTimeline(current: AdminOrderStatus): List<AdminOrderStatus> {
     val flow = listOf(AdminOrderStatus.PENDING_CONFIRMATION, AdminOrderStatus.CONFIRMED, AdminOrderStatus.PREPARING, AdminOrderStatus.READY, AdminOrderStatus.SERVED, AdminOrderStatus.COMPLETED)
     val index = flow.indexOf(current)

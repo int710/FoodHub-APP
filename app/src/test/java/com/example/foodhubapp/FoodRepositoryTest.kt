@@ -4,7 +4,7 @@ import com.example.foodhubapp.core.network.*
 import com.example.foodhubapp.core.network.FoodHubApiClient
 import com.example.foodhubapp.core.network.FoodHubApiException
 import com.example.foodhubapp.feature.customer.menu.data.*
-import com.example.foodhubapp.feature.customer.menu.ui.FoodCartSelection
+import com.example.foodhubapp.feature.customer.menu.model.FoodCartSelection
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

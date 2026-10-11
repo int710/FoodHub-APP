@@ -1,4 +1,4 @@
-// Generated from @tabler/icons 3.46.0 by scripts/generate-tabler-icons.mjs.
+// Generated from @tabler/icons 3.46.0.
 // Tabler Icons are MIT licensed: docs/licenses/TABLER_ICONS_LICENSE.txt
 package com.example.foodhubapp.core.ui.icons
 

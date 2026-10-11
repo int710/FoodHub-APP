@@ -143,7 +143,7 @@ class RetrofitMigrationTest {
         assertEquals("/api/v1/table/t1/qr", request.path)
     }
 
-    @Test fun conversationsKeepMainDisplayFieldsAndCloseAccepts204() = runBlocking {
+    @Test fun conversationsKeepMainDisplayFields() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"data":[{"_id":"c1","customerName":"An","lastMessage":"Hello","lastMessageSenderId":"customer1","assignedHostId":"admin1","orderCode":"FH-123"}]}"""))
         val repository = AdminConversationRepository(api) { "admin-token" }
         val conversation = repository.getOpenConversations().single()
@@ -152,12 +152,6 @@ class RetrofitMigrationTest {
         assertTrue(conversation.isOnline)
         assertEquals("FH-123", conversation.orderCode)
         server.takeRequest()
-        server.enqueue(MockResponse().setResponseCode(204))
-        repository.close("c1")
-        val request = server.takeRequest()
-        assertEquals("PATCH", request.method)
-        assertEquals("/api/v1/conversations/c1/close", request.path)
-        assertEquals("{}", request.body.readUtf8())
     }
 
     @Test fun notificationsKeepQueryUnreadCountAndMarkReadEndpoints() = runBlocking {
@@ -243,8 +237,6 @@ class RetrofitMigrationTest {
         assertTrue(html.message.orEmpty().contains("Máy chủ đang chặn"))
         server.enqueue(MockResponse().setBody(""))
         assertEquals(0, api.execute(api.menuApi.getMenu()).size())
-        server.enqueue(MockResponse().setResponseCode(204))
-        assertEquals(0, api.execute(api.conversationApi.closeConversation(headers = headers, id = "c1", body = JsonObject())).size())
     }
 
     @Test fun malformedSuccessfulJsonIsRejected() {

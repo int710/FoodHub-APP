@@ -23,7 +23,10 @@ class OrderRepositoryTest {
     @Before fun setUp() {
         server = MockWebServer()
         server.start()
-        repository = RemoteOrderRepository(FoodHubApiClient(server.url("/api/v1").toString())) { "order-token" }
+        repository = RemoteOrderRepository(
+            apiClient = FoodHubApiClient(server.url("/api/v1").toString()),
+            accessToken = { "order-token" },
+        )
     }
 
     @After fun tearDown() { server.shutdown() }

@@ -19,6 +19,8 @@ API_ENDPOINTS_TEMP.md
 .env
 *.env
 FoodHub-main
+FoodHub-main.premerge-backup/
+figma_svg_assets/
 node_modules/
 DINE_IN_SESSION_CHAT_PLAN.md
 ENDPOINT_COVERAGE_2026-10-06.md

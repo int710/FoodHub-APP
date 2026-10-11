@@ -27,9 +27,9 @@ class ReviewRepositoryTest {
     }
 
     @Test fun feedbackUsesAuthAndValidatesInputBeforeRequest() = runBlocking {
-        val repository = RemoteOrderRepository(api) { "token" }
+        val repository = RemoteOrderRepository(apiClient = api, accessToken = { "token" })
         server.enqueue(MockResponse().setBody("{}"))
-        repository.submitReview("order1", "food1", 5, " Ngon ")
+        repository.submitReview("order1", "food1", 5, " Ngon ", emptyList())
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/v1/reviews/feedback", request.path)
@@ -40,18 +40,18 @@ class ReviewRepositoryTest {
         assertEquals(5, body.getInt("rating"))
         assertEquals("Ngon", body.getString("comment"))
         for (rating in listOf(0, 6)) {
-            try { repository.submitReview("order1", "food1", rating, ""); fail() }
+            try { repository.submitReview("order1", "food1", rating, "", emptyList()); fail() }
             catch (_: IllegalArgumentException) { }
         }
         assertEquals(1, server.requestCount)
     }
 
     @Test fun historyRestoresReviewedItemsAndFeedbackPropagatesFailure() = runBlocking {
-        val repository = RemoteOrderRepository(api) { "token" }
+        val repository = RemoteOrderRepository(apiClient = api, accessToken = { "token" })
         server.enqueue(MockResponse().setBody("""{"data":[{"id":"order1","status":"COMPLETED","reviews":[{"menuItemId":"food1","rating":5}],"items":[]}]}"""))
         assertEquals(setOf("food1"), repository.getHistory(1).orders.single().reviewedMenuItemIds)
         server.enqueue(MockResponse().setResponseCode(400).setBody("""{"message":"Bạn đã đánh giá món này rồi"}"""))
-        try { repository.submitReview("order1", "food1", 5, ""); fail() }
+        try { repository.submitReview("order1", "food1", 5, "", emptyList()); fail() }
         catch (error: FoodHubApiException) { assertEquals(400, error.statusCode) }
     }
 }
