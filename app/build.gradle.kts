@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.foodhubapp"
+    namespace = "com.kma.foodhub"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.foodhubapp"
+        applicationId = "com.kma.foodhub"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

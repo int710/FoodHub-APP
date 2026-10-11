@@ -15,7 +15,7 @@ Backend được quản lý ở repository riêng `FoodHub`; không đặt bản
 ## Cấu trúc source
 
 ```text
-app/src/main/java/com/example/foodhubapp/
+app/src/main/java/com/kma/foodhub/
 ├── MainActivity.kt
 ├── navigation/       # Route và điều hướng toàn app
 ├── core/             # Network, session, media, payment và UI dùng chung
