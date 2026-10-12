@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.OnSurfaceVariant
 
@@ -59,7 +60,7 @@ fun FoodHubDialog(
         ) {
             Column(Modifier.fillMaxWidth()) {
                 Row(
-                    Modifier.fillMaxWidth().background(Brand).padding(start = 20.dp, end = 10.dp, top = 13.dp, bottom = 13.dp),
+                    Modifier.fillMaxWidth().background(BrandDark).padding(start = 20.dp, end = 10.dp, top = 13.dp, bottom = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -115,7 +116,7 @@ fun FoodHubAlertDialog(
         ) {
             Column(Modifier.fillMaxWidth()) {
                 Row(
-                    Modifier.fillMaxWidth().background(Brand).padding(start = 20.dp, end = 10.dp, top = 13.dp, bottom = 13.dp),
+                    Modifier.fillMaxWidth().background(BrandDark).padding(start = 20.dp, end = 10.dp, top = 13.dp, bottom = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     icon?.let {

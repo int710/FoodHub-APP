@@ -70,17 +70,17 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-internal val AdminPrimary = Color(0xFF0BAA62)
-internal val AdminPrimarySoft = Color(0xFFDDF8EA)
-internal val AdminBackground = Color(0xFFF7FAF8)
+internal val AdminPrimary = Color(0xFF087F79)
+internal val AdminPrimarySoft = Color(0xFFE4F7F3)
+internal val AdminBackground = Color(0xFFF7FAF9)
 internal val AdminSurface = Color.White
-internal val AdminBorder = Color(0xFFDCE8E1)
-internal val AdminText = Color(0xFF16251E)
-internal val AdminMuted = Color(0xFF607069)
-internal val AdminGreen = Color(0xFF087A55)
-internal val AdminGreenSoft = Color(0xFFD9FBEA)
+internal val AdminBorder = Color(0xFFD8E5E2)
+internal val AdminText = Color(0xFF193B39)
+internal val AdminMuted = Color(0xFF708783)
+internal val AdminGreen = Color(0xFF087F79)
+internal val AdminGreenSoft = Color(0xFFE4F7F3)
 internal val AdminAmber = Color(0xFF6A4800)
-internal val AdminAmberSoft = Color(0xFFFFDEAC)
+internal val AdminAmberSoft = Color(0xFFFFF4E1)
 internal val AdminRed = Color(0xFFC7382B)
 internal val AdminRedSoft = Color(0xFFFFE9E5)
 internal val AdminBlue = Color(0xFF2767C5)

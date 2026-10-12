@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kma.foodhub.feature.customer.menu.viewmodel.FoodDetailViewModel
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 
 /**
  * Cầu nối giữa FoodDetailViewModel và FoodDetailScreen: thu StateFlow, hiển thị
@@ -74,6 +75,6 @@ internal fun FoodLoadError(message: String, onRetry: () -> Unit, modifier: Modif
     Column(modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(message)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Brand)) { Text("Thử lại") }
+        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) { Text("Thử lại") }
     }
 }

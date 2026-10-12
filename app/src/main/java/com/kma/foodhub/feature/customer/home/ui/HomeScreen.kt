@@ -47,11 +47,11 @@ import com.kma.foodhub.feature.customer.table.data.TableSessionStore
 import com.kma.foodhub.feature.customer.table.data.TableSession
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.InputBackground
 import com.kma.foodhub.theme.Neutral
 import com.kma.foodhub.theme.OnSurfaceVariant
-import com.kma.foodhub.theme.PrimaryContainer
 import com.kma.foodhub.theme.SoftGreen
 import com.kma.foodhub.theme.SuccessDark
 import com.kma.foodhub.theme.SuccessSoft
@@ -238,7 +238,7 @@ private fun HomeHeader(
     tableSession: TableSession?,
     selectedType: CartType,
 ) {
-    Surface(color = PrimaryContainer, contentColor = Color.White, shadowElevation = 4.dp) {
+    Surface(color = BrandDark, contentColor = Color.White, shadowElevation = 4.dp) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -420,7 +420,7 @@ private fun SearchRow(
                 modifier = Modifier.size(52.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (maxPrice == null) PrimaryContainer else Brand
+                    containerColor = if (maxPrice == null) BrandDark else Brand
                 )
             ) { Icon(TablerIcons.Adjustments, "Lọc theo giá", tint = Color.White) }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -448,7 +448,7 @@ private fun DiscoveryBanner(onMenuClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = PrimaryContainer,
+        color = BrandDark,
         shadowElevation = 4.dp
     ) {
         Row(Modifier.heightIn(min = 156.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

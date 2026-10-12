@@ -39,6 +39,7 @@ import com.kma.foodhub.feature.shared.auth.viewmodel.ForgotPasswordViewModel
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.BodyFont
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.CaptionBrown
 import com.kma.foodhub.theme.FoodHubAppTheme
@@ -46,7 +47,6 @@ import com.kma.foodhub.theme.HeadingFont
 import com.kma.foodhub.theme.InputBackgroundSoft
 import com.kma.foodhub.theme.Neutral
 import com.kma.foodhub.theme.OnSurfaceVariant
-import com.kma.foodhub.theme.PrimaryContainer
 import com.kma.foodhub.theme.SuccessSoft
 import com.kma.foodhub.theme.Warning
 
@@ -100,7 +100,7 @@ fun ForgotPasswordScreen(
                     IconCircleButton(
                         R.drawable.ic_forgot_back,
                         "Quay lại",
-                        color = PrimaryContainer,
+                        color = BrandDark,
                         onBackClick)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -291,8 +291,8 @@ fun ForgotPasswordScreen(
                                 .heightIn(min = 48.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Brand,
-                                disabledContainerColor = Brand.copy(alpha = 0.3f))) {
+                                containerColor = BrandDark,
+                                disabledContainerColor = BrandDark.copy(alpha = 0.3f))) {
                             if (uiState.isLoading) {
                                 CircularProgressIndicator(
                                     Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)

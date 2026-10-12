@@ -10,9 +10,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFFB59D),
-    onPrimary = BrandDark,
-    primaryContainer = PrimaryContainer,
+    primary = Primary,
+    onPrimary = Color(0xFF003733),
+    primaryContainer = BrandDark,
     onPrimaryContainer = Color.White,
     secondary = Warning,
     tertiary = SoftGreen,
@@ -21,16 +21,16 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = DarkSurfaceVariant,
     onBackground = Color(0xFFF4F5FA),
     onSurface = Color(0xFFF4F5FA),
-    onSurfaceVariant = Color(0xFFD8C4BD),
-    outline = Color(0xFF9C8279),
-    outlineVariant = Color(0xFF494D55),
+    onSurfaceVariant = Color(0xFFB9CECA),
+    outline = Color(0xFF89A39F),
+    outlineVariant = Color(0xFF385653),
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = Primary,
     onPrimary = Color.White,
     primaryContainer = PrimaryContainer,
-    onPrimaryContainer = Color.White,
+    onPrimaryContainer = BrandDark,
     secondary = Secondary,
     onSecondary = WarningDark,
     secondaryContainer = WarmAccent,
@@ -53,10 +53,10 @@ private val LightColorScheme = lightColorScheme(
 
 private val FoodHubShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 @Composable

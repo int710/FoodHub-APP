@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
@@ -50,6 +49,7 @@ import com.kma.foodhub.feature.shared.auth.model.AuthMode
 import com.kma.foodhub.feature.shared.auth.viewmodel.LoginUiState
 import com.kma.foodhub.theme.BodyFont
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.CaptionBrown
 import com.kma.foodhub.theme.CardStroke
@@ -59,7 +59,6 @@ import com.kma.foodhub.theme.InputBackgroundSoft
 import com.kma.foodhub.theme.Neutral
 import com.kma.foodhub.theme.OnSurfaceVariant
 import com.kma.foodhub.theme.Primary
-import com.kma.foodhub.theme.PrimaryContainer
 import com.kma.foodhub.theme.SoftGreen
 import com.kma.foodhub.theme.Success
 import com.kma.foodhub.theme.SuccessDark
@@ -85,7 +84,7 @@ internal fun AuthHeaderBar(
             IconCircleButton(
                 iconRes = R.drawable.ic_auth_back,
                 contentDescription = "Quay lại",
-                color = PrimaryContainer,
+                color = BrandDark,
                 onClick = onBackClick
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -427,7 +426,7 @@ internal fun PrimaryAuthButton(
     ) {
         Row(
             modifier = Modifier
-                .background(Brush.horizontalGradient(listOf(Brand, PrimaryContainer)))
+                .background(BrandDark)
                 .padding(horizontal = 24.dp),
             horizontalArrangement = if (badgeText == null) Arrangement.Center else Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically

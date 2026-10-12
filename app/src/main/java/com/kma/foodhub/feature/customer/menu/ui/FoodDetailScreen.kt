@@ -42,6 +42,7 @@ import com.kma.foodhub.feature.customer.menu.model.FoodOption
 import com.kma.foodhub.feature.customer.menu.model.FoodOptionGroup
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.CaptionBrown
 import com.kma.foodhub.theme.FoodHubAppTheme
@@ -49,6 +50,7 @@ import com.kma.foodhub.theme.HeadingFont
 import com.kma.foodhub.theme.InputBackground
 import com.kma.foodhub.theme.Neutral
 import com.kma.foodhub.theme.OnSurfaceVariant
+import com.kma.foodhub.theme.Success
 import com.kma.foodhub.theme.Warning
 import java.text.NumberFormat
 import java.util.Locale
@@ -178,7 +180,7 @@ fun FoodDetailScreen(
                         },
                         enabled = valid && !isAdding,
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -282,7 +284,7 @@ fun FoodDetailScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoChip(TablerIcons.Star, "${food.rating} điểm", Warning)
                     InfoChip(TablerIcons.AccessTime, "8–12 phút", OnSurfaceVariant)
-                    InfoChip(TablerIcons.CheckCircle, if (food.available) "Đang bán" else "Tạm hết", if (food.available) Color(0xFF087A55) else Brand)
+                    InfoChip(TablerIcons.CheckCircle, if (food.available) "Đang bán" else "Tạm hết", if (food.available) Success else Brand)
                 }
 
                 if (reviews.isNotEmpty()) {

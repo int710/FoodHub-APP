@@ -626,6 +626,13 @@ object TablerIcons {
         )
     }
 
+    val StarFilled: ImageVector by lazy {
+        filledIcon(
+            name = "TablerStarFilled",
+            path = "M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z",
+        )
+    }
+
     val Table: ImageVector by lazy {
         tablerIcon(
             name = "TablerTable",
@@ -690,4 +697,19 @@ private fun tablerIcon(name: String, paths: List<String>): ImageVector =
                 strokeLineJoin = StrokeJoin.Round,
             )
         }
+    }.build()
+
+private fun filledIcon(name: String, path: String): ImageVector =
+    ImageVector.Builder(
+        name = name,
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        addPath(
+            pathData = PathParser().parsePathString(path).toNodes(),
+            fill = SolidColor(Color.Black),
+            stroke = null,
+        )
     }.build()

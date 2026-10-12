@@ -54,6 +54,7 @@ import com.kma.foodhub.feature.customer.order.viewmodel.OrderListViewModel
 import com.kma.foodhub.feature.customer.table.data.TableSessionStore
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.CaptionBrown
 import com.kma.foodhub.theme.CardStroke
@@ -66,6 +67,7 @@ import com.kma.foodhub.theme.Success
 import com.kma.foodhub.theme.SuccessDark
 import com.kma.foodhub.theme.SuccessSoft
 import com.kma.foodhub.theme.WarningDark
+import com.kma.foodhub.theme.Warning
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.Instant
@@ -189,7 +191,7 @@ fun OrderListRoute(
         actions = {
             OutlinedButton(onClick = viewModel::dismissLogin, Modifier.weight(1f)) { Text("Để sau") }
             Spacer(Modifier.width(10.dp))
-            Button(onClick = { viewModel.dismissLogin(); onLoginClick() }, Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Brand)) { Text("Đăng nhập") }
+            Button(onClick = { viewModel.dismissLogin(); onLoginClick() }, Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) { Text("Đăng nhập") }
         },
     )
 }
@@ -446,7 +448,7 @@ private fun OrderCard(
                     enabled = !busy,
                     modifier = Modifier.weight(1.5f),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand)
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandDark)
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     else {
@@ -501,10 +503,10 @@ private fun ReviewDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     (1..5).forEach { value ->
                         Icon(
-                            TablerIcons.Star,
+                            if (value <= rating) TablerIcons.StarFilled else TablerIcons.Star,
                             contentDescription = "$value sao",
                             modifier = Modifier.size(36.dp).clickable(enabled = !isBusy) { rating = value }.padding(4.dp),
-                            tint = if (value <= rating) Brand else Brand.copy(alpha = .28f),
+                            tint = if (value <= rating) Warning else OnSurfaceVariant.copy(alpha = .45f),
                         )
                     }
                 }
@@ -677,7 +679,7 @@ private fun CancelOrderDialog(orderCode: String, busy: Boolean, onDismiss: () ->
         actions = {
             OutlinedButton(onClick = onDismiss, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Quay lại") }
             Spacer(Modifier.width(10.dp))
-            Button(onClick = { onConfirm(reason.trim()) }, enabled = reason.isNotBlank() && !busy, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Brand)) {
+            Button(onClick = { onConfirm(reason.trim()) }, enabled = reason.isNotBlank() && !busy, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) {
                 Text("Xác nhận hủy")
             }
         },
@@ -708,7 +710,7 @@ private fun OrderError(message: String, onRetry: () -> Unit, modifier: Modifier 
         Spacer(Modifier.height(8.dp))
         Text(message, color = OnSurfaceVariant)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Brand)) { Text("Thử lại") }
+        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) { Text("Thử lại") }
     }
 }
 

@@ -38,6 +38,7 @@ import com.kma.foodhub.feature.customer.menu.model.FoodDetail
 import com.kma.foodhub.feature.customer.menu.ui.FoodImage
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.CardStroke
 import com.kma.foodhub.theme.CeramicSurface
 import com.kma.foodhub.theme.OnSurfaceVariant
@@ -241,7 +242,7 @@ fun CartScreen(
                         onClick = onCheckout,
                         enabled = !isCheckingOut && busyItemId == null && !isClearing,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
                     ) {
                         if (isCheckingOut) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                         else Text("Đặt món")
@@ -364,7 +365,7 @@ private fun CheckoutDialog(
                     enabled = deliveryValid && !isSubmitting,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp).height(50.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
                 ) {
                     if (isSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     else Icon(TablerIcons.CheckCircle, null, Modifier.size(18.dp))
@@ -558,7 +559,7 @@ private fun ErrorContent(message: String, onRetry: () -> Unit, modifier: Modifie
     Column(modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(message)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Brand)) { Text("Thử lại") }
+        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) { Text("Thử lại") }
     }
 }
 

@@ -33,6 +33,7 @@ import com.kma.foodhub.feature.customer.profile.viewmodel.ProfileViewModel
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.BodyFont
 import com.kma.foodhub.theme.Brand
+import com.kma.foodhub.theme.BrandDark
 import com.kma.foodhub.theme.BrandSoft
 import com.kma.foodhub.theme.CardStroke
 import com.kma.foodhub.theme.HeadingFont
@@ -130,7 +131,7 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .heightIn(min = 48.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Brand)) {
+                colors = ButtonDefaults.buttonColors(containerColor = BrandDark)) {
                 if (uiState.isLoggingOut) {
                     CircularProgressIndicator(
                         Modifier.size(18.dp),
