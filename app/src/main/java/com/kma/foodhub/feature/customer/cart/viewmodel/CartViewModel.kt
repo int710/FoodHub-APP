@@ -73,7 +73,7 @@ class CartViewModel @JvmOverloads constructor(
 
     init { load() }
 
-    /** Bước đầu của màn cart: GET giỏ TAKEAWAY rồi phát kết quả qua uiState. */
+    /** Tải giỏ của loại đặt món đang được chọn. */
     fun load() {
         if (state.value.isLoading || state.value.busyItemId != null || state.value.isClearing) return
         state.update { it.copy(isLoading = true, error = null, requiresLogin = false) }
@@ -96,7 +96,9 @@ class CartViewModel @JvmOverloads constructor(
     }
 
     fun selectType(type: CartType) {
-        if (type == state.value.cartType || state.value.isLoading || state.value.isCheckingOut) return
+        val current = state.value
+        if (type == current.cartType || current.isLoading || current.isCheckingOut ||
+            current.isClearing || current.busyItemId != null || current.editingItem != null) return
         runCatching { orderingContextStore.select(type) }
             .onFailure { state.update { current -> current.copy(message = it.message) } }
             .onSuccess {

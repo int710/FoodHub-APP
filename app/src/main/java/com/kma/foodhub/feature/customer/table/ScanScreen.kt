@@ -26,12 +26,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.kma.foodhub.feature.shared.ui.FoodHubAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -151,21 +154,32 @@ fun ScanScreen(
     }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF17181B))) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconCircle(TablerIcons.Close, 44.dp, Color(0xCC121417), Color.White, onClick = onBack)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(56.dp).background(Color(0xCC121417), CircleShape),
+                ) {
+                    Icon(TablerIcons.Close, "Đóng màn quét QR", Modifier.size(28.dp), tint = Color.White)
+                }
                 Label("Quét QR", 18.sp, Color.White, bold = true)
-                IconCircle(
-                    if (flashOn) TablerIcons.Flash else TablerIcons.Table,
-                    44.dp,
-                    Color(0xCC121417),
-                    Color.White,
+                IconButton(
                     onClick = { if (hasCameraPermission) flashOn = !flashOn },
-                )
+                    modifier = Modifier.size(56.dp).background(
+                        if (flashOn) Gold else Color(0xCC121417), CircleShape,
+                    ),
+                ) {
+                    Icon(
+                        TablerIcons.Flash,
+                        if (flashOn) "Tắt đèn flash" else "Bật đèn flash",
+                        Modifier.size(28.dp),
+                        tint = if (flashOn) Color(0xFF17181B) else Color.White,
+                    )
+                }
             }
 
             Column(

@@ -74,10 +74,8 @@ fun AdminOrderDetailScreen(
         item {
             Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(order.code, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        AdminStatusPill(order.status)
-                    }
+                    Text(order.code, modifier = Modifier.fillMaxWidth(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    AdminStatusPill(order.status)
                     Text("${order.type.label} • ${order.destination}", color = AdminMuted)
                     Text("Tạo lúc ${order.createdAt} • Đã chờ ${order.waitMinutes} phút", color = AdminMuted, fontSize = 13.sp)
                 }

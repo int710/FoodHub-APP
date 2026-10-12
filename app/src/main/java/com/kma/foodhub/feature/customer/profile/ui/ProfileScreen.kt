@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.kma.foodhub.R
+import com.kma.foodhub.core.ui.icons.TablerIcons
 import com.kma.foodhub.core.network.resolveMediaUrl
 import com.kma.foodhub.feature.shared.ui.FoodHubDialog
 import com.kma.foodhub.feature.customer.profile.viewmodel.ProfileUiState
@@ -44,14 +45,15 @@ import com.kma.foodhub.theme.OnSurfaceVariant
 fun ProfileRoute(
     onLoggedOut: () -> Unit,
     viewModel: ProfileViewModel = viewModel(),
-    onMenuClick: () -> Unit = {}
+    onMenuClick: () -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshProfile() }
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) onLoggedOut()
     }
-    ProfileScreen(state, viewModel::logout, onMenuClick, viewModel::updateProfile, viewModel::uploadAvatar)
+    ProfileScreen(state, viewModel::logout, onMenuClick, viewModel::updateProfile, viewModel::uploadAvatar, onBackClick)
 }
 
 @Composable
@@ -61,6 +63,7 @@ fun ProfileScreen(
     onMenuClick: () -> Unit = {},
     onUpdateProfile: (String, String, String, String, () -> Unit) -> Unit = { _, _, _, _, _ -> },
     onUploadAvatar: (Uri, (String) -> Unit) -> Unit = { _, _ -> },
+    onBackClick: () -> Unit = {},
 ) {
     var showEdit by remember { mutableStateOf(false) }
     Column(
@@ -74,12 +77,18 @@ fun ProfileScreen(
         Column(Modifier
             .widthIn(max = 448.dp)
             .fillMaxWidth()) {
-            Text(
-                "Tài khoản",
-                fontFamily = HeadingFont,
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp,
-                color = Neutral)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBackClick) {
+                    Icon(TablerIcons.ArrowBack, contentDescription = "Quay lại", tint = Neutral)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Tài khoản",
+                    fontFamily = HeadingFont,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Neutral)
+            }
             Spacer(Modifier.height(24.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,

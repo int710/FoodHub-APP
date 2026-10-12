@@ -263,7 +263,8 @@ fun AppNavGraph(
                         launchSingleTop = true
                     }
                 }, 
-                onMenuClick = { navController.navigate(AppRoutes.Menu) }
+                onMenuClick = { navController.navigate(AppRoutes.Menu) },
+                onBackClick = { navController.popBackStack() }
             )
         }
 

@@ -14,7 +14,7 @@ class OrderUiStateTest {
     @Test fun unpaidWaitingOrdersCanBeCancelledForEveryOrderType() {
         for (type in OrderType.entries) {
             for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)) {
-                for (payment in listOf("PENDING", "UNPAID", "FAILED")) {
+                for (payment in listOf("PENDING", "UNPAID", "FAILED", null, "")) {
                     assertTrue(order("unpaid", status).copy(type = type, paymentStatus = payment).canCancel)
                 }
             }
@@ -22,7 +22,7 @@ class OrderUiStateTest {
     }
 
     @Test fun paidUnknownAndCookingOrdersCannotBeCancelled() {
-        for (payment in listOf("PAID", "REFUNDED", null)) {
+        for (payment in listOf("PAID", "REFUNDED", "UNKNOWN")) {
             for (status in listOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)) {
                 assertFalse(order("paid", status).copy(paymentStatus = payment).canCancel)
             }
@@ -32,6 +32,12 @@ class OrderUiStateTest {
             OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.UNKNOWN)) {
             assertFalse(order("closed", status).copy(paymentStatus = "UNPAID").canCancel)
         }
+    }
+    @Test fun zaloPayWaitingOrderWithoutPaymentRecordCanBeCancelled() {
+        assertTrue(order("zalo", OrderStatus.PENDING_PAYMENT)
+            .copy(paymentMethod = "ZALOPAY", paymentStatus = null).canCancel)
+        assertFalse(order("zalo-paid", OrderStatus.PENDING_PAYMENT)
+            .copy(paymentMethod = "ZALOPAY", paymentStatus = "PAID").canCancel)
     }
     private fun order(id: String, status: OrderStatus) = CustomerOrder(
         id, id, null, OrderType.TAKEAWAY, status, "", 0,
