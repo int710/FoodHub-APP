@@ -62,6 +62,9 @@ class AdminOrderViewModel(application: Application) : AndroidViewModel(applicati
     fun serve(orderId: String) = run(orderId, "Đã phục vụ đơn") { repository.serve(orderId) }
     fun complete(orderId: String) = run(orderId, "Đã hoàn tất đơn") { repository.complete(orderId) }
     fun confirmCash(orderId: String) = run(orderId, "Đã xác nhận thanh toán tiền mặt") { repository.confirmCash(orderId) }
+    fun convertToCash(orderId: String) = run(orderId, "Đã chuyển đơn sang thanh toán tiền mặt") {
+        repository.convertToCash(orderId)
+    }
     fun convertCashToZaloPay(orderId: String) {
         if (state.value.busyId != null) return
         state.update { it.copy(busyId = orderId, error = null, message = null) }

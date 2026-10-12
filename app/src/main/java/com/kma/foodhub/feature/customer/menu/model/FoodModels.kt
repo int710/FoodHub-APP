@@ -24,6 +24,7 @@ data class FoodReview(
     val rating: Int,
     val comment: String,
     val createdAt: String,
+    val images: List<String> = emptyList(),
 )
 
 data class FoodOption(

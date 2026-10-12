@@ -264,6 +264,7 @@ fun AdminApp(onLogout: () -> Unit) {
                             onServe = { orderViewModel.serve(it.id) },
                             onComplete = { orderViewModel.complete(it.id) },
                             onConvertToZaloPay = { orderViewModel.convertCashToZaloPay(it.id) },
+                            onConvertToCash = { orderViewModel.convertToCash(it.id) },
                         )
                     }
                 }

@@ -47,7 +47,18 @@ data class AdminOrderLine(
     val note: String? = null,
     val status: AdminItemStatus = AdminItemStatus.WAITING,
     val id: String = "",
+    val menuItemId: String = "",
     val imageUrl: String? = null,
+)
+
+data class AdminOrderReview(
+    val id: String,
+    val menuItemId: String,
+    val customerName: String,
+    val rating: Int,
+    val comment: String,
+    val images: List<String>,
+    val createdAt: String,
 )
 
 data class AdminOrder(
@@ -61,6 +72,7 @@ data class AdminOrder(
     val total: Long,
     val status: AdminOrderStatus,
     val paymentMethod: AdminPaymentMethod,
+    val paymentStatus: String = "UNPAID",
     val paid: Boolean,
     val createdAtEpochMillis: Long = 0L,
     val subtotal: Long = 0L,
@@ -68,6 +80,7 @@ data class AdminOrder(
     val deliveryFee: Long = 0L,
     val serviceFee: Long = 0L,
     val discountAmount: Long = 0L,
+    val reviews: List<AdminOrderReview> = emptyList(),
 )
 
 data class AdminMenuItem(

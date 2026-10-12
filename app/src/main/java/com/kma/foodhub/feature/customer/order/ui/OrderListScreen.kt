@@ -445,7 +445,8 @@ private fun OrderCard(
             }
             com.kma.foodhub.feature.shared.payment.PaymentDetailButton(order.id)
             val canCancel = order.canCancel
-            val canPay = order.status == OrderStatus.PENDING_PAYMENT
+            val canPay = order.status in setOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED) &&
+                order.paymentMethod in setOf(CheckoutPaymentMethod.ZALOPAY.name, CheckoutPaymentMethod.VNPAY.name)
             if (canCancel || canPay) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (canCancel) OutlinedButton(
                     onClick = onCancel,
@@ -466,7 +467,7 @@ private fun OrderCard(
                     else {
                         Icon(TablerIcons.CreditCard, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Thanh toán ngay")
+                        Text(if (order.status == OrderStatus.PAYMENT_FAILED) "Thử thanh toán lại" else "Thanh toán ngay")
                     }
                 }
             }
@@ -799,6 +800,7 @@ private fun OrderStatus.isActiveOrder() = this in setOf(
     OrderStatus.PREPARING,
     OrderStatus.READY,
     OrderStatus.SERVED,
+    OrderStatus.PAYMENT_FAILED,
     OrderStatus.UNKNOWN
 )
 

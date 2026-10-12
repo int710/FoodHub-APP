@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -307,6 +309,18 @@ fun FoodDetailScreen(
                                     }
                                 }
                                 if (review.comment.isNotBlank()) Text(review.comment, color = OnSurfaceVariant)
+                                if (review.images.isNotEmpty()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(review.images, key = { it }) { imageUrl ->
+                                            FoodImage(
+                                                imageUrl,
+                                                "Ảnh đánh giá của ${review.customerName}",
+                                                Modifier.size(88.dp).clip(RoundedCornerShape(12.dp)),
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -65,6 +66,7 @@ fun AdminOrderDetailScreen(
     onServe: (AdminOrder) -> Unit,
     onComplete: (AdminOrder) -> Unit,
     onConvertToZaloPay: (AdminOrder) -> Unit,
+    onConvertToCash: (AdminOrder) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -119,6 +121,54 @@ fun AdminOrderDetailScreen(
             }
             }
         }
+        if (order.reviews.isNotEmpty()) {
+            item { AdminSectionHeader("Đánh giá của khách") }
+            items(order.reviews, key = { "review:${it.id}" }) { review ->
+                val reviewedItem = order.items.firstOrNull { it.menuItemId == review.menuItemId }
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = AdminSurface),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, AdminPrimary.copy(alpha = .12f)),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FoodImage(
+                                reviewedItem?.imageUrl,
+                                reviewedItem?.name ?: "Món được đánh giá",
+                                Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(reviewedItem?.name ?: "Món trong đơn", fontWeight = FontWeight.Bold)
+                                Text(review.customerName, color = AdminMuted, fontSize = 12.sp)
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                (1..5).forEach { star ->
+                                    Icon(
+                                        if (star <= review.rating) TablerIcons.StarFilled else TablerIcons.Star,
+                                        null,
+                                        Modifier.size(16.dp),
+                                        tint = if (star <= review.rating) AdminAmber else AdminMuted.copy(alpha = .4f),
+                                    )
+                                }
+                            }
+                        }
+                        if (review.comment.isNotBlank()) Text(review.comment, fontSize = 14.sp)
+                        if (review.images.isNotEmpty()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(review.images, key = { it }) { imageUrl ->
+                                    FoodImage(
+                                        imageUrl,
+                                        "Ảnh đánh giá",
+                                        Modifier.size(92.dp).clip(RoundedCornerShape(12.dp)),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         item {
             val subtotal = order.subtotal.takeIf { it > 0 } ?: order.items.sumOf { it.unitPrice * it.quantity }
             Card(colors = CardDefaults.cardColors(containerColor = AdminSurface), shape = RoundedCornerShape(16.dp)) {
@@ -134,18 +184,40 @@ fun AdminOrderDetailScreen(
                         Text("Tổng khách phải trả", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text(order.total.vnd(), color = AdminPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     }
-                    Text("${order.paymentMethod.label} • ${if (order.paid) "Đã thanh toán" else "Chưa thanh toán"}", color = if (order.paid) AdminGreen else AdminAmber, fontSize = 13.sp)
+                    Text(
+                        "${order.paymentMethod.label} • ${when (order.paymentStatus) { "PAID" -> "Đã thanh toán"; "FAILED" -> "Thanh toán thất bại"; "PENDING" -> "Đang chờ thanh toán"; else -> "Chưa thanh toán" }}",
+                        color = if (order.paid) AdminGreen else AdminAmber,
+                        fontSize = 13.sp,
+                    )
                 }
             }
         }
-        if (order.paymentMethod in setOf(AdminPaymentMethod.CASH, AdminPaymentMethod.ZALOPAY) && !order.paid) {
+        if (order.paymentMethod in setOf(AdminPaymentMethod.CASH, AdminPaymentMethod.ZALOPAY) && !order.paid &&
+            order.status !in setOf(AdminOrderStatus.CANCELLED, AdminOrderStatus.COMPLETED)) {
             item {
-                OutlinedButton(
-                    onClick = { onConvertToZaloPay(order) },
-                    enabled = busyId == null,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) {
-                    Text(if (order.paymentMethod == AdminPaymentMethod.ZALOPAY) "Mở lại QR ZaloPay" else "Tạo QR ZaloPay cho khách")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Đổi phương thức thanh toán", color = AdminMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    if (order.paymentMethod == AdminPaymentMethod.ZALOPAY) {
+                        OutlinedButton(
+                            onClick = { onConvertToCash(order) },
+                            enabled = busyId == null && order.paymentStatus != "PENDING",
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                        ) { Text("Chuyển sang tiền mặt") }
+                        if (order.paymentStatus == "PENDING") {
+                            Text(
+                                "ZaloPay đang xử lý; có thể chuyển sang tiền mặt sau khi giao dịch hết hạn để tránh thu hai lần.",
+                                color = AdminMuted,
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { onConvertToZaloPay(order) },
+                        enabled = busyId == null,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) {
+                        Text(if (order.paymentMethod == AdminPaymentMethod.ZALOPAY) "Mở lại / tạo mới QR ZaloPay" else "Chuyển sang ZaloPay")
+                    }
                 }
             }
         }

@@ -7,6 +7,7 @@ import com.kma.foodhub.feature.admin.model.AdminItemStatus
 import com.kma.foodhub.feature.admin.model.AdminOrder
 import com.kma.foodhub.feature.admin.model.AdminOrderLine
 import com.kma.foodhub.feature.admin.model.AdminOrderStatus
+import com.kma.foodhub.feature.admin.model.AdminOrderReview
 import com.kma.foodhub.feature.admin.model.AdminOrderType
 import com.kma.foodhub.feature.admin.model.AdminPaymentMethod
 import com.kma.foodhub.feature.admin.model.AdminZaloPayment
@@ -89,6 +90,10 @@ class AdminOrderRepository internal constructor(
         )
     }
 
+    suspend fun convertToCash(orderId: String) = mutate {
+        apiClient.adminOrderApi.convertToCash(it, orderId, JsonObject())
+    }
+
     private suspend fun mutate(
         call: (Map<String, String>) -> retrofit2.Call<JsonObject>
     ) = withContext(Dispatchers.IO) {
@@ -131,6 +136,7 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
             val snapshot = item.optObject("snapshot")
             AdminOrderLine(
                 id = item.optString("id"),
+                menuItemId = item.optString("menuItemId"),
                 name = snapshot?.optString("name").orEmpty().ifBlank { item.optObject("menuItem")?.optString("name").orEmpty().ifBlank { "Món ăn" } },
                 quantity = item.optInt("quantity", 1),
                 unitPrice = item.money("unitPrice"),
@@ -143,6 +149,7 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
         total = money("totalAmount"),
         status = enumValueOrDefault(optString("status"), AdminOrderStatus.PENDING_CONFIRMATION),
         paymentMethod = enumValueOrDefault(payment?.optString("method").orEmpty(), AdminPaymentMethod.CASH),
+        paymentStatus = payment?.optString("status").orEmpty().ifBlank { "UNPAID" },
         paid = payment?.optString("status") == "PAID" || !optionalString("paidAt").isNullOrBlank(),
         createdAtEpochMillis = createdInstant?.toEpochMilli() ?: 0L,
         subtotal = money("subtotal"),
@@ -150,6 +157,18 @@ private fun JsonObject.toAdminOrder(): AdminOrder {
         deliveryFee = money("deliveryFee"),
         serviceFee = money("serviceFee"),
         discountAmount = money("discountAmount"),
+        reviews = (optArray("reviews") ?: JsonArray()).objects().map { review ->
+            AdminOrderReview(
+                id = review.optString("id"),
+                menuItemId = review.optString("menuItemId"),
+                customerName = review.optObject("customer")?.optString("name")
+                    ?.takeIf(String::isNotBlank) ?: "Khách hàng",
+                rating = review.optInt("rating", 0),
+                comment = review.optionalString("comment").orEmpty(),
+                images = review.optArray("images")?.strings().orEmpty(),
+                createdAt = review.optString("createdAt"),
+            )
+        },
     )
 }
 

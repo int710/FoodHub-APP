@@ -69,4 +69,11 @@ interface AdminOrderApi {
         @Path("id", encoded = true) id: String,
         @Body body: JsonObject = JsonObject()
     ): Call<JsonObject>
+
+    @PATCH("payment/{id}/cash/convert")
+    fun convertToCash(
+        @HeaderMap headers: Map<String, String> = emptyMap(),
+        @Path("id", encoded = true) id: String,
+        @Body body: JsonObject = JsonObject()
+    ): Call<JsonObject>
 }

@@ -109,6 +109,12 @@ class RemoteFoodRepository(
                 rating = review.optInt("rating", 0),
                 comment = review.optionalString("comment").orEmpty(),
                 createdAt = review.optString("createdAt"),
+                images = review.optArray("images")?.let { images ->
+                    (0 until images.size()).mapNotNull { index ->
+                        runCatching { images.get(index).asString }
+                            .getOrNull()?.takeIf(String::isNotBlank)
+                    }
+                }.orEmpty(),
             )
         }
     }

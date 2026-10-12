@@ -66,9 +66,10 @@ internal val activeStatuses = setOf(
     OrderStatus.PREPARING,
     OrderStatus.READY,
     OrderStatus.SERVED,
+    OrderStatus.PAYMENT_FAILED,
     OrderStatus.UNKNOWN
 )
-internal val cancelledStatuses = setOf(OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED)
+internal val cancelledStatuses = setOf(OrderStatus.CANCELLED)
 
 class OrderListViewModel @JvmOverloads constructor(
     application: Application,
