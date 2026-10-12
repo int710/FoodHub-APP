@@ -58,6 +58,7 @@ import com.kma.foodhub.feature.admin.overview.ui.AdminOverviewScreen
 import com.kma.foodhub.feature.admin.profile.ui.AdminProfileScreen
 import com.kma.foodhub.feature.admin.management.ui.AdminReviewsScreen
 import com.kma.foodhub.feature.admin.management.ui.AdminSettingsScreen
+import com.kma.foodhub.feature.admin.management.ui.AdminVouchersScreen
 import com.kma.foodhub.feature.admin.management.viewmodel.AdminManagementViewModel
 import com.kma.foodhub.feature.admin.menu.viewmodel.AdminMenuViewModel
 import com.kma.foodhub.feature.admin.order.viewmodel.AdminOrderViewModel
@@ -146,6 +147,7 @@ fun AdminApp(onLogout: () -> Unit) {
             route.startsWith("admin/chat/") -> "Hội thoại"
             route == "admin/profile" -> "Tài khoản Admin"
             route == "admin/reviews" -> "Quản lý đánh giá"
+            route == "admin/vouchers" -> "Quản lý voucher"
             route == "admin/settings" -> "Cài đặt hệ thống"
             route == "admin/notifications" -> "Thông báo"
             else -> AdminTab.entries.firstOrNull { it.route == route }?.label ?: "FoodHub Admin"
@@ -330,6 +332,7 @@ fun AdminApp(onLogout: () -> Unit) {
                     AdminProfileScreen(
                         user = adminUser,
                         onReviews = { navController.navigate("admin/reviews") },
+                        onVouchers = { navController.navigate("admin/vouchers") },
                         onSettings = { navController.navigate("admin/settings") },
                         onLogout = onLogout,
                     )
@@ -346,6 +349,14 @@ fun AdminApp(onLogout: () -> Unit) {
                         state = managementState,
                         onLoad = managementViewModel::loadSettings,
                         onSave = managementViewModel::updateSettings,
+                    )
+                }
+                composable("admin/vouchers") {
+                    AdminVouchersScreen(
+                        state = managementState,
+                        onLoad = managementViewModel::loadVouchers,
+                        onSave = managementViewModel::saveVoucher,
+                        onDelete = managementViewModel::deleteVoucher,
                     )
                 }
                 composable("admin/notifications") {

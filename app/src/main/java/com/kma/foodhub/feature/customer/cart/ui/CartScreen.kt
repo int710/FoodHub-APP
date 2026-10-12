@@ -33,6 +33,7 @@ import com.kma.foodhub.feature.customer.cart.data.Cart
 import com.kma.foodhub.feature.customer.cart.data.CartItem
 import com.kma.foodhub.feature.customer.cart.data.CartType
 import com.kma.foodhub.feature.customer.cart.data.CheckoutRequest
+import com.kma.foodhub.feature.customer.cart.data.AccountVoucher
 import com.kma.foodhub.feature.customer.cart.viewmodel.CartViewModel
 import com.kma.foodhub.feature.customer.menu.model.FoodDetail
 import com.kma.foodhub.feature.customer.menu.ui.FoodImage
@@ -124,6 +125,8 @@ fun CartRoute(
         isClearing = state.isClearing,
         cartType = state.cartType,
         isCheckingOut = state.isCheckingOut,
+        isUpdatingVoucher = state.isUpdatingVoucher,
+        accountVouchers = state.accountVouchers,
         onBackClick = onBackClick,
         onRetry = viewModel::load,
         onQuantityChange = viewModel::changeQuantity,
@@ -132,6 +135,8 @@ fun CartRoute(
         onClear = { confirmClear = true },
         onTypeChange = viewModel::selectType,
         onCheckout = { showCheckout = true },
+        onApplyVoucher = viewModel::applyVoucher,
+        onRemoveVoucher = viewModel::removeVoucher,
         snackbarHost = { SnackbarHost(snackbar) }
     )
 
@@ -203,6 +208,8 @@ fun CartScreen(
     isClearing: Boolean,
     cartType: CartType = CartType.TAKEAWAY,
     isCheckingOut: Boolean = false,
+    isUpdatingVoucher: Boolean = false,
+    accountVouchers: List<AccountVoucher> = emptyList(),
     onBackClick: () -> Unit,
     onRetry: () -> Unit,
     onQuantityChange: (CartItem, Int) -> Unit,
@@ -211,8 +218,11 @@ fun CartScreen(
     onClear: () -> Unit,
     onTypeChange: (CartType) -> Unit = {},
     onCheckout: () -> Unit = {},
+    onApplyVoucher: (String) -> Unit = {},
+    onRemoveVoucher: () -> Unit = {},
     snackbarHost: @Composable () -> Unit = {}
 ) {
+    var voucherCode by rememberSaveable { mutableStateOf("") }
     Scaffold(
         containerColor = AppBackground,
         snackbarHost = snackbarHost,
@@ -282,6 +292,54 @@ fun CartScreen(
                             { onEdit(item) },
                             { onDelete(item) }
                         )
+                    }
+                    item {
+                        Surface(color = CeramicSurface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Mã ưu đãi", fontWeight = FontWeight.Bold)
+                                if (cart.voucher != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(cart.voucher.code, color = Brand, fontWeight = FontWeight.Bold)
+                                            Text("${cart.voucher.name} · Giảm ${money(cart.discountAmount)}", color = OnSurfaceVariant, fontSize = 12.sp)
+                                        }
+                                        TextButton(onClick = onRemoveVoucher, enabled = !isUpdatingVoucher) { Text("Bỏ mã") }
+                                    }
+                                } else {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        OutlinedTextField(
+                                            value = voucherCode, onValueChange = { voucherCode = it.uppercase().filterNot(Char::isWhitespace).take(30) },
+                                            modifier = Modifier.weight(1f), placeholder = { Text("Nhập voucher") }, singleLine = true,
+                                            shape = RoundedCornerShape(12.dp),
+                                        )
+                                        Button(onClick = { onApplyVoucher(voucherCode) }, enabled = voucherCode.isNotBlank() && !isUpdatingVoucher) {
+                                            if (isUpdatingVoucher) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Áp dụng")
+                                        }
+                                    }
+                                    if (accountVouchers.isNotEmpty()) {
+                                        Text("Voucher trong tài khoản", color = OnSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        accountVouchers.take(4).forEach { voucher ->
+                                            Surface(
+                                                modifier = Modifier.fillMaxWidth().clickable(enabled = !isUpdatingVoucher) { onApplyVoucher(voucher.code) },
+                                                color = Brand.copy(alpha = .07f), shape = RoundedCornerShape(12.dp),
+                                            ) {
+                                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Column(Modifier.weight(1f)) {
+                                                        Text(voucher.code, color = Brand, fontWeight = FontWeight.Bold)
+                                                        Text(
+                                                            if (voucher.discountType == "PERCENT") "Giảm ${voucher.discountValue.cleanPercent()}% · Đơn từ ${money(voucher.minOrderAmount)}"
+                                                            else "Giảm ${money(voucher.discountValue.toLong())} · Đơn từ ${money(voucher.minOrderAmount)}",
+                                                            color = OnSurfaceVariant, fontSize = 11.sp,
+                                                        )
+                                                    }
+                                                    Text("Dùng", color = Brand, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -388,6 +446,8 @@ private fun CheckoutPriceRow(label: String, amount: Long, color: Color = OnSurfa
         Text(money(amount), color = color, fontSize = 12.sp)
     }
 }
+
+private fun Double.cleanPercent() = if (this % 1.0 == 0.0) toInt().toString() else toString()
 
 @Composable
 private fun PaymentOption(

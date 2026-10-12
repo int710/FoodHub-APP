@@ -13,6 +13,7 @@ import com.kma.foodhub.feature.customer.cart.data.CartType
 import com.kma.foodhub.feature.customer.cart.data.CheckoutRequest
 import com.kma.foodhub.feature.customer.cart.data.CheckoutResult
 import com.kma.foodhub.feature.customer.cart.data.RemoteCartRepository
+import com.kma.foodhub.feature.customer.cart.data.AccountVoucher
 import com.kma.foodhub.feature.customer.menu.data.FoodRepository
 import com.kma.foodhub.feature.customer.menu.data.LoginRequiredException
 import com.kma.foodhub.feature.customer.menu.data.RemoteFoodRepository
@@ -51,6 +52,8 @@ data class CartUiState(
     val checkoutResult: CheckoutResult? = null,
     val isCheckingPayment: Boolean = false,
     val completedOrderCode: String? = null,
+    val isUpdatingVoucher: Boolean = false,
+    val accountVouchers: List<AccountVoucher> = emptyList(),
 )
 
 /**
@@ -79,7 +82,10 @@ class CartViewModel @JvmOverloads constructor(
         state.update { it.copy(isLoading = true, error = null, requiresLogin = false) }
         viewModelScope.launch {
             try {
-                state.update { it.copy(cart = cartRepository.getCart(it.cartType)) }
+                val type = state.value.cartType
+                val cart = cartRepository.getCart(type)
+                val vouchers = runCatching { cartRepository.getMyVouchers(type) }.getOrDefault(emptyList())
+                state.update { it.copy(cart = cart, accountVouchers = vouchers, message = cart.voucherError) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -217,6 +223,31 @@ class CartViewModel @JvmOverloads constructor(
 
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
+
+    fun applyVoucher(code: String) {
+        if (code.isBlank() || state.value.isUpdatingVoucher) return
+        state.update { it.copy(isUpdatingVoucher = true, message = null) }
+        viewModelScope.launch {
+            try {
+                val cart = cartRepository.applyVoucher(code, state.value.cartType)
+                state.update { it.copy(cart = cart, message = "Đã áp dụng voucher ${cart.voucher?.code.orEmpty()}") }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { handleError(error) }
+            finally { state.update { it.copy(isUpdatingVoucher = false) } }
+        }
+    }
+
+    fun removeVoucher() {
+        if (state.value.isUpdatingVoucher) return
+        state.update { it.copy(isUpdatingVoucher = true, message = null) }
+        viewModelScope.launch {
+            try {
+                state.update { it.copy(cart = cartRepository.removeVoucher(it.cartType), message = "Đã bỏ voucher") }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { handleError(error) }
+            finally { state.update { it.copy(isUpdatingVoucher = false) } }
+        }
+    }
 
     fun checkout(request: CheckoutRequest) {
         val current = state.value

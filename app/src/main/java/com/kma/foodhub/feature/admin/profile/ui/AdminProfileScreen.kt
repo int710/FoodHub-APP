@@ -47,6 +47,7 @@ import com.kma.foodhub.theme.FoodHubAppTheme
 fun AdminProfileScreen(
     user: UserDto?,
     onReviews: () -> Unit,
+    onVouchers: () -> Unit,
     onSettings: () -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -90,6 +91,8 @@ fun AdminProfileScreen(
             Column {
                 AdminActionItem(TablerIcons.Star, "Quản lý đánh giá", "Xem đánh giá toàn hệ thống và theo món", onReviews)
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                AdminActionItem(TablerIcons.Receipt, "Quản lý voucher", "Mã giảm giá, điều kiện và lượt sử dụng", onVouchers)
+                HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 AdminActionItem(TablerIcons.Adjustments, "Cài đặt hệ thống", "Thông tin ứng dụng, VAT và các loại phí", onSettings)
             }
         }
@@ -132,7 +135,7 @@ private fun AdminActionItem(icon: ImageVector, title: String, description: Strin
 @Composable
 private fun AdminProfileScreenPreview() {
     FoodHubAppTheme {
-        AdminProfileScreen(user = null, onReviews = {}, onSettings = {}, onLogout = {})
+        AdminProfileScreen(user = null, onReviews = {}, onVouchers = {}, onSettings = {}, onLogout = {})
     }
 }
 

@@ -49,6 +49,15 @@ data class Cart(
     val deliveryFee: Long = 0L,
     val serviceFee: Long = 0L,
     val discountAmount: Long = 0L,
+    val voucher: AppliedVoucher? = null,
+    val voucherError: String? = null,
+)
+
+data class AppliedVoucher(val id: String, val code: String, val name: String, val discountAmount: Long)
+data class AccountVoucher(
+    val id: String, val code: String, val name: String, val description: String,
+    val discountType: String, val discountValue: Double, val minOrderAmount: Long,
+    val maxDiscountAmount: Long?, val endsAt: String,
 )
 
 data class CheckoutRequest(
@@ -86,6 +95,9 @@ interface CartRepository {
     suspend fun deleteItem(itemId: String, type: CartType = CartType.TAKEAWAY)
     suspend fun clear(type: CartType = CartType.TAKEAWAY)
     suspend fun checkout(request: CheckoutRequest): CheckoutResult
+    suspend fun applyVoucher(code: String, type: CartType): Cart
+    suspend fun removeVoucher(type: CartType): Cart
+    suspend fun getMyVouchers(type: CartType): List<AccountVoucher>
 }
 
 /**
@@ -97,6 +109,28 @@ class RemoteCartRepository(
     private val tableToken: () -> String? = { null },
     private val accessToken: suspend () -> String? = { null },
 ) : CartRepository {
+    override suspend fun getMyVouchers(type: CartType): List<AccountVoucher> = withContext(Dispatchers.IO) {
+        val token = accessToken()?.takeIf(String::isNotBlank) ?: return@withContext emptyList()
+        val response = apiClient.execute(apiClient.cartApi.getMyVouchers(mapOf("Authorization" to "Bearer $token"), type.name))
+        (response.optArray("data") ?: JsonArray()).objects().map { value ->
+            AccountVoucher(
+                id = value.optString("id"), code = value.optString("code"), name = value.optString("name"),
+                description = value.optionalString("description").orEmpty(), discountType = value.optString("discountType"),
+                discountValue = value.optDouble("discountValue", 0.0), minOrderAmount = value.firstMoney("minOrderAmount") ?: 0,
+                maxDiscountAmount = value.firstMoney("maxDiscountAmount"), endsAt = value.optString("endsAt"),
+            )
+        }
+    }
+
+    override suspend fun applyVoucher(code: String, type: CartType): Cart = withContext(Dispatchers.IO) {
+        val response = apiClient.execute(apiClient.cartApi.applyVoucher(type.name, requestHeaders(type), JsonObject().put("code", code.trim())))
+        parseCart(response)
+    }
+
+    override suspend fun removeVoucher(type: CartType): Cart = withContext(Dispatchers.IO) {
+        parseCart(apiClient.execute(apiClient.cartApi.removeVoucher(type.name, requestHeaders(type))))
+    }
+
     override suspend fun getCart(type: CartType): Cart = withContext(Dispatchers.IO) {
         val response = apiClient.execute(
             apiClient.cartApi.getItems(
@@ -268,6 +302,14 @@ internal fun parseCart(response: JsonObject): Cart {
         deliveryFee = container?.firstMoney("deliveryFee", "shippingFee") ?: 0L,
         serviceFee = container?.firstMoney("serviceFee") ?: 0L,
         discountAmount = container?.firstMoney("discountAmount", "discount") ?: 0L,
+        voucher = container?.optObject("voucher")?.let { voucher ->
+            AppliedVoucher(
+                id = voucher.optString("id"), code = voucher.optString("code"),
+                name = voucher.optString("name", voucher.optString("code")),
+                discountAmount = voucher.firstMoney("discountAmount") ?: 0L,
+            )
+        },
+        voucherError = container?.optionalString("voucherError"),
     )
 }
 

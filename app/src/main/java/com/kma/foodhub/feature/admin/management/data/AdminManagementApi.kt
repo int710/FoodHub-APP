@@ -5,6 +5,18 @@ import retrofit2.Call
 import retrofit2.http.*
 
 interface AdminManagementApi {
+    @GET("vouchers/admin")
+    fun getVouchers(@HeaderMap headers: Map<String, String>): Call<JsonObject>
+
+    @POST("vouchers/admin")
+    fun createVoucher(@HeaderMap headers: Map<String, String>, @Body body: JsonObject): Call<JsonObject>
+
+    @PATCH("vouchers/admin/{id}")
+    fun updateVoucher(@HeaderMap headers: Map<String, String>, @Path("id") id: String, @Body body: JsonObject): Call<JsonObject>
+
+    @DELETE("vouchers/admin/{id}")
+    fun deleteVoucher(@HeaderMap headers: Map<String, String>, @Path("id") id: String): Call<JsonObject>
+
     @GET("reviews/admin")
     fun getReviews(
         @HeaderMap headers: Map<String, String>,

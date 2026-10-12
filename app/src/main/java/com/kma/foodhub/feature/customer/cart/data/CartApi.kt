@@ -7,6 +7,25 @@ import retrofit2.http.*
 /** Endpoint contracts; repositories perform blocking calls on Dispatchers.IO. */
 interface CartApi {
 
+    @GET("vouchers/my")
+    fun getMyVouchers(
+        @HeaderMap headers: Map<String, String>,
+        @Query("orderType") orderType: String,
+    ): Call<JsonObject>
+
+    @POST("cart/{type}/voucher")
+    fun applyVoucher(
+        @Path("type") type: String,
+        @HeaderMap headers: Map<String, String> = emptyMap(),
+        @Body body: JsonObject,
+    ): Call<JsonObject>
+
+    @DELETE("cart/{type}/voucher")
+    fun removeVoucher(
+        @Path("type") type: String,
+        @HeaderMap headers: Map<String, String> = emptyMap(),
+    ): Call<JsonObject>
+
     @GET("cart/{type}/items")
     fun getItems(
         @HeaderMap headers: Map<String, String> = emptyMap(),
