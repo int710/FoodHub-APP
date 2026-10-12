@@ -3,6 +3,7 @@ package com.kma.foodhub.core.network
 import com.kma.foodhub.feature.admin.menu.data.AdminMenuApi
 import com.kma.foodhub.feature.admin.order.data.AdminOrderApi
 import com.kma.foodhub.feature.admin.table.data.AdminTableApi
+import com.kma.foodhub.feature.admin.management.data.AdminManagementApi
 import com.kma.foodhub.feature.shared.auth.data.AuthApi
 import com.kma.foodhub.feature.customer.menu.data.MenuApi
 import com.kma.foodhub.feature.customer.cart.data.CartApi
@@ -38,6 +39,7 @@ class FoodHubApiClient(
     val adminMenuApi: AdminMenuApi by lazy { retrofit.create(AdminMenuApi::class.java) }
     val adminOrderApi: AdminOrderApi by lazy { retrofit.create(AdminOrderApi::class.java) }
     val adminTableApi: AdminTableApi by lazy { retrofit.create(AdminTableApi::class.java) }
+    val adminManagementApi: AdminManagementApi by lazy { retrofit.create(AdminManagementApi::class.java) }
     val authApi: AuthApi by lazy { retrofit.create(AuthApi::class.java) }
     val menuApi: MenuApi by lazy { retrofit.create(MenuApi::class.java) }
     val cartApi: CartApi by lazy { retrofit.create(CartApi::class.java) }

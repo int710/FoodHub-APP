@@ -14,6 +14,7 @@ import com.google.gson.JsonParseException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.io.IOException
+import android.net.Uri
 
 /**
  * Repository chịu trách nhiệm thực hiện các tác vụ xác thực (Authentication) từ xa qua Network.
@@ -30,7 +31,7 @@ class RemoteAuthRepository(
                 apiClient.execute(
                     apiClient.authApi.resetPassword(
                         body = JsonObject()
-                            .put("forgot_password_token", token.trim())
+                            .put("forgot_password_token", normalizeAccountToken(token))
                             .put("new_password", password)
                             .put("confirmNewPassword", confirmation)
                     )
@@ -149,4 +150,16 @@ class RemoteAuthRepository(
         ).optObject("data")
             ?: throw IllegalStateException("API không trả về thông tin người dùng")
     )
+}
+
+private fun normalizeAccountToken(input: String): String {
+    val value = input.trim()
+    val fromUri = runCatching {
+        Uri.parse(value).takeIf { it.scheme != null }?.getQueryParameter("token")
+    }.getOrNull()
+    return (fromUri ?: value)
+        .substringAfter("token=", fromUri ?: value)
+        .substringBefore('&')
+        .substringBefore('#')
+        .filterNot(Char::isWhitespace)
 }

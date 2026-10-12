@@ -56,6 +56,9 @@ import com.kma.foodhub.feature.admin.order.ui.AdminOrderDetailScreen
 import com.kma.foodhub.feature.admin.order.ui.AdminOrdersScreen
 import com.kma.foodhub.feature.admin.overview.ui.AdminOverviewScreen
 import com.kma.foodhub.feature.admin.profile.ui.AdminProfileScreen
+import com.kma.foodhub.feature.admin.management.ui.AdminReviewsScreen
+import com.kma.foodhub.feature.admin.management.ui.AdminSettingsScreen
+import com.kma.foodhub.feature.admin.management.viewmodel.AdminManagementViewModel
 import com.kma.foodhub.feature.admin.menu.viewmodel.AdminMenuViewModel
 import com.kma.foodhub.feature.admin.order.viewmodel.AdminOrderViewModel
 import com.kma.foodhub.feature.admin.chat.model.AdminConversation
@@ -130,6 +133,8 @@ fun AdminApp(onLogout: () -> Unit) {
         val conversationViewModel: AdminConversationViewModel = viewModel()
         val conversationState by conversationViewModel.uiState.collectAsStateWithLifecycle()
         val conversations = conversationState.conversations
+        val managementViewModel: AdminManagementViewModel = viewModel()
+        val managementState by managementViewModel.state.collectAsStateWithLifecycle()
         val snackbarHostState = remember { SnackbarHostState() }
         val orderSocket = remember { AdminOrderSocketClient(context) }
         val backStackEntry by navController.currentBackStackEntryAsState()
@@ -140,6 +145,8 @@ fun AdminApp(onLogout: () -> Unit) {
             route.startsWith("admin/order/") -> "Chi tiết đơn"
             route.startsWith("admin/chat/") -> "Hội thoại"
             route == "admin/profile" -> "Tài khoản Admin"
+            route == "admin/reviews" -> "Quản lý đánh giá"
+            route == "admin/settings" -> "Cài đặt hệ thống"
             route == "admin/notifications" -> "Thông báo"
             else -> AdminTab.entries.firstOrNull { it.route == route }?.label ?: "FoodHub Admin"
         }
@@ -175,6 +182,13 @@ fun AdminApp(onLogout: () -> Unit) {
         LaunchedEffect(conversationState.error) {
             conversationState.error?.let { snackbarHostState.showSnackbar(it) }
         }
+        LaunchedEffect(managementState.message, managementState.error) {
+            val notice = managementState.error ?: managementState.message
+            if (!notice.isNullOrBlank()) {
+                snackbarHostState.showSnackbar(notice)
+                managementViewModel.consumeNotice()
+            }
+        }
 
         orderState.zaloPayment?.let { payment ->
             ZaloPayLaunchDialog(
@@ -195,6 +209,7 @@ fun AdminApp(onLogout: () -> Unit) {
                     AdminTopBar(
                         title = title,
                         userName = adminUser?.fullName.orEmpty(),
+                        avatarUrl = adminUser?.avatarUrl,
                         showGreeting = isTopLevel,
                         showBack = !isTopLevel,
                         unreadNotifications = notificationState.unreadCount,
@@ -312,7 +327,26 @@ fun AdminApp(onLogout: () -> Unit) {
                     }
                 }
                 composable("admin/profile") {
-                    AdminProfileScreen(user = adminUser, onLogout = onLogout)
+                    AdminProfileScreen(
+                        user = adminUser,
+                        onReviews = { navController.navigate("admin/reviews") },
+                        onSettings = { navController.navigate("admin/settings") },
+                        onLogout = onLogout,
+                    )
+                }
+                composable("admin/reviews") {
+                    AdminReviewsScreen(
+                        state = managementState,
+                        onLoad = managementViewModel::loadReviews,
+                        onDelete = managementViewModel::deleteReview,
+                    )
+                }
+                composable("admin/settings") {
+                    AdminSettingsScreen(
+                        state = managementState,
+                        onLoad = managementViewModel::loadSettings,
+                        onSave = managementViewModel::updateSettings,
+                    )
                 }
                 composable("admin/notifications") {
                     NotificationScreen(
@@ -341,6 +375,7 @@ fun AdminApp(onLogout: () -> Unit) {
 private fun AdminTopBar(
     title: String,
     userName: String,
+    avatarUrl: String?,
     showGreeting: Boolean,
     showBack: Boolean,
     unreadNotifications: Int,
@@ -387,7 +422,7 @@ private fun AdminTopBar(
                     }
                 } else Icon(TablerIcons.Bell, "Thông báo")
             }
-            Box(Modifier.padding(end = 12.dp).clickable(onClick = onProfile)) { AdminAvatar(userName.ifBlank { "Admin" }) }
+            Box(Modifier.padding(end = 12.dp).clickable(onClick = onProfile)) { AdminAvatar(userName.ifBlank { "Admin" }, avatarUrl) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = AdminSurface),
     )

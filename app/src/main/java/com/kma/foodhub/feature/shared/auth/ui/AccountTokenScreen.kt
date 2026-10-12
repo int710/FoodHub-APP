@@ -57,6 +57,9 @@ fun AccountTokenRoute(
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val reset = mode == AccountTokenMode.RESET_PASSWORD
+    val passwordIsValid = password.length in 6..30 &&
+        password.any(Char::isLetter) && password.any(Char::isDigit) &&
+        password.any { !it.isLetterOrDigit() }
     Scaffold(
         containerColor = AppBackground,
         topBar = {
@@ -80,7 +83,7 @@ fun AccountTokenRoute(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                if (reset) "Nhập token trong email khôi phục và mật khẩu mới."
+                if (reset) "Dán token hoặc toàn bộ liên kết trong email khôi phục, sau đó nhập mật khẩu mới."
                 else "Nhập token xác minh đã được gửi tới email của bạn.",
                 fontSize = 16.sp,
             )
@@ -88,7 +91,7 @@ fun AccountTokenRoute(
                 token,
                 { token = it.trim() },
                 Modifier.fillMaxWidth(),
-                label = { Text("Token") },
+                label = { Text(if (reset) "Token hoặc liên kết khôi phục" else "Token") },
                 minLines = 2)
             if (reset) {
                 OutlinedTextField(
@@ -99,6 +102,13 @@ fun AccountTokenRoute(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 )
+                if (password.isNotEmpty() && !passwordIsValid) {
+                    Text(
+                        "Mật khẩu cần 6–30 ký tự, gồm chữ, số và ký tự đặc biệt.",
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                    )
+                }
                 OutlinedTextField(
                     confirmation,
                     { confirmation = it },
@@ -127,7 +137,7 @@ fun AccountTokenRoute(
                         busy = false
                     }
                 },
-                enabled = !busy && token.isNotBlank() && (!reset || (password.length >= 6 && password == confirmation)),
+                enabled = !busy && token.isNotBlank() && (!reset || (passwordIsValid && password == confirmation)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

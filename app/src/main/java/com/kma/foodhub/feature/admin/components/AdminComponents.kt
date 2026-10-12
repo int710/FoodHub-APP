@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import coil.compose.SubcomposeAsyncImage
+import com.kma.foodhub.core.network.resolveMediaUrl
 import com.kma.foodhub.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,13 +67,18 @@ internal fun AdminSearchField(value: String, onValueChange: (String) -> Unit, pl
 }
 
 @Composable
-internal fun AdminAvatar(name: String) {
-    Image(
-        painter = painterResource(R.drawable.avatar_user),
-        contentDescription = "Ảnh đại diện $name",
-        modifier = Modifier.size(42.dp).clip(CircleShape),
-        contentScale = ContentScale.Crop,
-    )
+internal fun AdminAvatar(name: String, avatarUrl: String? = null) {
+    val modifier = Modifier.size(42.dp).clip(CircleShape)
+    if (avatarUrl.isNullOrBlank()) {
+        Image(painterResource(R.drawable.avatar_user), "Ảnh đại diện $name", modifier, contentScale = ContentScale.Crop)
+    } else {
+        SubcomposeAsyncImage(
+            model = resolveMediaUrl(avatarUrl), contentDescription = "Ảnh đại diện $name", modifier = modifier,
+            contentScale = ContentScale.Crop,
+            loading = { Image(painterResource(R.drawable.avatar_user), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) },
+            error = { Image(painterResource(R.drawable.avatar_user), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) },
+        )
+    }
 }
 
 @Composable
