@@ -56,13 +56,9 @@ internal fun AdminOrderCard(order: AdminOrder, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text(order.code, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
-                    Text("${order.createdAt} • chờ ${order.waitMinutes} phút", color = AdminMuted, fontSize = 11.sp)
-                }
-                AdminStatusPill(order.status)
-            }
+            Text(order.code, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+            AdminStatusPill(order.status)
+            Text("${order.createdAt} • chờ ${order.waitMinutes} phút", color = AdminMuted, fontSize = 11.sp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     order.type.label,

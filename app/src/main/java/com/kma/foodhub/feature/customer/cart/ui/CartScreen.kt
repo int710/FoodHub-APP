@@ -250,7 +250,21 @@ fun CartScreen(
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(CartType.TAKEAWAY, CartType.DELIVERY, CartType.DINE_IN).forEach { type ->
+                    FilterChip(
+                        selected = cartType == type,
+                        onClick = { onTypeChange(type) },
+                        enabled = !isLoading && !isCheckingOut && !isClearing && busyItemId == null,
+                        label = { Text(type.label()) },
+                    )
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f)) {
             when {
                 isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Brand)
                 error != null -> ErrorContent(error, onRetry, Modifier.align(Alignment.Center))
@@ -259,17 +273,6 @@ fun CartScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(CartType.TAKEAWAY, CartType.DELIVERY, CartType.DINE_IN).forEach { type ->
-                                FilterChip(
-                                    selected = cartType == type,
-                                    onClick = { onTypeChange(type) },
-                                    label = { Text(type.label()) },
-                                )
-                            }
-                        }
-                    }
                     items(cart.items, key = { it.id }) { item ->
                         CartItemRow(
                             item,
@@ -280,6 +283,7 @@ fun CartScreen(
                         )
                     }
                 }
+            }
             }
         }
     }

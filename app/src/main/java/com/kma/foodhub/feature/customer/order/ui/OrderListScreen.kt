@@ -390,10 +390,22 @@ private fun OrderCard(
         shadowElevation = 1.dp
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("#${order.orderCode.removePrefix("#")}", fontWeight = FontWeight.Bold, color = Neutral)
-                Text(" · ${formatOrderTime(order.createdAt)}", color = CaptionBrown, fontSize = 11.sp)
-                Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "#${order.orderCode.removePrefix("#")}",
+                        fontWeight = FontWeight.Bold,
+                        color = Neutral,
+                    )
+                    Text(formatOrderTime(order.createdAt), color = CaptionBrown, fontSize = 11.sp)
+                }
                 StatusBadge(order.status)
             }
             OrderContext(order)

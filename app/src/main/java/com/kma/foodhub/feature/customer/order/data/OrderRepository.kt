@@ -56,7 +56,8 @@ data class CustomerOrder(
     val reviewedMenuItemIds: Set<String> = emptySet(),
 ) {
     val canCancel: Boolean
-        get() = paymentStatus?.uppercase() in setOf("PENDING", "UNPAID", "FAILED") &&
+        get() = (paymentStatus.isNullOrBlank() ||
+            paymentStatus.trim().uppercase() in setOf("PENDING", "UNPAID", "FAILED")) &&
             status in setOf(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION)
 }
 
