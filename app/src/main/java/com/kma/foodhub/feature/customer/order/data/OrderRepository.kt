@@ -98,18 +98,33 @@ class RemoteOrderRepository(
     override suspend fun getHistory(page: Int, limit: Int, type: OrderType?): OrderPage = withContext(Dispatchers.IO) {
         require(page >= 1)
         require(limit in 1..100)
+        val table = tableToken()?.takeIf(String::isNotBlank)
         val access = accessToken()?.takeIf(String::isNotBlank)
-        val call = if (access != null) {
-            apiClient.orderApi.getHistory(
-                headers = mapOf("Authorization" to "Bearer $access"),
-                page = page, limit = limit, type = type?.name
-            )
-        } else {
-            val table = tableToken()?.takeIf(String::isNotBlank) ?: throw LoginRequiredException()
-            apiClient.orderApi.getTableHistory(
+        if (table != null && access != null) {
+            val tablePage = parseOrderPage(apiClient.execute(apiClient.orderApi.getTableHistory(
                 headers = mapOf("X-Table-Token" to table),
                 page = page, limit = limit, type = type?.name
+            )), page, limit)
+            val accountPage = parseOrderPage(apiClient.execute(apiClient.orderApi.getHistory(
+                headers = mapOf("Authorization" to "Bearer $access"),
+                page = page, limit = limit, type = type?.name
+            )), page, limit)
+            return@withContext OrderPage(
+                orders = (tablePage.orders + accountPage.orders)
+                    .distinctBy { it.id }
+                    .sortedByDescending { it.createdAt },
+                page = page,
+                hasMore = tablePage.hasMore || accountPage.hasMore,
             )
+        }
+        val call = when {
+            table != null -> apiClient.orderApi.getTableHistory(
+                headers = mapOf("X-Table-Token" to table), page = page, limit = limit, type = type?.name
+            )
+            access != null -> apiClient.orderApi.getHistory(
+                headers = mapOf("Authorization" to "Bearer $access"), page = page, limit = limit, type = type?.name
+            )
+            else -> throw LoginRequiredException()
         }
         parseOrderPage(apiClient.execute(call), page, limit)
     }

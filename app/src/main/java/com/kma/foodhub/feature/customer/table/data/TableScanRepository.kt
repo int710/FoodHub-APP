@@ -149,6 +149,12 @@ class TableScanRepository(
         sessionStore.clear()
     }
 
+    /** Leave this device's QR context without closing the shared table visit. */
+    fun leaveSession() {
+        sessionStore.clear()
+        OrderingContextStore(appContext).select(CartType.TAKEAWAY)
+    }
+
     private fun tableResponse(call: retrofit2.Call<JsonObject>, fallback: String): JsonObject {
         val response = try {
             call.execute()

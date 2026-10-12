@@ -42,9 +42,11 @@ import com.kma.foodhub.feature.customer.home.viewmodel.HomeViewModel
 import com.kma.foodhub.feature.customer.menu.model.MenuFood
 import com.kma.foodhub.feature.shared.notification.viewmodel.NotificationViewModel
 import com.kma.foodhub.feature.customer.cart.data.CartType
+import com.kma.foodhub.feature.customer.cart.data.TableCartSocketClient
 import com.kma.foodhub.feature.customer.order.data.OrderingContextStore
 import com.kma.foodhub.feature.customer.table.data.TableSessionStore
 import com.kma.foodhub.feature.customer.table.data.TableSession
+import com.kma.foodhub.feature.customer.table.data.TableScanRepository
 import com.kma.foodhub.theme.AppBackground
 import com.kma.foodhub.theme.Brand
 import com.kma.foodhub.theme.BrandDark
@@ -78,11 +80,30 @@ fun HomeRoute(
     val tokenStore = remember(context) { com.kma.foodhub.core.datastore.TokenStore(context.applicationContext) }
     val tableSessionStore = remember(context) { TableSessionStore(context.applicationContext) }
     val orderingContextStore = remember(context) { OrderingContextStore(context.applicationContext) }
+    val tableRepository = remember(context) { TableScanRepository(context.applicationContext) }
+    val tableSessionSocket = remember(context) { TableCartSocketClient(context.applicationContext) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val notificationState by notificationViewModel.uiState.collectAsStateWithLifecycle()
     var tableSession by remember { mutableStateOf(tableSessionStore.current()) }
     var selectedOrderType by remember { mutableStateOf(orderingContextStore.currentType()) }
+    var showEndSessionConfirm by remember { mutableStateOf(false) }
+    var isEndingSession by remember { mutableStateOf(false) }
+    var endSessionError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    DisposableEffect(tableSession?.tableToken) {
+        tableSessionSocket.connect(
+            onCartUpdated = {},
+            onSessionEnded = {
+                tableSession = null
+                scope.launch {
+                    orderingContextStore.selectDefault(!tokenStore.getAccessToken().isNullOrBlank())
+                    selectedOrderType = orderingContextStore.currentType()
+                }
+            },
+        )
+        onDispose { tableSessionSocket.disconnect() }
+    }
 
     // Cập nhật lại badge cart và menu khi người dùng quay về từ màn chi tiết/giỏ.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -131,7 +152,58 @@ fun HomeRoute(
         onChatClick = onChatClick,
         onNotificationsClick = onNotificationsClick,
         notificationUnreadCount = notificationState.unreadCount,
+        onEndTableSession = {
+            if (tableSession?.isHost == true) {
+                showEndSessionConfirm = true
+            } else {
+                tableRepository.leaveSession()
+                tableSession = null
+                scope.launch {
+                    orderingContextStore.selectDefault(!tokenStore.getAccessToken().isNullOrBlank())
+                    selectedOrderType = orderingContextStore.currentType()
+                }
+            }
+        },
     )
+
+    if (showEndSessionConfirm) {
+        FoodHubDialog(
+            onDismissRequest = { if (!isEndingSession) showEndSessionConfirm = false },
+            title = "Kết thúc phiên ${tableSession?.tableName.orEmpty()}?",
+            eyebrow = "Phiên QR tại bàn",
+            dismissEnabled = !isEndingSession,
+            content = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Giỏ hàng dùng chung và quyền truy cập của mọi người tại bàn sẽ được đóng. Lịch sử đơn vẫn được giữ lại.")
+                    endSessionError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                }
+            },
+            actions = {
+                TextButton(onClick = { showEndSessionConfirm = false }, enabled = !isEndingSession) { Text("Hủy") }
+                Button(
+                    enabled = !isEndingSession,
+                    onClick = {
+                        isEndingSession = true
+                        endSessionError = null
+                        scope.launch {
+                            runCatching { tableRepository.endSession() }
+                                .onSuccess {
+                                    tableSession = null
+                                    orderingContextStore.selectDefault(!tokenStore.getAccessToken().isNullOrBlank())
+                                    selectedOrderType = orderingContextStore.currentType()
+                                    showEndSessionConfirm = false
+                                }
+                                .onFailure { endSessionError = it.message ?: "Không thể kết thúc phiên bàn" }
+                            isEndingSession = false
+                        }
+                    },
+                ) {
+                    if (isEndingSession) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Text("Kết thúc phiên")
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -154,6 +226,7 @@ fun HomeScreen(
     onChatClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     notificationUnreadCount: Int = 0,
+    onEndTableSession: () -> Unit = {},
 ) {
     Scaffold(
         containerColor = AppBackground,
@@ -188,6 +261,7 @@ fun HomeScreen(
                             tableSession = tableSession,
                             isLoggedIn = state.isLoggedIn,
                             onSelect = onOrderTypeSelected,
+                            onEndTableSession = onEndTableSession,
                         )
                     }
                     item { SearchRow(state.query, onQueryChange, state.maxPrice, onMaxPriceChange) }
@@ -301,6 +375,7 @@ private fun OrderingContext(
     tableSession: TableSession?,
     isLoggedIn: Boolean,
     onSelect: (CartType) -> Unit,
+    onEndTableSession: () -> Unit,
 ) {
     var showDialog by remember { mutableStateOf(false) }
     val title = when (selectedType) {
@@ -352,7 +427,15 @@ private fun OrderingContext(
                     }
                 }
             },
-            actions = { TextButton(onClick = { showDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("Đóng") } },
+            actions = {
+                if (tableSession != null) {
+                    TextButton(
+                        onClick = { showDialog = false; onEndTableSession() },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(if (tableSession.isHost) "Kết thúc phiên" else "Rời phiên", color = MaterialTheme.colorScheme.error) }
+                }
+                TextButton(onClick = { showDialog = false }, modifier = Modifier.weight(1f)) { Text("Đóng") }
+            },
         )
     }
 }
@@ -554,7 +637,10 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
                 shadowElevation = 1.dp
             ) {
                 Column {
-                    AvailabilityImage(food, fallbackFor(food, foods), Modifier.fillMaxWidth().height(116.dp))
+                    Box {
+                        AvailabilityImage(food, fallbackFor(food, foods), Modifier.fillMaxWidth().height(116.dp))
+                        FoodBadgesOverlay(food, Modifier.align(Alignment.TopEnd).padding(7.dp))
+                    }
                     Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(food.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
                         if (food.rating != "0") Row(verticalAlignment = Alignment.CenterVertically) {
@@ -562,7 +648,15 @@ private fun PopularRow(foods: List<MenuFood>, onFoodClick: (String) -> Unit) {
                             Text(food.rating, fontSize = 11.sp, color = OnSurfaceVariant)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            Column(Modifier.weight(1f)) {
+                                Text(money(food.price), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                if (food.salePercent != null) Text(
+                                    money(food.basePrice),
+                                    color = OnSurfaceVariant,
+                                    fontSize = 10.sp,
+                                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                )
+                            }
                             if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
                                 Icon(TablerIcons.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
                             } else Text("Tạm hết", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -583,7 +677,10 @@ private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoo
         shadowElevation = 1.dp
     ) {
         Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AvailabilityImage(food, fallback, Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)))
+            Box {
+                AvailabilityImage(food, fallback, Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)))
+                FoodBadgesOverlay(food, Modifier.align(Alignment.TopEnd).padding(5.dp))
+            }
             Column(Modifier.weight(1f).height(96.dp), verticalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(food.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -596,12 +693,31 @@ private fun RecommendationCard(food: MenuFood, @DrawableRes fallback: Int, onFoo
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(money(food.price), Modifier.weight(1f), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Column(Modifier.weight(1f)) {
+                        Text(money(food.price), color = Brand, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        if (food.salePercent != null) Text(
+                            money(food.basePrice), color = OnSurfaceVariant, fontSize = 10.sp,
+                            style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                        )
+                    }
                     if (food.available) Surface(shape = CircleShape, color = BrandSoft) {
                         Icon(TablerIcons.Add, "Xem ${food.name}", Modifier.padding(7.dp).size(16.dp), tint = Brand)
                     } else Text("Tạm hết hàng", color = Brand, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FoodBadgesOverlay(food: MenuFood, modifier: Modifier = Modifier) {
+    if (food.salePercent == null && !food.isBestSeller) return
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (food.isBestSeller) Surface(shape = CircleShape, color = Warning) {
+            Icon(TablerIcons.Flame, "Món bán chạy", Modifier.padding(5.dp).size(14.dp), tint = WarningDark)
+        }
+        if (food.salePercent != null) Surface(shape = CircleShape, color = BrandDark) {
+            Icon(TablerIcons.RosetteDiscount, "Món đang giảm giá", Modifier.padding(5.dp).size(14.dp), tint = Color.White)
         }
     }
 }

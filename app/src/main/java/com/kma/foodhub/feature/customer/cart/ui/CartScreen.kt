@@ -251,7 +251,15 @@ fun CartScreen(
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Tổng phải trả", color = OnSurfaceVariant)
-                        Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Column(horizontalAlignment = Alignment.End) {
+                            if (cart.discountAmount > 0) Text(
+                                money(cart.totalAmount + cart.discountAmount),
+                                color = OnSurfaceVariant,
+                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                            )
+                            Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        }
                     }
                     Button(
                         onClick = onCheckout,
@@ -307,13 +315,13 @@ fun CartScreen(
                     }
                     item {
                         Surface(color = CeramicSurface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, CardStroke)) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("Mã ưu đãi", fontWeight = FontWeight.Bold)
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Mã ưu đãi", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 if (cart.voucher != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Column(Modifier.weight(1f)) {
-                                            Text(cart.voucher.code, color = Brand, fontWeight = FontWeight.Bold)
-                                            Text("${cart.voucher.name} · Giảm ${money(cart.discountAmount)}", color = OnSurfaceVariant, fontSize = 12.sp)
+                                            Text(cart.voucher.code, color = Brand, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text("${cart.voucher.name} · Giảm ${money(cart.discountAmount)}", color = OnSurfaceVariant, fontSize = 11.sp)
                                         }
                                         TextButton(onClick = onRemoveVoucher, enabled = !isUpdatingVoucher) { Text("Bỏ mã") }
                                     }
@@ -321,10 +329,10 @@ fun CartScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                         OutlinedTextField(
                                             value = voucherCode, onValueChange = { voucherCode = it.uppercase().filterNot(Char::isWhitespace).take(30) },
-                                            modifier = Modifier.weight(1f), placeholder = { Text("Nhập voucher") }, singleLine = true,
+                                            modifier = Modifier.weight(1f).height(48.dp), placeholder = { Text("Nhập voucher", fontSize = 12.sp) }, singleLine = true,
                                             shape = RoundedCornerShape(12.dp),
                                         )
-                                        Button(onClick = { onApplyVoucher(voucherCode) }, enabled = voucherCode.isNotBlank() && !isUpdatingVoucher) {
+                                        Button(onClick = { onApplyVoucher(voucherCode) }, enabled = voucherCode.isNotBlank() && !isUpdatingVoucher, modifier = Modifier.height(44.dp)) {
                                             if (isUpdatingVoucher) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Áp dụng")
                                         }
                                     }
@@ -335,7 +343,7 @@ fun CartScreen(
                                                 modifier = Modifier.fillMaxWidth().clickable(enabled = !isUpdatingVoucher) { onApplyVoucher(voucher.code) },
                                                 color = Brand.copy(alpha = .07f), shape = RoundedCornerShape(12.dp),
                                             ) {
-                                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                                     Column(Modifier.weight(1f)) {
                                                         Text(voucher.code, color = Brand, fontWeight = FontWeight.Bold)
                                                         Text(
@@ -429,7 +437,13 @@ private fun CheckoutDialog(
                         HorizontalDivider(color = CardStroke)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Tổng thanh toán", Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                            Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                            Column(horizontalAlignment = Alignment.End) {
+                                if (cart.discountAmount > 0) Text(
+                                    money(cart.totalAmount + cart.discountAmount), color = OnSurfaceVariant, fontSize = 11.sp,
+                                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                )
+                                Text(money(cart.totalAmount), color = Brand, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                            }
                         }
                     }
                 }

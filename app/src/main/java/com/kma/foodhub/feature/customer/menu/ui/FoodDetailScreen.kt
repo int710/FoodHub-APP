@@ -256,7 +256,8 @@ fun FoodDetailScreen(
                     Modifier.align(Alignment.BottomStart).padding(18.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    DetailTag("Bán chạy", TablerIcons.Flame)
+                    if (food.isBestSeller) DetailTag("Bán chạy", TablerIcons.Flame)
+                    if (food.salePrice != null) DetailTag("Đang giảm giá", TablerIcons.RosetteDiscount)
                     if (food.rating.toDoubleOrNull()?.let { it >= 4.5 } == true) DetailTag("Được yêu thích", TablerIcons.Star)
                 }
             }
@@ -285,6 +286,7 @@ fun FoodDetailScreen(
                 Text(food.description, color = OnSurfaceVariant, lineHeight = 22.sp, fontSize = 14.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoChip(TablerIcons.Star, "${food.rating} điểm", Warning)
+                    InfoChip(TablerIcons.Flame, "Đã bán ${food.totalOrder}", Brand)
                     InfoChip(TablerIcons.AccessTime, "8–12 phút", OnSurfaceVariant)
                     InfoChip(TablerIcons.CheckCircle, if (food.available) "Đang bán" else "Tạm hết", if (food.available) Success else Brand)
                 }

@@ -4,11 +4,14 @@ data class MenuFood(
     val id: String,
     val name: String,
     val price: Long,
+    val basePrice: Long = price,
+    val salePercent: Double? = null,
     val imageUrl: String?,
     val description: String = "",
     val rating: String = "0",
     val isFeatured: Boolean = false,
     val totalOrder: Int = 0,
+    val isBestSeller: Boolean = false,
     val available: Boolean = true,
 )
 
@@ -51,6 +54,8 @@ data class FoodDetail(
     val groups: List<FoodOptionGroup> = emptyList(),
     val imageUrl: String? = null,
     val salePrice: Long? = null,
+    val totalOrder: Int = 0,
+    val isBestSeller: Boolean = false,
 )
 
 data class FoodCartSelection(

@@ -320,14 +320,17 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
                         onClick = {
                             isEndingSession = true
                             scope.launch {
-                                runCatching { tableRepository.endSession() }
+                                runCatching {
+                                    if (tableSession.isHost) tableRepository.endSession()
+                                    else tableRepository.leaveSession()
+                                }
                                     .onSuccess { onSessionEnded() }
                                     .onFailure { errorMessage = it.message }
                                 isEndingSession = false
                                 showSessionDialog = false
                             }
                         },
-                    ) { Label(if (isEndingSession) "Đang kết thúc..." else "Kết thúc phiên bàn", color = Color(0xFFB3261E)) }
+                    ) { Label(if (isEndingSession) "Đang xử lý..." else if (tableSession.isHost) "Kết thúc phiên bàn" else "Rời phiên bàn", color = Color(0xFFB3261E)) }
                 }
                 TextButton(onClick = { showSessionDialog = false }, modifier = Modifier.weight(1f)) {
                     Label("Đóng", color = BurntOrange)

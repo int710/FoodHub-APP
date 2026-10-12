@@ -15,7 +15,7 @@ class TableCartSocketClient(context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var socket: Socket? = null
 
-    fun connect(onCartUpdated: () -> Unit) {
+    fun connect(onSessionEnded: () -> Unit = {}, onCartUpdated: () -> Unit) {
         disconnect()
         val tableToken = sessionStore.current()?.tableToken?.takeIf(String::isNotBlank) ?: return
         val options = IO.Options.builder()
@@ -25,6 +25,10 @@ class TableCartSocketClient(context: Context) {
             .build()
         socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on("cart:updated") { mainHandler.post(onCartUpdated) }
+            on("table-session:ended") {
+                sessionStore.clear()
+                mainHandler.post(onSessionEnded)
+            }
             connect()
         }
     }

@@ -543,6 +543,18 @@ object TablerIcons {
         )
     }
 
+    val RosetteDiscount: ImageVector by lazy {
+        tablerIcon(
+            name = "TablerRosetteDiscount",
+            paths = listOf(
+            "M12 3l1.67 1.93l2.33 -.93l.29 2.54l2.71 .46l-1.18 2.29l2.18 1.71l-2.18 1.71l1.18 2.29l-2.71 .46l-.29 2.54l-2.33 -.93l-1.67 1.93l-1.67 -1.93l-2.33 .93l-.29 -2.54l-2.71 -.46l1.18 -2.29l-2.18 -1.71l2.18 -1.71l-1.18 -2.29l2.71 -.46l.29 -2.54l2.33 .93z",
+            "M9 15l6 -6",
+            "M9.5 9.5l0 .01",
+            "M14.5 14.5l0 .01",
+            ),
+        )
+    }
+
     val Restaurant: ImageVector by lazy {
         tablerIcon(
             name = "TablerRestaurant",

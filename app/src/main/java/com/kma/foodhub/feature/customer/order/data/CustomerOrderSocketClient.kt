@@ -33,11 +33,23 @@ class CustomerOrderSocketClient(context: Context) {
         if (tableToken == null && token == null) return
         disconnect()
         val options = IO.Options.builder()
-            .setAuth(if (token != null) mapOf("token" to token) else mapOf("tableToken" to tableToken!!))
+            .setAuth(if (tableToken != null) mapOf("tableToken" to tableToken) else mapOf("token" to token!!))
             .setReconnection(true)
             .build()
         socket = IO.socket(URI.create(FoodhubRetrofit.SERVER_URL), options).apply {
             on(Socket.EVENT_CONNECT) { joinCurrentOrders() }
+            on("order:new") { args ->
+                val payload = args.firstOrNull() as? JSONObject ?: return@on
+                handler.post {
+                    onChanged(
+                        CustomerOrderSocketEvent(
+                            orderId = payload.optString("orderId"),
+                            status = payload.optString("status").takeIf(String::isNotBlank),
+                            isItemUpdate = false,
+                        ),
+                    )
+                }
+            }
             on("order:status:update") { args ->
                 val payload = args.firstOrNull() as? JSONObject ?: return@on
                 handler.post {

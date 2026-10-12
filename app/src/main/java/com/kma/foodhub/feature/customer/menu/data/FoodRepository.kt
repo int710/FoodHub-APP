@@ -65,11 +65,14 @@ class RemoteFoodRepository(
                         id = item.getString("id"),
                         name = item.getString("name"),
                         price = item.optionalMoney("salePrice") ?: item.money("basePrice"),
+                        basePrice = item.money("basePrice"),
+                        salePercent = item.optionalString("salePercent")?.toDoubleOrNull(),
                         imageUrl = item.optionalString("image"),
                         description = item.optionalString("description").orEmpty(),
                         rating = item.optionalString("avgRating") ?: "0",
                         isFeatured = item.optBoolean("isFeatured", false),
                         totalOrder = item.optInt("totalOrder", 0),
+                        isBestSeller = item.optBoolean("isBestSeller", false),
                         available = item.optBoolean("isAvailable", true)
                     )
                 }
@@ -213,7 +216,9 @@ fun parseFoodDetail(data: JsonObject, now: Long = System.currentTimeMillis()): F
         available = data.getBoolean("isAvailable"),
         groups = groups,
         imageUrl = data.optionalString("image"),
-        salePrice = salePrice
+        salePrice = salePrice,
+        totalOrder = data.optInt("totalOrder", 0),
+        isBestSeller = data.optBoolean("isBestSeller", false),
     )
 }
 

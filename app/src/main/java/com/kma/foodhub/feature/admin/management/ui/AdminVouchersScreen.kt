@@ -22,6 +22,7 @@ import com.kma.foodhub.feature.admin.management.viewmodel.AdminManagementState
 import com.kma.foodhub.feature.admin.navigation.*
 import com.kma.foodhub.feature.admin.components.vnd
 import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 fun AdminVouchersScreen(
@@ -165,7 +166,8 @@ private fun VoucherEditor(initial: AdminVoucher, isSaving: Boolean, onDismiss: (
             onSave(value.copy(
                 discountValue = discount.toDoubleOrNull() ?: 0.0, minOrderAmount = minimum.toLongOrNull() ?: 0,
                 maxDiscountAmount = maximum.toLongOrNull(), usageLimit = usage.toIntOrNull(), perCustomerLimit = perCustomer.toIntOrNull()?.coerceAtLeast(1) ?: 1,
-                startsAt = "${startDate}T00:00:00.000Z", endsAt = "${endDate}T23:59:59.999Z",
+                startsAt = LocalDate.parse(startDate).atStartOfDay(VIETNAM_ZONE).toInstant().toString(),
+                endsAt = LocalDate.parse(endDate).plusDays(1).atStartOfDay(VIETNAM_ZONE).minusNanos(1).toInstant().toString(),
             ))
         }, enabled = valid && !isSaving) {
             if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -184,6 +186,7 @@ private fun newVoucher(): AdminVoucher {
     val today = LocalDate.now()
     return AdminVoucher(startsAt = today.toString(), endsAt = today.plusMonths(1).toString())
 }
+private val VIETNAM_ZONE: ZoneId = ZoneId.of("Asia/Ho_Chi_Minh")
 private fun String.numeric(decimal: Boolean = false) = filter { it.isDigit() || decimal && it == '.' }
 private fun Double.clean() = if (this % 1.0 == 0.0) toLong().toString() else toString()
 private fun String.typeLabel() = when (this) { "DINE_IN" -> "Tại bàn"; "DELIVERY" -> "Giao hàng"; else -> "Mang về" }
