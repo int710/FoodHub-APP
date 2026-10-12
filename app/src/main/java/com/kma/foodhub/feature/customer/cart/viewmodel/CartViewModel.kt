@@ -14,6 +14,7 @@ import com.kma.foodhub.feature.customer.cart.data.CheckoutRequest
 import com.kma.foodhub.feature.customer.cart.data.CheckoutResult
 import com.kma.foodhub.feature.customer.cart.data.RemoteCartRepository
 import com.kma.foodhub.feature.customer.cart.data.AccountVoucher
+import com.kma.foodhub.feature.customer.cart.data.TableCartSocketClient
 import com.kma.foodhub.feature.customer.menu.data.FoodRepository
 import com.kma.foodhub.feature.customer.menu.data.LoginRequiredException
 import com.kma.foodhub.feature.customer.menu.data.RemoteFoodRepository
@@ -54,6 +55,7 @@ data class CartUiState(
     val completedOrderCode: String? = null,
     val isUpdatingVoucher: Boolean = false,
     val accountVouchers: List<AccountVoucher> = emptyList(),
+    val isTableHost: Boolean = true,
 )
 
 /**
@@ -69,12 +71,37 @@ class CartViewModel @JvmOverloads constructor(
     private val foodRepository: FoodRepository = RemoteFoodRepository()
 ) : AndroidViewModel(application) {
     private val orderingContextStore = OrderingContextStore(application.applicationContext)
+    private val tableSessionStore = TableSessionStore(application.applicationContext)
+    private val tableCartSocket = TableCartSocketClient(application.applicationContext)
     private val state = MutableStateFlow(CartUiState(cartType = orderingContextStore.currentType()))
     val uiState = state.asStateFlow()
     private val orderRepository = RemoteOrderRepository()
     private var paymentPollingJob: Job? = null
+    private var realtimeRefreshJob: Job? = null
 
-    init { load() }
+    init {
+        syncTableCartSocket()
+        load()
+    }
+
+    private fun syncTableCartSocket() {
+        val type = state.value.cartType
+        val session = tableSessionStore.current()
+        state.update { it.copy(isTableHost = type != CartType.DINE_IN || session?.isHost == true) }
+        if (type != CartType.DINE_IN || session == null) {
+            tableCartSocket.disconnect()
+            return
+        }
+        tableCartSocket.connect {
+            realtimeRefreshJob?.cancel()
+            realtimeRefreshJob = viewModelScope.launch {
+                delay(180)
+                if (state.value.cartType != CartType.DINE_IN) return@launch
+                runCatching { cartRepository.getCart(CartType.DINE_IN) }
+                    .onSuccess { cart -> state.update { current -> current.copy(cart = cart, message = cart.voucherError) } }
+            }
+        }
+    }
 
     /** Tải giỏ của loại đặt món đang được chọn. */
     fun load() {
@@ -108,7 +135,9 @@ class CartViewModel @JvmOverloads constructor(
         runCatching { orderingContextStore.select(type) }
             .onFailure { state.update { current -> current.copy(message = it.message) } }
             .onSuccess {
-                state.update { current -> current.copy(cartType = type, cart = Cart(emptyList(), 0), error = null) }
+                val isTableHost = type != CartType.DINE_IN || tableSessionStore.current()?.isHost == true
+                state.update { current -> current.copy(cartType = type, cart = Cart(emptyList(), 0), error = null, isTableHost = isTableHost) }
+                syncTableCartSocket()
                 load()
             }
     }
@@ -224,6 +253,10 @@ class CartViewModel @JvmOverloads constructor(
     fun dismissLogin() { state.update { it.copy(requiresLogin = false) } }
     fun consumeMessage() { state.update { it.copy(message = null) } }
 
+    fun showTableHostNotice() {
+        state.update { it.copy(message = "Chỉ chủ bàn (người quét QR đầu tiên) được xác nhận đặt đơn.") }
+    }
+
     fun applyVoucher(code: String) {
         if (code.isBlank() || state.value.isUpdatingVoucher) return
         state.update { it.copy(isUpdatingVoucher = true, message = null) }
@@ -317,6 +350,8 @@ class CartViewModel @JvmOverloads constructor(
 
     override fun onCleared() {
         paymentPollingJob?.cancel()
+        realtimeRefreshJob?.cancel()
+        tableCartSocket.disconnect()
     }
 }
 

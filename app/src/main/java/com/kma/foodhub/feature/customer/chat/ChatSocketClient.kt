@@ -85,10 +85,6 @@ class ChatSocketClient(context: Context) {
             listener?.onMessage(message)
         }
     }
-    private val onMessageDeleted = Emitter.Listener { args ->
-        val messageId = (args.firstOrNull() as? JSONObject)?.optStringValue("messageId") ?: return@Listener
-        dispatch { listener?.onMessageDeleted(messageId) }
-    }
     private val onHistory = Emitter.Listener { args ->
         val payload = args.firstOrNull() as? JSONObject ?: return@Listener
         val conversationId = payload.optStringValue("conversationId")
@@ -172,12 +168,12 @@ class ChatSocketClient(context: Context) {
             on(Socket.EVENT_DISCONNECT, onDisconnect)
             on(Socket.EVENT_CONNECT_ERROR, onConnectError)
             on(EVENT_MESSAGE_NEW, onNewMessage)
-            on(EVENT_MESSAGE_DELETED, onMessageDeleted)
             on(EVENT_MESSAGE_HISTORY, onHistory)
             on(EVENT_TYPING_START, onTypingStart)
             on(EVENT_TYPING_STOP, onTypingStop)
             on("table-session:ended", onSessionEnded)
             on("conversation:closed", onConversationClosed)
+            on("conversation:deleted", onConversationClosed)
             connect()
         }
     }
@@ -294,7 +290,6 @@ class ChatSocketClient(context: Context) {
         const val EVENT_CONVERSATION_JOIN = "conversation:join"
         const val EVENT_MESSAGE_SEND = "message:send"
         const val EVENT_MESSAGE_NEW = "message:new"
-        const val EVENT_MESSAGE_DELETED = "message:deleted"
         const val EVENT_MESSAGE_HISTORY = "message:history"
         const val EVENT_TYPING_START = "typing:start"
         const val EVENT_TYPING_STOP = "typing:stop"

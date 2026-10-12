@@ -12,4 +12,10 @@ interface ConversationApi {
         @HeaderMap headers: Map<String, String> = emptyMap()
     ): Call<JsonObject>
 
+    @DELETE("conversations/{id}")
+    fun deleteConversation(
+        @HeaderMap headers: Map<String, String>,
+        @Path("id") id: String,
+    ): Call<JsonObject>
+
 }

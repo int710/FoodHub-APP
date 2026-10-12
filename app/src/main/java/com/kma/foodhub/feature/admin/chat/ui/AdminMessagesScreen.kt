@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kma.foodhub.feature.admin.chat.model.AdminConversation
 import com.kma.foodhub.feature.admin.chat.model.isTableSession
+import com.kma.foodhub.feature.admin.chat.model.isClosed
 import com.kma.foodhub.feature.admin.navigation.AdminGreen
 import com.kma.foodhub.feature.admin.navigation.AdminGreenSoft
 import com.kma.foodhub.feature.admin.navigation.AdminMuted
@@ -58,8 +59,9 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
     var query by remember { mutableStateOf("") }
     var unreadOnly by remember { mutableStateOf(false) }
     var tableOnly by remember { mutableStateOf(false) }
+    var historyOnly by remember { mutableStateOf(false) }
     val filtered = conversations.filter {
-        (!unreadOnly || it.unread > 0) && (!tableOnly || it.isTableSession) &&
+        (!unreadOnly || it.unread > 0) && (!tableOnly || it.isTableSession) && (!historyOnly || it.isClosed) &&
             (query.isBlank() || it.customer.contains(query, true) || it.lastMessage.contains(query, true))
     }
     Column(Modifier.fillMaxSize()) {
@@ -79,9 +81,9 @@ fun AdminMessagesScreen(conversations: List<AdminConversation>, onOpenChat: (Str
         }
         AdminSearchField(query, { query = it }, "Tìm khách hàng hoặc nội dung", Modifier.padding(16.dp))
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(!unreadOnly && !tableOnly, { unreadOnly = false; tableOnly = false }, { Text("Tất cả") })
-            FilterChip(tableOnly, { tableOnly = !tableOnly; if (tableOnly) unreadOnly = false }, { Text("Phiên bàn") })
-            FilterChip(unreadOnly, { unreadOnly = !unreadOnly; if (unreadOnly) tableOnly = false }, { Text("Chưa đọc") })
+            FilterChip(!unreadOnly && !tableOnly && !historyOnly, { unreadOnly = false; tableOnly = false; historyOnly = false }, { Text("Tất cả") })
+            FilterChip(tableOnly, { tableOnly = !tableOnly; if (tableOnly) { unreadOnly = false; historyOnly = false } }, { Text("Phiên bàn") })
+            FilterChip(historyOnly, { historyOnly = !historyOnly; if (historyOnly) { unreadOnly = false; tableOnly = false } }, { Text("Lịch sử") })
         }
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (filtered.isEmpty()) {
@@ -143,6 +145,7 @@ internal fun AdminConversationRow(conversation: AdminConversation, onClick: () -
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(conversation.contextLabel, color = if (conversation.isTableSession) AdminPrimary else AdminGreen, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                if (conversation.isClosed) Text("Đã kết thúc", color = AdminMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 conversation.orderCode?.let { Text("#$it", color = AdminMuted, fontSize = 10.sp) }
             }
             Text(conversation.lastMessage, color = if (conversation.unread > 0) AdminText else AdminMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

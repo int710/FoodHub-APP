@@ -32,8 +32,25 @@ fun AdminVouchersScreen(
 ) {
     var editing by remember { mutableStateOf<AdminVoucher?>(null) }
     var deleting by remember { mutableStateOf<AdminVoucher?>(null) }
+    var saveInProgress by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { onLoad() }
-    editing?.let { VoucherEditor(it, { editing = null }) { value -> onSave(value); editing = null } }
+    LaunchedEffect(state.busyVoucherId, state.message, saveInProgress) {
+        if (state.busyVoucherId != null) saveInProgress = true
+        if (saveInProgress && state.busyVoucherId == null && state.message?.startsWith("Đã lưu voucher") == true) {
+            editing = null
+            saveInProgress = false
+        } else if (saveInProgress && state.busyVoucherId == null && state.error != null) {
+            saveInProgress = false
+        }
+    }
+    editing?.let {
+        VoucherEditor(
+            initial = it,
+            isSaving = state.busyVoucherId != null,
+            onDismiss = { if (state.busyVoucherId == null) editing = null },
+            onSave = onSave,
+        )
+    }
     deleting?.let { voucher ->
         AlertDialog(
             onDismissRequest = { deleting = null }, title = { Text("Xóa voucher ${voucher.code}?") },
@@ -85,7 +102,7 @@ private fun VoucherCard(voucher: AdminVoucher, busy: Boolean, onEdit: () -> Unit
 }
 
 @Composable
-private fun VoucherEditor(initial: AdminVoucher, onDismiss: () -> Unit, onSave: (AdminVoucher) -> Unit) {
+private fun VoucherEditor(initial: AdminVoucher, isSaving: Boolean, onDismiss: () -> Unit, onSave: (AdminVoucher) -> Unit) {
     var value by remember(initial) { mutableStateOf(initial) }
     var discount by remember(initial) { mutableStateOf(initial.discountValue.clean()) }
     var minimum by remember(initial) { mutableStateOf(initial.minOrderAmount.toString()) }
@@ -97,7 +114,7 @@ private fun VoucherEditor(initial: AdminVoucher, onDismiss: () -> Unit, onSave: 
     val valid = value.code.length >= 3 && value.name.length >= 2 && (discount.toDoubleOrNull() ?: 0.0) > 0 &&
         runCatching { LocalDate.parse(startDate) < LocalDate.parse(endDate) }.getOrDefault(false) && value.applicableOrderTypes.isNotEmpty()
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         title = { Text(if (initial.id.isBlank()) "Tạo voucher" else "Chỉnh sửa voucher") },
         text = {
             Column(Modifier.heightIn(max = 560.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -150,8 +167,11 @@ private fun VoucherEditor(initial: AdminVoucher, onDismiss: () -> Unit, onSave: 
                 maxDiscountAmount = maximum.toLongOrNull(), usageLimit = usage.toIntOrNull(), perCustomerLimit = perCustomer.toIntOrNull()?.coerceAtLeast(1) ?: 1,
                 startsAt = "${startDate}T00:00:00.000Z", endsAt = "${endDate}T23:59:59.999Z",
             ))
-        }, enabled = valid) { Text("Lưu") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
+        }, enabled = valid && !isSaving) {
+            if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            else Text("Lưu")
+        } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") } },
     )
 }
 

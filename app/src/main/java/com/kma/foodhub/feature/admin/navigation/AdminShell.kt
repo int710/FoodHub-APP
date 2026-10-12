@@ -325,6 +325,8 @@ fun AdminApp(onLogout: () -> Unit) {
                         AdminChatDetailScreen(
                             conversation = conversation,
                             onClose = { navController.popBackStack() },
+                            onDeleteConversation = { conversationViewModel.deleteConversation(conversation.id) },
+                            canDeleteConversation = adminUser?.role.equals("ADMIN", true),
                         )
                     }
                 }

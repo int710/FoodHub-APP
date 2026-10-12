@@ -15,6 +15,8 @@ import java.io.IOException
 import java.net.URI
 import java.net.URLDecoder
 import java.util.concurrent.TimeUnit
+import android.util.Base64
+import org.json.JSONObject
 
 data class TableSession(
     val tableId: String,
@@ -24,6 +26,7 @@ data class TableSession(
     val tableToken: String,
     val sessionId: String? = null,
     val expiresAtEpochMillis: Long? = null,
+    val isHost: Boolean = false,
 )
 
 class TableScanException(message: String) : IOException(message)
@@ -41,6 +44,7 @@ class TableSessionStore(context: Context) {
             putString(KEY_TABLE_TOKEN, session.tableToken)
             putString(KEY_SESSION_ID, session.sessionId)
             putLong(KEY_EXPIRES_AT, session.expiresAtEpochMillis ?: 0L)
+            putBoolean(KEY_IS_HOST, session.isHost)
             if (previousToken != session.tableToken) remove(KEY_CONVERSATION_ID)
         }
     }
@@ -60,6 +64,7 @@ class TableSessionStore(context: Context) {
             tableToken = token,
             sessionId = preferences.getString(KEY_SESSION_ID, null),
             expiresAtEpochMillis = expiresAt,
+            isHost = preferences.getBoolean(KEY_IS_HOST, decodeHostClaim(token)),
         )
     }
 
@@ -73,7 +78,7 @@ class TableSessionStore(context: Context) {
         preferences.edit { putString(KEY_CONVERSATION_ID, conversationId) }
     }
 
-    private companion object {
+    companion object {
         const val KEY_TABLE_ID = "table_id"
         const val KEY_TABLE_NAME = "table_name"
         const val KEY_FLOOR = "floor"
@@ -82,6 +87,12 @@ class TableSessionStore(context: Context) {
         const val KEY_SESSION_ID = "session_id"
         const val KEY_EXPIRES_AT = "expires_at"
         const val KEY_CONVERSATION_ID = "conversation_id"
+        const val KEY_IS_HOST = "is_host"
+
+        fun decodeHostClaim(token: String): Boolean = runCatching {
+            val payload = token.split('.')[1]
+            JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP))).optBoolean("isHost", false)
+        }.getOrDefault(false)
     }
 }
 
@@ -122,6 +133,7 @@ class TableScanRepository(
             expiresAtEpochMillis = data.optLong("expiresIn", 0L)
                 .takeIf { it > 0L }
                 ?.let { System.currentTimeMillis() + it * 1_000L },
+            isHost = data.optBoolean("isHost", TableSessionStore.decodeHostClaim(tableToken)),
         )
         sessionStore.save(tableSession)
         OrderingContextStore(appContext).select(CartType.DINE_IN)

@@ -117,10 +117,6 @@ fun ChatScreen(onBack: () -> Unit, onSessionEnded: () -> Unit = onBack) {
 
             override fun onMessage(message: ChatMessage) = addOrUpdateMessage(message)
 
-            override fun onMessageDeleted(messageId: String) {
-                chatMessages.removeAll { it.id == messageId }
-            }
-
             override fun onTyping(isTyping: Boolean) {
                 isStaffTyping = isTyping
             }

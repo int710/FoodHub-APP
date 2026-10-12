@@ -127,6 +127,7 @@ fun CartRoute(
         isCheckingOut = state.isCheckingOut,
         isUpdatingVoucher = state.isUpdatingVoucher,
         accountVouchers = state.accountVouchers,
+        canCheckout = state.isTableHost,
         onBackClick = onBackClick,
         onRetry = viewModel::load,
         onQuantityChange = viewModel::changeQuantity,
@@ -134,7 +135,10 @@ fun CartRoute(
         onDelete = { deleteTarget = it },
         onClear = { confirmClear = true },
         onTypeChange = viewModel::selectType,
-        onCheckout = { showCheckout = true },
+        onCheckout = {
+            if (state.isTableHost) showCheckout = true
+            else viewModel.showTableHostNotice()
+        },
         onApplyVoucher = viewModel::applyVoucher,
         onRemoveVoucher = viewModel::removeVoucher,
         snackbarHost = { SnackbarHost(snackbar) }
@@ -210,6 +214,7 @@ fun CartScreen(
     isCheckingOut: Boolean = false,
     isUpdatingVoucher: Boolean = false,
     accountVouchers: List<AccountVoucher> = emptyList(),
+    canCheckout: Boolean = true,
     onBackClick: () -> Unit,
     onRetry: () -> Unit,
     onQuantityChange: (CartItem, Int) -> Unit,
@@ -250,12 +255,19 @@ fun CartScreen(
                     }
                     Button(
                         onClick = onCheckout,
-                        enabled = !isCheckingOut && busyItemId == null && !isClearing,
+                        enabled = canCheckout && !isCheckingOut && busyItemId == null && !isClearing,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
                     ) {
                         if (isCheckingOut) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                        else Text("Đặt món")
+                        else Text(if (canCheckout) "Đặt món" else "Chờ chủ bàn đặt món")
+                    }
+                    if (!canCheckout && cartType == CartType.DINE_IN) {
+                        Text(
+                            "Bạn vẫn có thể thêm, sửa hoặc xóa món. Chỉ người quét QR đầu tiên được xác nhận đặt đơn.",
+                            color = OnSurfaceVariant,
+                            fontSize = 11.sp,
+                        )
                     }
                 }
             }

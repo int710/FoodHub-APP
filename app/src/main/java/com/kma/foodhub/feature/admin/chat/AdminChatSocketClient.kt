@@ -30,7 +30,6 @@ class AdminChatSocketClient(context: Context) {
         onState: (ChatConnectionState) -> Unit,
         onHistory: (List<ChatMessage>) -> Unit,
         onMessage: (ChatMessage) -> Unit,
-        onMessageDeleted: (String) -> Unit,
         onError: (String) -> Unit,
         refreshed: Boolean = false,
     ) {
@@ -62,7 +61,7 @@ class AdminChatSocketClient(context: Context) {
                                 }
                             }.getOrNull()
                             ensureActive()
-                            if (newToken != null) connect(conversationId, onState, onHistory, onMessage, onMessageDeleted, onError, refreshed = true)
+                            if (newToken != null) connect(conversationId, onState, onHistory, onMessage, onError, refreshed = true)
                             else { onState(ChatConnectionState.ERROR); onError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.") }
                         }
                     } else {
@@ -78,19 +77,18 @@ class AdminChatSocketClient(context: Context) {
             on("message:new") { args ->
                 (args.firstOrNull() as? JSONObject)?.toChatMessage()?.let { value -> handler.post { onMessage(value) } }
             }
-            on("message:deleted") { args ->
-                val data = args.firstOrNull() as? JSONObject ?: return@on
-                if (data.optString("conversationId") == conversationId) {
-                    data.optString("messageId").takeIf(String::isNotBlank)?.let { id ->
-                        handler.post { onMessageDeleted(id) }
-                    }
-                }
-            }
             on("conversation:closed") { args ->
                 val id = (args.firstOrNull() as? JSONObject)?.optString("conversationId")
                 if (id == conversationId) handler.post {
                     onState(ChatConnectionState.ERROR)
                     onError("Hội thoại đã đóng hoặc phiên bàn đã kết thúc.")
+                }
+            }
+            on("conversation:deleted") { args ->
+                val id = (args.firstOrNull() as? JSONObject)?.optString("conversationId")
+                if (id == conversationId) handler.post {
+                    onState(ChatConnectionState.ERROR)
+                    onError("Cuộc trò chuyện đã bị quản trị viên xóa.")
                 }
             }
             connect()
@@ -106,19 +104,6 @@ class AdminChatSocketClient(context: Context) {
                 handler.post { onResult(response?.optBoolean("success") == true, response?.optString("message")) }
             },
         )
-    }
-
-    fun deleteMessage(conversationId: String, messageId: String, onResult: (Boolean, String?) -> Unit) {
-        socket?.emit(
-            "message:delete",
-            JSONObject().put("conversationId", conversationId).put("messageId", messageId),
-            Ack { args ->
-                val response = args.firstOrNull() as? JSONObject
-                handler.post {
-                    onResult(response?.optBoolean("success") == true, response?.optString("message")?.takeIf(String::isNotBlank))
-                }
-            },
-        ) ?: onResult(false, "Kênh chat chưa kết nối")
     }
 
     fun disconnect() { refreshJob?.cancel(); socket?.off(); socket?.disconnect(); socket = null }

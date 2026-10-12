@@ -34,12 +34,13 @@ class AdminConversationSocketClient(context: Context) {
             on("conversation:updated") { args -> handler.post {
                 val payload = args.firstOrNull() as? JSONObject
                 val senderId = payload?.optString("lastMessageSenderId")
-                val isDeletion = payload?.optString("changeType") == "MESSAGE_DELETED"
-                if (!isDeletion && (senderId.isNullOrBlank() || senderId != currentUserId)) {
+                val isSilentLifecycleChange = !payload?.optString("changeType").isNullOrBlank()
+                if (!isSilentLifecycleChange && (senderId.isNullOrBlank() || senderId != currentUserId)) {
                     AppSoundPlayer.play(appContext, R.raw.sound_foodhub_message)
                 }
                 onConversationChanged(false)
             } }
+            on("conversation:deleted") { handler.post { onConversationChanged(false) } }
             connect()
         }
     }

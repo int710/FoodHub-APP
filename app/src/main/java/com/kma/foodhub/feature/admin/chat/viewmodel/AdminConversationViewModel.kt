@@ -34,7 +34,7 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
         state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
-                state.update { it.copy(conversations = repository.getOpenConversations(), isLoading = false) }
+                state.update { it.copy(conversations = repository.getConversations(), isLoading = false) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -45,7 +45,7 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
 
     private fun onRealtimeConversationChanged(isNew: Boolean) {
         viewModelScope.launch {
-            runCatching { repository.getOpenConversations() }
+            runCatching { repository.getConversations() }
                 .onSuccess { conversations ->
                     state.update {
                         it.copy(
@@ -60,6 +60,19 @@ class AdminConversationViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun consumeMessage() { state.update { it.copy(message = null) } }
+
+    fun deleteConversation(id: String) {
+        viewModelScope.launch {
+            runCatching { repository.deleteConversation(id) }
+                .onSuccess {
+                    state.update { current -> current.copy(
+                        conversations = current.conversations.filterNot { it.id == id },
+                        message = "Đã xóa toàn bộ cuộc trò chuyện.",
+                    ) }
+                }
+                .onFailure { error -> state.update { it.copy(error = error.message ?: "Không thể xóa cuộc trò chuyện") } }
+        }
+    }
 
     override fun onCleared() {
         socketClient.disconnect()

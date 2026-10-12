@@ -78,7 +78,11 @@ internal fun Response<JsonObject>.jsonOrThrow(): JsonObject {
 
 internal fun parseApiError(code: Int, body: String): String {
     if (body.trimStart().startsWith("<")) {
-        return "Máy chủ đang chặn yêu cầu hoặc chưa sẵn sàng (HTTP $code). Vui lòng thử lại sau."
+        return if (code == 404) {
+            "Máy chủ production chưa được cập nhật chức năng này (HTTP 404). Vui lòng triển khai backend mới nhất."
+        } else {
+            "Máy chủ đang chặn yêu cầu hoặc chưa sẵn sàng (HTTP $code). Vui lòng thử lại sau."
+        }
     }
     return runCatching {
         val root = parseJsonObject(body)

@@ -26,7 +26,6 @@ interface ChatSocketListener {
     fun onConnectionStateChanged(state: ChatConnectionState)
     fun onHistory(messages: List<ChatMessage>)
     fun onMessage(message: ChatMessage)
-    fun onMessageDeleted(messageId: String) {}
     fun onTyping(isTyping: Boolean)
     fun onError(message: String)
     fun onSessionEnded() {}

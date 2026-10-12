@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.kma.foodhub.feature.admin.chat.AdminChatSocketClient
 import com.kma.foodhub.feature.admin.chat.model.AdminConversation
 import com.kma.foodhub.feature.admin.chat.model.isTableSession
+import com.kma.foodhub.feature.admin.chat.model.isClosed
 import com.kma.foodhub.feature.admin.components.AdminAvatar
 import com.kma.foodhub.feature.admin.navigation.AdminBackground
 import com.kma.foodhub.feature.admin.navigation.AdminBorder
@@ -73,7 +74,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit = {}) {
+fun AdminChatDetailScreen(
+    conversation: AdminConversation,
+    onClose: () -> Unit = {},
+    onDeleteConversation: () -> Unit = {},
+    canDeleteConversation: Boolean = true,
+) {
     val context = LocalContext.current
     val client = remember { AdminChatSocketClient(context) }
     val messages = remember { mutableStateListOf<ChatMessage>() }
@@ -82,8 +88,7 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
     var connectionState by remember { mutableStateOf(ChatConnectionState.CONNECTING) }
     var error by remember { mutableStateOf<String?>(null) }
     var isSending by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf<ChatMessage?>(null) }
-    var isDeleting by remember { mutableStateOf(false) }
+    var confirmDeleteConversation by remember { mutableStateOf(false) }
 
     LaunchedEffect(conversation.id) {
         client.connect(
@@ -91,10 +96,6 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
             onState = { connectionState = it; if (it == ChatConnectionState.CONNECTED) error = null },
             onHistory = { history -> messages.clear(); messages.addAll(history.distinctBy(ChatMessage::id)) },
             onMessage = { message -> if (messages.none { it.id == message.id }) messages.add(message) },
-            onMessageDeleted = { messageId ->
-                messages.removeAll { it.id == messageId }
-                if (pendingDelete?.id == messageId) pendingDelete = null
-            },
             onError = { error = it },
         )
     }
@@ -144,6 +145,11 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                        }
+                    }
+                    if (canDeleteConversation) {
+                        androidx.compose.material3.IconButton(onClick = { confirmDeleteConversation = true }) {
+                            Icon(TablerIcons.Delete, "Xóa cuộc trò chuyện", tint = AdminRed)
                         }
                     }
                 }
@@ -218,11 +224,20 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
                 }
             }
             items(messages, key = ChatMessage::id) { message ->
-                AdminMessageBubble(message, onDelete = { pendingDelete = message })
+                AdminMessageBubble(message)
             }
         }
 
-        Surface(color = AdminSurface, shadowElevation = 6.dp) {
+        if (conversation.isClosed) {
+            Surface(color = AdminPrimarySoft) {
+                Text(
+                    "Phiên đã kết thúc · Lịch sử tin nhắn được lưu ở chế độ chỉ đọc.",
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    color = AdminText,
+                    fontSize = 12.sp,
+                )
+            }
+        } else Surface(color = AdminSurface, shadowElevation = 6.dp) {
             Column {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     items(listOf("Quán đã nhận yêu cầu", "Món sắp hoàn thành", "Nhân viên đang tới", "Cảm ơn bạn")) { reply ->
@@ -257,70 +272,45 @@ fun AdminChatDetailScreen(conversation: AdminConversation, onClose: () -> Unit =
         }
     }
 
-    pendingDelete?.let { message ->
+    if (confirmDeleteConversation) {
         FoodHubDialog(
-            onDismissRequest = { if (!isDeleting) pendingDelete = null },
-            dismissEnabled = !isDeleting,
-            title = "Xóa tin nhắn?",
+            onDismissRequest = { confirmDeleteConversation = false },
+            title = "Xóa toàn bộ cuộc trò chuyện?",
             eyebrow = "Quản trị hội thoại",
             content = {
-                Text("Tin nhắn sẽ bị xóa khỏi hội thoại của cả quản trị viên và khách hàng.", color = AdminText)
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    color = AdminBackground,
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text(message.content, Modifier.padding(12.dp), color = AdminMuted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                }
+                Text("Toàn bộ lịch sử tin nhắn với ${conversation.customer} sẽ bị xóa vĩnh viễn. Không thể xóa riêng từng tin nhắn.", color = AdminText)
             },
             actions = {
                 TextButton(
-                    onClick = { pendingDelete = null },
-                    enabled = !isDeleting,
+                    onClick = { confirmDeleteConversation = false },
                     modifier = Modifier.weight(1f),
                 ) { Text("Giữ lại", color = AdminText) }
                 TextButton(
-                    enabled = !isDeleting,
                     modifier = Modifier.weight(1f),
                     onClick = {
-                        isDeleting = true
-                        client.deleteMessage(conversation.id, message.id) { success, responseMessage ->
-                            isDeleting = false
-                            if (success) {
-                                messages.removeAll { it.id == message.id }
-                                pendingDelete = null
-                            } else {
-                                error = responseMessage ?: "Không thể xóa tin nhắn"
-                            }
-                        }
+                        confirmDeleteConversation = false
+                        onDeleteConversation()
+                        onClose()
                     },
-                ) { Text(if (isDeleting) "Đang xóa..." else "Xóa cho mọi người", color = AdminRed) }
+                ) { Text("Xóa cuộc trò chuyện", color = AdminRed) }
             },
         )
     }
 }
 
 @Composable
-private fun AdminMessageBubble(message: ChatMessage, onDelete: () -> Unit) {
+private fun AdminMessageBubble(message: ChatMessage) {
     val fromAdmin = !message.isCustomer
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (fromAdmin) Alignment.End else Alignment.Start) {
         if (!fromAdmin) Text("${message.senderRole.replaceFirstChar(Char::uppercase)} · Khách hàng", color = AdminMuted, fontSize = 10.sp, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (fromAdmin) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.78f),
+            color = if (fromAdmin) AdminPrimary else AdminSurface,
+            shape = if (fromAdmin) RoundedCornerShape(17.dp, 17.dp, 4.dp, 17.dp) else RoundedCornerShape(17.dp, 17.dp, 17.dp, 4.dp),
+            border = if (fromAdmin) null else BorderStroke(1.dp, AdminBorder),
+            shadowElevation = if (fromAdmin) 0.dp else 1.dp,
         ) {
-            if (fromAdmin) DeleteMessageButton(onDelete)
-            Surface(
-                modifier = Modifier.fillMaxWidth(0.78f),
-                color = if (fromAdmin) AdminPrimary else AdminSurface,
-                shape = if (fromAdmin) RoundedCornerShape(17.dp, 17.dp, 4.dp, 17.dp) else RoundedCornerShape(17.dp, 17.dp, 17.dp, 4.dp),
-                border = if (fromAdmin) null else BorderStroke(1.dp, AdminBorder),
-                shadowElevation = if (fromAdmin) 0.dp else 1.dp,
-            ) {
-                Text(message.content, Modifier.padding(horizontal = 14.dp, vertical = 11.dp), color = if (fromAdmin) Color.White else AdminText, fontSize = 13.sp, lineHeight = 19.sp)
-            }
-            if (!fromAdmin) DeleteMessageButton(onDelete)
+            Text(message.content, Modifier.padding(horizontal = 14.dp, vertical = 11.dp), color = if (fromAdmin) Color.White else AdminText, fontSize = 13.sp, lineHeight = 19.sp)
         }
         Text(
             formatChatTime(message.createdAt),
@@ -328,13 +318,6 @@ private fun AdminMessageBubble(message: ChatMessage, onDelete: () -> Unit) {
             fontSize = 10.sp,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp),
         )
-    }
-}
-
-@Composable
-private fun DeleteMessageButton(onClick: () -> Unit) {
-    androidx.compose.material3.IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
-        Icon(TablerIcons.Delete, "Xóa tin nhắn", Modifier.size(17.dp), tint = AdminRed)
     }
 }
 

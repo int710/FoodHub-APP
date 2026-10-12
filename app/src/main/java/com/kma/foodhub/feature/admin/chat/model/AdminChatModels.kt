@@ -10,7 +10,11 @@ data class AdminConversation(
     val orderCode: String? = null,
     val conversationType: String = "USER",
     val contextLabel: String = "Tài khoản khách hàng",
+    val status: String = "OPEN",
 )
 
 val AdminConversation.isTableSession: Boolean
     get() = conversationType.equals("TABLE", ignoreCase = true)
+
+val AdminConversation.isClosed: Boolean
+    get() = status.equals("CLOSED", ignoreCase = true)
